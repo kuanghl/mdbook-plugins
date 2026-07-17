@@ -1,0 +1,17 @@
+[book]
+authors = ["mdbook-plugins"]
+language = "zh"
+multilingual = false
+src = "src"
+title = "mdbook-plugins 文档"
+
+[output.html]
+default-theme = "ayu"
+preferred-dark-theme = "navy"
+mathjax-support = true
+
+[build]
+build-dir = "books"
+create-missing = true
+use-default-preprocessors = false
+# extra-watch-dirs = ["po"]

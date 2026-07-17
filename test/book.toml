@@ -1,0 +1,190 @@
+[book]
+authors = ["khl <1365342449@qq.com>"]
+title = "mdbook-demo"
+description = "The example book covers examples."
+language = 'zh' # "zh-Hans" # "en"
+multilingual = false
+src = "./src"
+
+[build]
+build-dir = "books"
+create-missing = true
+use-default-preprocessors = false
+# extra-watch-dirs = ["po"]
+
+[preprocessor.index]
+
+[preprocessor.links]
+
+[preprocessor.alerts]
+
+[preprocessor.image-viewer]
+
+[preprocessor.emojicodes]
+
+# devicons cdn慢卡顿
+# [preprocessor.langtabs]
+# command = "mdbook-langtabs"
+
+# catppuccin 是 CSS 主题项目（非 Rust），未合并到 mdbook-plugins
+# [preprocessor.catppuccin]
+# assets_version = "2.1.0" # DO NOT EDIT: Managed by `mdbook-catppuccin install`
+
+[preprocessor.toc]
+command = "mdbook-toc"
+renderer = ["html"]
+
+[preprocessor.katex]
+after = ["links"]
+no-css = true
+include-src = true
+
+# gettext 未合并到 mdbook-plugins，需单独安装 mdbook-i18n-helpers
+# [preprocessor.gettext]
+# after = ["toc"]
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "3.0.1" # do not edit: managed by `mdbook-admonish install`
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+# 编译时卡顿,由于访问https://kroki.io
+# [preprocessor.kroki-preprocessor]
+# Example endpoint configuration
+# endpoint = "https://kroki.io"      # serve
+# endpoint = "http://localhost:8000" # local docker
+
+# 有些动态的或者函数式的图在pdf会留空
+# 切换章节加载网页有延迟
+[preprocessor.echarts]
+after = ["katex"]
+
+[preprocessor.pikchr]
+
+# wavedrom 由 mdbook-echarts 统一处理
+# [preprocessor.wavedrom-rs]
+
+[output.html]
+mathjax-support = true
+curly-quotes = true
+default-theme = "mocha"
+preferred-dark-theme = "mocha"
+git-repository-url = "https://github.com/kuanghl/mdbook-demo"
+git-repository-icon = "fa-github"
+no-section-label = true
+edit-url-template = "https://github.com/kuanghl/mdbook-demo/edit/master/{path}"
+additional-css = [
+    "./theme/mdbook-admonish.css", 
+    "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", 
+    "katex.min.css", 
+    "./assets/whichlang/whichlang.css",
+    "./assets/translate/translate.css",       # 翻译加载网页变慢
+    # "./assets/langtabs/langtabs.css",
+    ]
+additional-js = [
+    "./assets/help/support.js", 
+    "./assets/mermaid/mermaid.min.js", "./assets/mermaid/mermaid-init.js",
+    "./assets/whichlang/whichlang.js", 
+    "./assets/translate/translate_button.js",  # 翻译加载网页变慢
+    "./assets/echarts/echarts.min.js", 
+    "./assets/bytefield/bytefield-svg.js",
+    "./assets/wavedrom/wavedrom.min.js",
+    "./assets/wavedrom/wavedrom.css.js",
+    # "./assets/langtabs/langtabs.js", 
+    ]
+
+[output.html.search]
+limit-results = 20
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 2
+boost-paragraph = 1
+expand = true
+heading-split-level = 2
+
+[output.html.fold]
+enable = true # false
+level = 0 # 1
+
+[output.html.playground]
+editable = true
+
+[output.html.print]
+enable = true
+
+[output.pdf]
+## Set for auto-retrying if failed to generate PDF.
+# trying-times = 1
+## This backend only support latest Chromium based browsers, not Safari and Firefox currently.
+## If needed, please specify the full path.
+## If you specify the wrong binary, chances are that there will be a timeout error.
+# browser-binary-path = ""
+## Assign the static hosting site url so that relative links outside the book can be fixed.
+static_site_url = "https://aye10032.gitbook.io/computernetwork/"
+optional = true
+## Check Chrome Devtools Protocol Docs for the explanation of the following params:
+## https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF
+landscape = false
+# format = "A4"
+display-header-footer = true
+print-background = true
+theme = "Light"
+scale = 1  # 画面比例
+paper-width = 8
+paper-height = 10
+margin-top = 0.5
+margin-bottom = 1.0
+margin-left = 0.5
+margin-right = 0.5
+page-ranges = ""
+ignore-invalid-page-ranges = false
+# header-template = "<h3 style='font-size:8px; margin-left: 48%' class='title'></h3>"
+# footer-template = "<p style='font-size:10px; margin-left: 48%'><span class='pageNumber'></span> / <span class='totalPages'></span></p>"
+header-template = """<div style='position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;'>
+                        <div style='display: flex; justify-content: space-between; align-items: center; padding: 0 5%;'>
+                            <span style='font-size: 10px;' class='date'></span>
+                            <span style='font-size: 10px;' class='title'></span>
+                            <span style='font-size: 10px;'>kuanghl</span>
+                        </div>
+                        <hr style='border: none; border-top: 1px solid black; margin-top: 5px; width: 90%; margin-left: auto; margin-right: auto;'>
+                    </div>"""
+# footer-template = """<div style='position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;'>
+#                        <div style='display: flex; justify-content: space-between; align-items: center; padding: 0 5%;'>
+#                            <span style='font-size: 10px;'>版本号</span>
+#                            <span style='font-size: 10px;'>
+#                               <span class='pageNumber'></span> / <span class='totalPages'></span>
+#                            </span>
+#                            <span style='font-size: 10px;'>BSN</span>
+#                        </div>
+#                        <hr style='border: none; border-top: 1px solid black; margin-top: 5px; width: 90%; margin-left: auto; margin-right: auto;'>
+#                    </div>"""
+footer-template = """<div style="position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;">
+                        <hr style="border: none; border-bottom: 1px solid black; width: 90%; margin: 0 auto 5px auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 5%;">
+                            <span style="font-size: 10px;">版本号</span>
+                            <span style="font-size: 10px;">
+                                <span class='pageNumber'></span> / <span class='totalPages'></span>
+                            </span>
+                            <span style="font-size: 10px;">BSN</span>
+                        </div>
+                    </div>"""
+prefer-css-page-size = true
+generate-document-outline = false
+
+# pdf-outline 是 Python 辅助脚本，未合并到 mdbook-plugins
+# [output.pdf-outline]
+# like-wkhtmltopdf = true
+# optional = true
+
+# 有点儿鸡肋...
+# [output.asciidoc]
+# unified = true
+
+# [output.office]
+# # Supported formats: docx, xlsx, pptx. Defaults to all three when omitted.
+# formats = ["docx", "xlsx", "pptx"]
+# # Optional: full path to Chrome/Chromium executable for diagram rendering.
+# # If not set, auto-detects from common install locations and PATH.
+# # browser-path = "/usr/bin/chromium-browser"
