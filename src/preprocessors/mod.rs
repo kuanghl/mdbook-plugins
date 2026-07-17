@@ -13,4 +13,5 @@ pub mod mermaid;
 pub mod pikchr;
 pub mod svgbob;
 pub mod toc;
+pub mod unified;
 pub mod wavedrom;

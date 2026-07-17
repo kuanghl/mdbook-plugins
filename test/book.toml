@@ -3,7 +3,6 @@ authors = ["khl <1365342449@qq.com>"]
 title = "mdbook-demo"
 description = "The example book covers examples."
 language = 'zh' # "zh-Hans" # "en"
-multilingual = false
 src = "./src"
 
 [build]
@@ -17,24 +16,28 @@ use-default-preprocessors = false
 [preprocessor.links]
 
 [preprocessor.alerts]
+command = "mdbook-plugins alerts"
 
 [preprocessor.image-viewer]
+command = "mdbook-plugins image-viewer"
 
 [preprocessor.emojicodes]
+command = "mdbook-plugins emojicodes"
 
 # devicons cdn慢卡顿
 # [preprocessor.langtabs]
-# command = "mdbook-langtabs"
+# command = "mdbook-plugins langtabs"
 
 # catppuccin 是 CSS 主题项目（非 Rust），未合并到 mdbook-plugins
 # [preprocessor.catppuccin]
 # assets_version = "2.1.0" # DO NOT EDIT: Managed by `mdbook-catppuccin install`
 
 [preprocessor.toc]
-command = "mdbook-toc"
+command = "mdbook-plugins toc"
 renderer = ["html"]
 
 [preprocessor.katex]
+command = "mdbook-plugins katex"
 after = ["links"]
 no-css = true
 include-src = true
@@ -44,14 +47,15 @@ include-src = true
 # after = ["toc"]
 
 [preprocessor.admonish]
-command = "mdbook-admonish"
+command = "mdbook-plugins admonish"
 assets_version = "3.0.1" # do not edit: managed by `mdbook-admonish install`
 
 [preprocessor.mermaid]
-command = "mdbook-mermaid"
+command = "mdbook-plugins mermaid"
 
 # 编译时卡顿,由于访问https://kroki.io
 # [preprocessor.kroki-preprocessor]
+# command = "mdbook-plugins kroki-preprocessor"
 # Example endpoint configuration
 # endpoint = "https://kroki.io"      # serve
 # endpoint = "http://localhost:8000" # local docker
@@ -59,26 +63,28 @@ command = "mdbook-mermaid"
 # 有些动态的或者函数式的图在pdf会留空
 # 切换章节加载网页有延迟
 [preprocessor.echarts]
+command = "mdbook-plugins echarts"
 after = ["katex"]
 
 [preprocessor.pikchr]
+command = "mdbook-plugins pikchr"
 
 # wavedrom 由 mdbook-echarts 统一处理
 # [preprocessor.wavedrom-rs]
+# command = "mdbook-plugins wavedrom-rs"
 
 [output.html]
 mathjax-support = true
-curly-quotes = true
+hash-files = false
 default-theme = "mocha"
 preferred-dark-theme = "mocha"
 git-repository-url = "https://github.com/kuanghl/mdbook-demo"
-git-repository-icon = "fa-github"
+git-repository-icon = "fab-github"
 no-section-label = true
 edit-url-template = "https://github.com/kuanghl/mdbook-demo/edit/master/{path}"
 additional-css = [
     "./theme/mdbook-admonish.css", 
     "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", 
-    "katex.min.css", 
     "./assets/whichlang/whichlang.css",
     "./assets/translate/translate.css",       # 翻译加载网页变慢
     # "./assets/langtabs/langtabs.css",

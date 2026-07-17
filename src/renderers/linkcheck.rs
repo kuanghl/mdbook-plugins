@@ -1,8 +1,8 @@
 //! mdbook-linkcheck — 链接检查渲染器
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::renderer::{RenderContext, Renderer};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_renderer::{RenderContext, Renderer};
 use regex::Regex;
 use std::collections::HashSet;
 

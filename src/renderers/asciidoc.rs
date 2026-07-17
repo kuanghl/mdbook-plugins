@@ -1,8 +1,8 @@
 //! mdbook-asciidoc — AsciiDoc 渲染器
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::renderer::Renderer;
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_renderer::Renderer;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use std::io::Write;
 use std::path::Path;
@@ -14,7 +14,7 @@ impl Renderer for AsciiDocRenderer {
         "asciidoc"
     }
 
-    fn render(&self, ctx: &mdbook::renderer::RenderContext) -> Result<(), Error> {
+    fn render(&self, ctx: &mdbook_renderer::RenderContext) -> Result<(), Error> {
         let destination = ctx.destination.clone();
         let book = &ctx.book;
 
@@ -128,7 +128,7 @@ fn markdown_to_asciidoc(markdown: &str) -> String {
 
 /// 运行 mdbook-asciidoc 渲染器
 pub fn run() -> anyhow::Result<()> {
-    use mdbook::renderer::RenderContext;
+    use mdbook_renderer::RenderContext;
     let mut ctx = RenderContext::from_json(std::io::stdin())?;
     let renderer = AsciiDocRenderer;
     renderer.render(&mut ctx)?;

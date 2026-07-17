@@ -1,29 +1,97 @@
-// // 添加一个语言切换按钮在左边最前面,添加位置位于index.hbs文件的right-buttons之后
-// const div_right = document.querySelector('#menu-bar > div.right-buttons')
-// // const translate_html = '<a title="Translate" aria-label="Translate" target="_blank" rel="noopener"><i id="translate" ></i></a>'
-// const translate_html = '<button id="translate" class="icon-button" type="button" title="Change language" aria-label="Change language"><i class="fa fa-globe"></i> </button>'
-// div_right.innerHTML = translate_html + div_right.innerHTML
+// 语言切换按钮：点击 globe 弹出语言选择框，选完自动收回
+(function() {
+    var LANGUAGES = [
+        { id: 'english', name: 'English' },
+        { id: 'chinese_simplified', name: '简体中文' },
+    ];
+    var popup = null;
 
-//设置机器翻译服务通道，直接客户端本身，不依赖服务端 。相关说明参考 http://translate.zvo.cn/43086.html
-// translate.service.use("client.edge");
+    // 忽略翻译的class id
+    translate.ignore.class.push("icon-button");
+    translate.ignore.class.push("theme-popup");
+    translate.ignore.class.push('MathJax');
+    translate.ignore.class.push('katex-src');
+    translate.ignore.class.push('katex-display');
+    translate.ignore.class.push('chapter-item');
+    translate.ignore.class.push('mermaid');
+    translate.ignore.tag.push('text');
 
-// 语言选择下拉框korean/japan/russia/spanish/german/france
-translate.selectLanguageTag.languages = 'english,chinese_simplified';
+    // 不显示默认的select语言选择框
+    translate.selectLanguageTag.show = false;
 
-// 忽略翻译的class id
-translate.ignore.class.push("icon-button");
-translate.ignore.class.push("theme-popup");
-translate.ignore.class.push('MathJax'); 
-translate.ignore.class.push('katex-src'); 
-translate.ignore.class.push('katex-display');
-translate.ignore.class.push('chapter-item');
-translate.ignore.class.push('mermaid'); 
-translate.ignore.tag.push('text');
+    // 执行翻译
+    translate.execute();
+    translate.request.listener.start();
 
-//进行翻译
-// translate.selectLanguageTag.selectOnChange = function(event){
-//     var language = event.target.value;
-//     translate.changeLanguage(language);
-// };
-translate.execute();
-translate.request.listener.start();
+    function closePopup() {
+        if (popup) {
+            popup.remove();
+            popup = null;
+        }
+    }
+
+    function createPopup(btn) {
+        closePopup();
+
+        popup = document.createElement('div');
+        popup.id = 'translate-popup';
+        popup.style.cssText =
+            'position:fixed;z-index:9999;background:var(--theme-popup-bg,#fff);' +
+            'border:1px solid var(--theme-popup-border,#ccc);border-radius:6px;' +
+            'box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:4px 0;min-width:140px;';
+
+        LANGUAGES.forEach(function(lang) {
+            var item = document.createElement('div');
+            item.textContent = lang.name;
+            item.style.cssText =
+                'padding:8px 16px;cursor:pointer;font-size:14px;' +
+                'color:var(--fg,#333);white-space:nowrap;';
+            item.onmouseenter = function() {
+                item.style.background = 'var(--theme-hover,#f0f0f0)';
+            };
+            item.onmouseleave = function() {
+                item.style.background = 'transparent';
+            };
+            item.onclick = function() {
+                translate.changeLanguage(lang.id);
+                closePopup();
+            };
+            popup.appendChild(item);
+        });
+
+        // 定位到按钮下方
+        document.body.appendChild(popup);
+        var rect = btn.getBoundingClientRect();
+        var top = rect.bottom + 4;
+        var left = rect.left;
+        // 确保不超出右边界
+        if (left + 160 > window.innerWidth) {
+            left = window.innerWidth - 160;
+        }
+        popup.style.top = top + 'px';
+        popup.style.left = left + 'px';
+
+        // 点击其他地方关闭
+        setTimeout(function() {
+            document.addEventListener('click', closePopup, { once: true });
+        }, 10);
+    }
+
+    function bindClick() {
+        var btn = document.getElementById('translate');
+        if (!btn) {
+            setTimeout(bindClick, 200);
+            return;
+        }
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (popup) {
+                closePopup();
+            } else {
+                createPopup(btn);
+            }
+        });
+    }
+
+    setTimeout(bindClick, 500);
+})();

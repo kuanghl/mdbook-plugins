@@ -29,43 +29,35 @@ if [ ! -f "$PLUGIN_BIN" ]; then
 fi
 pass "mdbook-plugins binary ($(du -h "$PLUGIN_BIN" | cut -f1))"
 
-# 重新部署到 test/bin/
+# 部署单一二进制（无需软链接）
 cp "$PLUGIN_BIN" "$BIN_DIR/mdbook-plugins"
-ALL_PLUGINS="mdbook-admonish mdbook-alerts mdbook-echarts mdbook-emojicodes
-    mdbook-embedify mdbook-katex mdbook-kroki-preprocessor mdbook-langtabs
-    mdbook-mermaid mdbook-pikchr mdbook-svgbob mdbook-toc mdbook-wavedrom-rs
-    mdbook-asciidoc mdbook-linkcheck mdbook-office mdbook-pdf"
+pass "单一二进制已部署（无需软链接）"
 
-for name in $ALL_PLUGINS; do
-    ln -sf mdbook-plugins "$BIN_DIR/$name" 2>/dev/null || true
-done
-pass "符号链接已创建 ($(echo $ALL_PLUGINS | wc -w) 个)"
-
-# tests: supports 协议
+# tests: supports 协议（通过 mdbook-plugins <name> 方式）
 echo ""
 echo "--- supports 协议 ---"
-for plugin in mdbook-admonish mdbook-alerts mdbook-toc mdbook-mermaid mdbook-katex; do
-    if PATH="$BIN_DIR:$PATH" "$BIN_DIR/$plugin" supports html 2>/dev/null; then
-        pass "$plugin supports html"
+for plugin in admonish alerts toc mermaid katex; do
+    if PATH="$BIN_DIR:$PATH" "$BIN_DIR/mdbook-plugins" "$plugin" supports html 2>/dev/null; then
+        pass "mdbook-plugins $plugin supports html"
     else
-        fail "$plugin supports html"
+        fail "mdbook-plugins $plugin supports html"
     fi
-    if PATH="$BIN_DIR:$PATH" "$BIN_DIR/$plugin" supports not-supported 2>/dev/null; then
-        fail "$plugin supports not-supported (应返回 1)"
+    if PATH="$BIN_DIR:$PATH" "$BIN_DIR/mdbook-plugins" "$plugin" supports not-supported 2>/dev/null; then
+        fail "mdbook-plugins $plugin supports not-supported (应返回 1)"
     else
-        pass "$plugin rejects not-supported"
+        pass "mdbook-plugins $plugin rejects not-supported"
     fi
 done
 
 # tests: 路由正确性
 echo ""
 echo "--- 路由测试 ---"
-for plugin in mdbook-admonish mdbook-toc mdbook-katex mdbook-pdf; do
-    OUTPUT=$(PATH="$BIN_DIR:$PATH" "$BIN_DIR/$plugin" 2>&1 <<< "" || true)
-    if echo "$OUTPUT" | grep -q "mdbook-plugins ($plugin)"; then
-        pass "$plugin 路由正确"
+for plugin in admonish toc katex pdf; do
+    OUTPUT=$(PATH="$BIN_DIR:$PATH" "$BIN_DIR/mdbook-plugins" "$plugin" 2>&1 <<< "" || true)
+    if echo "$OUTPUT" | grep -q "mdbook-plugins (mdbook-$plugin)"; then
+        pass "mdbook-plugins $plugin 路由正确"
     else
-        fail "$plugin 路由异常: $OUTPUT"
+        fail "mdbook-plugins $plugin 路由异常: $OUTPUT"
     fi
 done
 
@@ -75,20 +67,12 @@ if [ "${1:-}" = "--full" ]; then
     echo "--- mdbook build ---"
     cd "$TEST_DIR"
 
-    # 备份并运行构建
-    cp book.toml book.toml.bak
-
-    if PATH="$ABS_BIN_DIR:$PATH" "mdbook" build 2>&1 | tail -10; then
+    if PATH="$ABS_BIN_DIR:$PATH" mdbook build 2>&1 | tail -10; then
         pass "mdbook build 成功"
-        if [ -f "test_books/index.html" ]; then
-            pass "输出文件存在"
-        fi
     else
         fail "mdbook build 失败"
     fi
 
-    # 恢复 book.toml
-    mv book.toml.bak book.toml 2>/dev/null || true
     cd "$REPO_DIR"
 fi
 

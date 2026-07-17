@@ -1,8 +1,8 @@
 //! mdbook-alerts — GitHub 风格 Alert 预处理器
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::PreprocessorContext;
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::PreprocessorContext;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -15,13 +15,13 @@ const ALERTS_TMPL: &str =
 
 pub struct AlertsPreprocessor;
 
-impl mdbook::preprocess::Preprocessor for AlertsPreprocessor {
+impl mdbook_preprocessor::Preprocessor for AlertsPreprocessor {
     fn name(&self) -> &str {
         "mdbook-alerts"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer == "html"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer == "html")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -40,7 +40,7 @@ impl mdbook::preprocess::Preprocessor for AlertsPreprocessor {
     }
 }
 
-fn handle_chapter(chapter: &mut mdbook::book::Chapter) -> Result<(), Error> {
+fn handle_chapter(chapter: &mut mdbook_core::book::Chapter) -> Result<(), Error> {
     chapter.content = inject_stylesheet(&chapter.content)?;
     chapter.content = render_alerts(&chapter.content)?;
     Ok(())
@@ -74,6 +74,18 @@ fn render_alerts(content: &str) -> Result<String, Error> {
         tmpl.replace("{kind}", &kind).replace("{body}", &body)
     });
     Ok(result.replace('\n', &newline))
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    let content = inject_stylesheet(content).unwrap_or_else(|e| {
+        log::warn!("alerts: inject_stylesheet 失败: {}", e);
+        content.to_string()
+    });
+    render_alerts(&content).unwrap_or_else(|e| {
+        log::warn!("alerts: render_alerts 失败: {}", e);
+        content.to_string()
+    })
 }
 
 fn find_newline(content: &str) -> &'static str {

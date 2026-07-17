@@ -5,9 +5,9 @@
 //!
 //! 效果：点击图片 → 模态框放大显示 → 支持拖拽/滚轮缩放/触控双指缩放
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use regex::Regex;
 
 /// 模态框 CSS 样式（内嵌）
@@ -23,8 +23,8 @@ impl Preprocessor for ImageViewerPreprocessor {
         "mdbook-image-viewer"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer == "html"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer == "html")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -55,7 +55,7 @@ impl Preprocessor for ImageViewerPreprocessor {
 impl ImageViewerPreprocessor {
     fn process_chapter(&self, content: &str) -> Result<String, Error> {
         let img_regex = Regex::new(r"!\[(.*?)\]\((.*?)\)").map_err(|e| {
-            mdbook::errors::Error::msg(format!("regex error: {}", e))
+            mdbook_core::errors::Error::msg(format!("regex error: {}", e))
         })?;
         let processed = img_regex.replace_all(content, |caps: &regex::Captures| {
             let alt_text = &caps[1];
@@ -67,6 +67,22 @@ impl ImageViewerPreprocessor {
         });
         Ok(processed.to_string())
     }
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    let img_regex = Regex::new(r"!\[(.*?)\]\((.*?)\)").unwrap();
+    let processed = img_regex.replace_all(content, |caps: &regex::Captures| {
+        let alt_text = &caps[1];
+        let image_path = &caps[2];
+        format!(
+            r##"<img src="{}" alt="{}" class="miv_mdbook-image-viewer" onclick="miv_openModal(this.src)">"##,
+            image_path, alt_text
+        )
+    });
+    format!("{CSS_TEMPLATE}
+{processed}
+{JS_TEMPLATE}")
 }
 
 /// 运行 mdbook-image-viewer 预处理器

@@ -16,7 +16,7 @@
 //! # margin-right = 1.0
 //! ```
 
-use mdbook::renderer::{RenderContext, Renderer};
+use mdbook_renderer::{RenderContext, Renderer};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -68,15 +68,18 @@ impl Renderer for PdfRenderer {
         "pdf"
     }
 
-    fn render(&self, ctx: &RenderContext) -> Result<(), mdbook::errors::Error> {
+    fn render(&self, ctx: &RenderContext) -> Result<(), mdbook_core::errors::Error> {
         run_pdf(ctx)
     }
 }
 
-fn run_pdf(ctx: &RenderContext) -> Result<(), mdbook::errors::Error> {
-    let cfg = ctx
+fn run_pdf(ctx: &RenderContext) -> Result<(), mdbook_core::errors::Error> {
+    let cfg: Option<toml::Value> = ctx
         .config
         .get("output.pdf")
+        .ok()
+        .flatten();
+    let cfg = cfg
         .map(|v| {
             // toml::Value → serde_json::Value
             let json_val = serde_json::to_value(v).unwrap_or_default();
@@ -221,7 +224,7 @@ fn inject_page_style(html: &str, cfg: &PdfOptions) -> String {
 }
 
 /// 查找 Chrome/Chromium 可执行文件
-fn resolve_chrome(browser_path: &str) -> Result<PathBuf, mdbook::errors::Error> {
+fn resolve_chrome(browser_path: &str) -> Result<PathBuf, mdbook_core::errors::Error> {
     // 1. 环境变量 CHROME
     if let Ok(path) = std::env::var("CHROME") {
         let p = PathBuf::from(&path);
@@ -271,7 +274,7 @@ fn resolve_chrome(browser_path: &str) -> Result<PathBuf, mdbook::errors::Error> 
         }
     }
 
-    Err(mdbook::errors::Error::msg(
+    Err(mdbook_core::errors::Error::msg(
         "Chrome/Chromium not found. Install chromium, set CHROME env var, \
          or configure browser-binary-path in [output.pdf].",
     ))

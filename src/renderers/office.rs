@@ -10,9 +10,9 @@
 //! # browser-path = "/usr/bin/chromium-browser"
 //! ```
 
-use mdbook::book::BookItem;
-use mdbook::errors::Error;
-use mdbook::renderer::{RenderContext, Renderer};
+use mdbook_core::book::BookItem;
+use mdbook_core::errors::Error;
+use mdbook_renderer::{RenderContext, Renderer};
 use std::path::{Path, PathBuf};
 
 pub struct OfficeRenderer;
@@ -38,7 +38,7 @@ fn run_office(ctx: &RenderContext) -> Result<(), Error> {
         return Ok(());
     }
 
-    let raw = collect_chapters(&ctx.book.sections);
+    let raw = collect_chapters(&ctx.book.items);
     if raw.is_empty() {
         return Ok(());
     }

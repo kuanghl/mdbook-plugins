@@ -21,6 +21,7 @@ pub const PLUGIN_NAMES: &[&str] = &[
     "mdbook-langtabs",
     "mdbook-mermaid",
     "mdbook-pikchr",
+    "mdbook-plugins",
     "mdbook-svgbob",
     "mdbook-toc",
     "mdbook-wavedrom-rs",

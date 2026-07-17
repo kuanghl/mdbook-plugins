@@ -12,9 +12,9 @@
 //! - ```typst      → <details> 折叠 + <img> SVG
 //! - ```wavedrom   → WaveDrom script
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use regex::Regex;
 use std::sync::atomic::{AtomicI32, Ordering};
 use uuid::Uuid;
@@ -28,8 +28,8 @@ impl Preprocessor for ChartPreprocessor {
         "mdbook-echarts"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer == "html"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer == "html")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -306,6 +306,11 @@ fn wavedrom_gen_html(mat_str: &str) -> String {
 </div>"#,
         content
     )
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    process_chapter("", content)
 }
 
 /// 运行 mdbook-echarts 预处理器

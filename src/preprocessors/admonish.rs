@@ -15,9 +15,9 @@
 //! CSS 样式通过 book.toml 中的 additional-css 外部加载（./theme/mdbook-admonish.css），
 //! 不在预处理阶段内联注入，以保证输出与原始 mdbook-admonish 一致。
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use pulldown_cmark::{html, Options, Parser};
 use std::collections::HashMap;
 
@@ -28,8 +28,8 @@ impl Preprocessor for AdmonishPreprocessor {
         "mdbook-admonish"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer != "not-supported"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer != "not-supported")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -311,6 +311,11 @@ fn render_inline_markdown(text: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    process_chapter(content)
 }
 
 /// 运行 mdbook-admonish 预处理器

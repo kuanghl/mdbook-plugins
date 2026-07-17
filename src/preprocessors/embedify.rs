@@ -2,9 +2,9 @@
 //!
 //! 将 {% <app> <options> %} 标签转换为嵌入式 HTML。
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use regex::Regex;
 
 pub struct EmbedifyPreprocessor;
@@ -14,8 +14,8 @@ impl Preprocessor for EmbedifyPreprocessor {
         "mdbook-embedify"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer == "html"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer == "html")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -87,6 +87,11 @@ async>
 </div>"#
         )
     }).to_string()
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    process_chapter(content)
 }
 
 /// 运行 mdbook-embedify 预处理器

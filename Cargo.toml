@@ -15,7 +15,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Core mdbook 生态
-mdbook = "0.4"
+mdbook-core = "0.5"
 mdbook-preprocessor = "0.5"
 mdbook-renderer = "0.5"
 mdbook-markdown = "0.5"
@@ -30,7 +30,7 @@ once_cell = "1"
 env_logger = "0.11"
 
 # 通用工具
-toml = "0.8"
+toml = "1"
 anyhow = "1"
 uuid = { version = "1", features = ["v4"] }
 emojis = "0.6"
@@ -49,7 +49,8 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 base64 = "0.22"
 flate2 = "1"
 
-# KaTeX
+# KaTeX — 纯 Rust 实现，无需 Node.js
+katex-rs = "0.2.4"
 rayon = "1"
 
 # C 依赖 (pikchr)

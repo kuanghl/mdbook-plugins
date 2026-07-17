@@ -19,9 +19,9 @@
 //!
 //! 返回值是 malloc 分配的 SVG 字符串，调用者必须 free()。
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 
 pub struct PikchrPreprocessor;
 
@@ -44,8 +44,8 @@ impl Preprocessor for PikchrPreprocessor {
         "mdbook-pikchr"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer != "not-supported"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer != "not-supported")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -229,6 +229,11 @@ pub fn render_pikchr(script: &str, _align: &str) -> Result<String, Box<dyn std::
         r#"<div class="pikchr-wrapper">{}</div>"#,
         svg_output
     ))
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    process_chapter(content)
 }
 
 /// 运行 mdbook-pikchr 预处理器

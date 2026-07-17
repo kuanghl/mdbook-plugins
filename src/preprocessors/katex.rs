@@ -1,7 +1,7 @@
 //! mdbook-katex — LaTeX 数学公式预处理器
 //!
 //! 将 `$...$`（行内）和 `$$...$$`（块级）LaTeX 公式
-//! 转换为服务端预渲染的 KaTeX HTML（通过 node katex 模块），
+//! 转换为服务端预渲染的 KaTeX HTML（通过纯 Rust katex-rs，无需 Node.js），
 //! 输出格式与原始 mdbook-katex 一致（含 <data class="katex-src"> 包装）。
 //!
 //! book.toml 需配置:
@@ -10,9 +10,9 @@
 //! additional-css = ["katex.min.css"]
 //! ```
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -23,8 +23,8 @@ impl Preprocessor for KatexPreprocessor {
         "mdbook-katex"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer != "not-supported"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer != "not-supported")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -180,28 +180,27 @@ fn restore_blocks(content: &str, placeholders: &mut HashMap<String, String>) -> 
     result
 }
 
-/// 通过 node katex 渲染 LaTeX 为 HTML（服务端渲染）
+/// 通过纯 Rust katex-rs 渲染 LaTeX 为 HTML（进程内渲染，无需 Node.js）
 fn render_katex(latex: &str, display_mode: bool) -> String {
-    let display_flag = if display_mode { "true" } else { "false" };
-    // 使用 output:'html' 避免 MathML 输出（匹配原始 mdbook-katex v0.5.9 行为）
-    let js_code = format!(
-        r##"const k=require('katex');process.stdout.write(k.renderToString({},{{displayMode:{},throwOnError:false,output:'html'}}))"##,
-        serde_json::Value::String(latex.to_string()),
-        display_flag
-    );
-    let output = std::process::Command::new("node")
-        .args(["-e", &js_code])
-        .output();
-    match output {
-        Ok(out) if out.status.success() => {
-            let html = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            // 移除 inline style 中的 margin 属性以匹配旧版输出
-            // katex-rs 0.12 版本的输出和 node katex 可能略有不同，
-            // 我们保留 node katex 的输出
+    use std::sync::OnceLock;
+    static CTX: OnceLock<katex::KatexContext> = OnceLock::new();
+    let ctx = CTX.get_or_init(|| {
+        log::info!("初始化纯 Rust KaTeX 引擎");
+        katex::KatexContext::default()
+    });
+    let mut settings = katex::Settings::default();
+    settings.display_mode = display_mode;
+    settings.throw_on_error = false;
+    // 仅输出 HTML（不含 MathML），与原始 mdbook-katex 行为一致
+    settings.output = katex::OutputFormat::Html;
+    match katex::render_to_string(ctx, latex, &settings) {
+        Ok(html) => {
+            let html = html.trim().to_string();
+            log::debug!("katex render 成功: {} 字符", html.len());
             html
-        },
-        _ => {
-            // 渲染失败，原样输出 LaTeX
+        }
+        Err(e) => {
+            log::warn!("katex render 失败: {}", e);
             if display_mode {
                 format!("$${}$$", latex)
             } else {
@@ -234,11 +233,17 @@ fn process_display_math(content: &str, counter: &mut u64) -> String {
                 let katex_html = render_katex(&inner, true);
                 // 编码换行符为 &#10;（匹配原始 mdbook-katex 行为）
                 let latex_escaped = inner.replace('"', "&quot;").replace('\n', "&#10;");
-                result.push_str(&format!(
-                    r##"<data class="katex-src" value="{latex}">{html}</data>"##,
-                    latex = latex_escaped,
-                    html = katex_html,
-                ));
+                // 如果 katex_html 以 $$ 或 $ 开头（渲染失败 fallback），则去掉 <data> 包装，
+                // 让 MathJax 在浏览器端处理
+                if katex_html.starts_with('$') {
+                    result.push_str(&katex_html);
+                } else {
+                    result.push_str(&format!(
+                        r##"<data class="katex-src" value="{latex}">{html}</data>"##,
+                        latex = latex_escaped,
+                        html = katex_html,
+                    ));
+                }
             } else {
                 result.push_str("$$");
                 result.push_str(&inner);
@@ -259,7 +264,7 @@ fn process_inline_math(content: &str, counter: &mut u64) -> String {
         if c == '$' && chars.peek() != Some(&'$') {
             // 检查后续字符：如果 $ 后是 {、空白、数字等，不是数学公式
             let is_math_start = match chars.peek() {
-                None | Some('{') | Some(' ') | Some('\t') | Some('\n')
+                None | Some('{') | Some('\t') | Some('\n')
                 | Some('0'..='9') | Some(')') | Some('(')
                 | Some('[') | Some(']') | Some('<') | Some('>')
                 | Some(',') | Some('.') | Some(';') | Some(':')
@@ -284,11 +289,16 @@ fn process_inline_math(content: &str, counter: &mut u64) -> String {
                     *counter += 1;
                     let katex_html = render_katex(&inner, false);
                     let latex_escaped = inner.replace('"', "&quot;").replace('\n', "&#10;");
-                    result.push_str(&format!(
-                        r##"<data class="katex-src" value="{latex}">{html}</data>"##,
-                        latex = latex_escaped,
-                        html = katex_html,
-                    ));
+                    // 如果渲染失败（fallback 以 $ 开头），直接暴露给 MathJax
+                    if katex_html.starts_with('$') {
+                        result.push_str(&katex_html);
+                    } else {
+                        result.push_str(&format!(
+                            r##"<data class="katex-src" value="{latex}">{html}</data>"##,
+                            latex = latex_escaped,
+                            html = katex_html,
+                        ));
+                    }
                 } else {
                     result.push('$');
                     result.push_str(&inner);
@@ -306,6 +316,12 @@ fn process_inline_math(content: &str, counter: &mut u64) -> String {
         }
     }
     result
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    let mut counter = 0u64;
+    process_chapter(content, &mut counter)
 }
 
 /// 运行 mdbook-katex 预处理器

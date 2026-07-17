@@ -1,8 +1,8 @@
 //! mdbook-svgbob — ASCII art 转 SVG 预处理器
 
-use mdbook::book::{Book, BookItem};
-use mdbook::errors::Error;
-use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+use mdbook_core::book::{Book, BookItem};
+use mdbook_core::errors::Error;
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use std::fmt::Write;
 
@@ -13,8 +13,8 @@ impl Preprocessor for SvgbobPreprocessor {
         "mdbook-svgbob"
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer != "not-supported"
+    fn supports_renderer(&self, renderer: &str) -> mdbook_core::errors::Result<bool> {
+        Ok(renderer != "not-supported")
     }
 
     fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
@@ -103,6 +103,17 @@ fn render_svg(ascii: &str) -> Result<String, Box<dyn std::error::Error>> {
     };
     let svg_str = svgbob::to_svg_with_settings(ascii, &settings);
     Ok(svg_str)
+}
+
+/// 统一的处理入口：供 UnifiedPreprocessor 调用
+pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
+    match process_chapter(content) {
+        Ok(s) => s,
+        Err(e) => {
+            log::warn!("svgbob: process_chapter 失败: {}", e);
+            content.to_string()
+        }
+    }
 }
 
 /// 运行 mdbook-svgbob 预处理器
