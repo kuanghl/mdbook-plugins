@@ -1,0 +1,296 @@
+/* ================================
+   Mermaid 主题系统
+   移植自 vscode-office (cweijan/vscode-office)
+   通过 CSS 变量 + !important 覆盖 Mermaid SVG 内联颜色
+   主题切换即时生效，无需 JS 重绘
+   ================================ */
+
+/* 面板色 = 节点/卡片底色（亮色主题为白色，暗色主题略高于背景） */
+/* 背景色 = 页面底色 */
+/* 强调色 = 主色调（蓝/绿等） */
+
+/* ===== Auto：跟随 mdbook Catppuccin 主题 ===== */
+:root { --mm-contrast: #1f2020; }
+
+/* Latte / 亮色 */
+html.latte, html.light, html.rust {
+  --mm-bg: #eff1f5; --mm-panel: #ffffff;
+  --mm-fg: #4c4f69;
+  --mm-muted: #8c8fa1; --mm-border: #bcc0cc;
+  --mm-accent: #1e66f5; --mm-secondary: #40a02b;
+  --mm-tertiary: #8839ef;
+  --mm-note: #df8e1d; --mm-warning: #fe640b; --mm-error: #d20f39;
+  --mm-contrast: #ffffff;
+  --mm-chrome-bg: #e6e9ef; --mm-chrome-fg: #4c4f69;
+}
+
+/* Frappé */
+html.frappe {
+  --mm-bg: #303446; --mm-panel: #414559;
+  --mm-fg: #c6d0f5;
+  --mm-muted: #838ba7; --mm-border: #51576d;
+  --mm-accent: #8caaee; --mm-secondary: #a6d189;
+  --mm-tertiary: #ca9ee6;
+  --mm-note: #e5c890; --mm-warning: #ef9f76; --mm-error: #e78284;
+  --mm-contrast: #1f2020;
+  --mm-chrome-bg: #292c3c; --mm-chrome-fg: #c6d0f5;
+}
+
+/* Macchiato */
+html.macchiato {
+  --mm-bg: #24273a; --mm-panel: #363a4f;
+  --mm-fg: #cad3f5;
+  --mm-muted: #8087a2; --mm-border: #494d64;
+  --mm-accent: #8aadf4; --mm-secondary: #a6da95;
+  --mm-tertiary: #c6a0f6;
+  --mm-note: #eed49f; --mm-warning: #f5a97f; --mm-error: #ed8796;
+  --mm-contrast: #1f2020;
+  --mm-chrome-bg: #1e2030; --mm-chrome-fg: #cad3f5;
+}
+
+/* Mocha / 暗色 */
+html.mocha, html.coal, html.navy, html.ayu {
+  --mm-bg: #1e1e2e; --mm-panel: #313244;
+  --mm-fg: #cdd6f4;
+  --mm-muted: #7f849c; --mm-border: #45475a;
+  --mm-accent: #89b4fa; --mm-secondary: #a6e3a1;
+  --mm-tertiary: #cba6f7;
+  --mm-note: #f9e2af; --mm-warning: #fab387; --mm-error: #f38ba8;
+  --mm-contrast: #1f2020;
+  --mm-chrome-bg: #11111b; --mm-chrome-fg: #cdd6f4;
+}
+
+/* ===================================================
+   独立图表主题（通过 data-mermaid-theme 属性覆盖）
+   移植自 vscode-office 的 9 大 Mermaid 主题
+   =================================================== */
+
+/* Auto = 使用 html 上的变量 */
+/* Light */
+.mermaid-container[data-mermaid-theme="Light"] {
+  --mm-bg: #ffffff; --mm-panel: #ffffff;
+  --mm-fg: #1f2328;
+  --mm-muted: #8c959f; --mm-border: #d0d7de;
+  --mm-accent: #0969da; --mm-secondary: #2da44e;
+  --mm-tertiary: #8250df;
+  --mm-note: #bf8700; --mm-warning: #d96c2c; --mm-error: #cf222e;
+  --mm-contrast: #ffffff;
+}
+
+/* Forest */
+.mermaid-container[data-mermaid-theme="Forest"] {
+  --mm-bg: #f4f9f4; --mm-panel: #ffffff;
+  --mm-fg: #1d3a2b;
+  --mm-muted: #82ac82; --mm-border: #cddfcd;
+  --mm-accent: #2f7d4f; --mm-secondary: #3a8c5c;
+  --mm-tertiary: #7a5a8a;
+  --mm-note: #c5a332; --mm-warning: #d4833a; --mm-error: #a94444;
+  --mm-contrast: #ffffff;
+}
+
+/* Ocean */
+.mermaid-container[data-mermaid-theme="Ocean"] {
+  --mm-bg: #f3fbff; --mm-panel: #ffffff;
+  --mm-fg: #183042;
+  --mm-muted: #7cb3cc; --mm-border: #cde9f5;
+  --mm-accent: #147fb5; --mm-secondary: #53c2c5;
+  --mm-tertiary: #8ea7ff;
+  --mm-note: #d9f3ff; --mm-warning: #f2b84b; --mm-error: #d25b6a;
+  --mm-contrast: #1f2020;
+}
+
+/* Sunset */
+.mermaid-container[data-mermaid-theme="Sunset"] {
+  --mm-bg: #fff8f0; --mm-panel: #ffffff;
+  --mm-fg: #3d261f;
+  --mm-muted: #d4a08a; --mm-border: #fae0c5;
+  --mm-accent: #d96c2c; --mm-secondary: #f0a03f;
+  --mm-tertiary: #c46fa1;
+  --mm-note: #ffe4bd; --mm-warning: #d99b25; --mm-error: #c24645;
+  --mm-contrast: #1f2020;
+}
+
+/* Dark */
+.mermaid-container[data-mermaid-theme="Dark"] {
+  --mm-bg: #1e1e1e; --mm-panel: #2d333b;
+  --mm-fg: #e6edf3;
+  --mm-muted: #6e7681; --mm-border: #3d444d;
+  --mm-accent: #539bf5; --mm-secondary: #57ab5a;
+  --mm-tertiary: #9a6aba;
+  --mm-note: #d9a23a; --mm-warning: #d97a3a; --mm-error: #b44a4a;
+  --mm-contrast: #1f2020;
+}
+
+/* Dracula */
+.mermaid-container[data-mermaid-theme="Dracula"] {
+  --mm-bg: #282a36; --mm-panel: #343746;
+  --mm-fg: #f8f8f2;
+  --mm-muted: #6272a4; --mm-border: #44475a;
+  --mm-accent: #bd93f9; --mm-secondary: #8be9fd;
+  --mm-tertiary: #ff79c6;
+  --mm-note: #f1fa8c; --mm-warning: #ffb86c; --mm-error: #ff5555;
+  --mm-contrast: #1f2020;
+}
+
+/* Monokai */
+.mermaid-container[data-mermaid-theme="Monokai"] {
+  --mm-bg: #272822; --mm-panel: #35362f;
+  --mm-fg: #f8f8f2;
+  --mm-muted: #75715e; --mm-border: #49483e;
+  --mm-accent: #a6e22e; --mm-secondary: #66d9ef;
+  --mm-tertiary: #ae81ff;
+  --mm-note: #e6db74; --mm-warning: #fd971f; --mm-error: #f92672;
+  --mm-contrast: #1f2020;
+}
+
+/* Nord */
+.mermaid-container[data-mermaid-theme="Nord"] {
+  --mm-bg: #2e3440; --mm-panel: #3b4252;
+  --mm-fg: #eceff4;
+  --mm-muted: #717e98; --mm-border: #434c5e;
+  --mm-accent: #88c0d0; --mm-secondary: #8fbcbb;
+  --mm-tertiary: #b48ead;
+  --mm-note: #ebcb8b; --mm-warning: #d08770; --mm-error: #bf616a;
+  --mm-contrast: #1f2020;
+}
+
+/* Original — 恢复 Mermaid 原生颜色 */
+.mermaid-container[data-mermaid-theme="Original"],
+.mermaid-container[data-mermaid-theme="Original"] .mermaid svg * {
+  fill: revert !important;
+  stroke: revert !important;
+  color: revert !important;
+  background: revert !important;
+}
+
+/* ===================================================
+   Mermaid SVG 元素颜色覆盖（跳过 Original）
+   =================================================== */
+
+.mermaid-container:not([data-mermaid-theme="Original"]) .node :is(rect, circle, ellipse, polygon, path):not(.edgeLabel *) {
+  fill: var(--mm-panel) !important;
+  stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .node :is(text, tspan) {
+  fill: var(--mm-fg) !important;
+  stroke: none !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .edgePath .path {
+  stroke: var(--mm-muted) !important; fill: none !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .edgeLabel {
+  background: var(--bg) !important; color: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .cluster rect {
+  fill: var(--mm-tertiary) !important;
+  stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .cluster :is(text, tspan) {
+  fill: var(--mm-contrast) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .actor :is(rect, path) {
+  fill: var(--mm-panel) !important; stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .actor :is(text, tspan) {
+  fill: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .actor-line,
+.mermaid-container:not([data-mermaid-theme="Original"]) :is(.messageLine0, .messageLine1) {
+  stroke: var(--mm-muted) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .messageText {
+  fill: var(--mm-fg) !important; color: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .note rect {
+  fill: var(--mm-note) !important; stroke: var(--mm-warning) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .note :is(text, tspan) {
+  fill: var(--mm-contrast) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .marker :is(path, polygon) {
+  fill: var(--mm-accent) !important; stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .classGroup rect {
+  fill: var(--mm-panel) !important; stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .classGroup :is(text, tspan) {
+  fill: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) :is(.state-start, .state-end) {
+  fill: var(--mm-fg) !important; stroke: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .state-group rect {
+  fill: var(--mm-panel) !important; stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .state-group :is(text, tspan) {
+  fill: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .task rect {
+  fill: var(--mm-secondary) !important; stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .task :is(text, tspan) {
+  fill: var(--mm-contrast) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .grid .tick line {
+  stroke: var(--mm-muted) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .today {
+  stroke: var(--mm-error) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .pieCircle {
+  stroke: var(--mm-muted) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .pieTitleText {
+  fill: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .pieSliceText {
+  fill: var(--mm-contrast) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .commit :is(rect, circle) {
+  fill: var(--mm-panel) !important; stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .commit :is(text, tspan),
+.mermaid-container:not([data-mermaid-theme="Original"]) .branch :is(text, tspan) {
+  fill: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .entity rect {
+  fill: var(--mm-panel) !important; stroke: var(--mm-accent) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .entity :is(text, tspan) {
+  fill: var(--mm-fg) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .sequenceNumber {
+  fill: var(--mm-contrast) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .activation :is(rect, path) {
+  fill: var(--mm-accent) !important; fill-opacity: 0.15 !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .loop rect {
+  fill: transparent !important; stroke: var(--mm-muted) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) .loop :is(text, tspan) {
+  fill: var(--mm-warning) !important;
+}
+.mermaid-container:not([data-mermaid-theme="Original"]) svg {
+  background: var(--bg) !important;
+}
+
+/* ===================================================
+   浮动工具栏
+   =================================================== */
+.mermaid-container { position: relative; }
+.mermaid-container .mm-toolbar {
+  position: absolute; top: 4px; right: 4px; z-index: 10;
+  display: flex; gap: 4px;
+  opacity: 0; transition: opacity 0.15s ease; pointer-events: none;
+}
+.mermaid-container:hover .mm-toolbar { opacity: 1; pointer-events: auto; }
+.mm-theme-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0 8px;
+  border: none; border-radius: 6px;
+  background: var(--mm-chrome-bg, #2d333b); color: var(--mm-chrome-fg, #e6edf3);
+  font-size: 12px; cursor: pointer; pointer-events: auto;
+  opacity: 0.85; transition: opacity 0.15s; white-space: nowrap;
+}
+.mm-theme-btn:hover { opacity: 1; }

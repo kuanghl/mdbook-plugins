@@ -85,6 +85,7 @@ edit-url-template = "https://github.com/kuanghl/mdbook-demo/edit/master/{path}"
 additional-css = [
     "./theme/mdbook-admonish.css", 
     "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", 
+    "./assets/mermaid/mermaid.css",
     "./assets/whichlang/whichlang.css",
     "./assets/translate/translate.css",       # 翻译加载网页变慢
     # "./assets/langtabs/langtabs.css",

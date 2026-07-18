@@ -65,6 +65,28 @@
         <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
         {{/if}}
 
+        <!-- LaTeX.js（用于 ```latex tex 代码块） -->
+        <script type="module">
+        import { LaTeXJSComponent } from "https://cdn.jsdelivr.net/npm/latex.js/dist/latex.mjs"
+
+        // pulldown-cmark 小写化 HTML 属性名（baseURL → baseurl），
+        // 但 LaTeXJSComponent 用 getAttribute("baseURL") 读取（大小写敏感），
+        // 注册自定义元素前先修复所有现有元素的属性名。
+        document.querySelectorAll('latex-js').forEach(el => {
+            if (el.hasAttribute('baseurl') && !el.hasAttribute('baseURL')) {
+                el.setAttribute('baseURL', el.getAttribute('baseurl'));
+                el.removeAttribute('baseurl');
+            }
+        });
+
+        customElements.define("latex-js", LaTeXJSComponent)
+        </script>
+        <style>
+        latex-js {
+            width: 100%;
+        }
+        </style>
+
         <!-- Provide site root and default themes to javascript -->
         <script>
             const path_to_root = "{{ path_to_root }}";
@@ -355,12 +377,22 @@
         <script src="{{ resource "highlight.js" }}"></script>
         <script src="{{ resource "book.js" }}"></script>
 
-        <script src="https://cdn.staticfile.net/translate.js/3.14.0/translate.js"></script>
+        {{!-- <script src="https://cdn.staticfile.net/translate.js/3.14.0/translate.js"></script> --}}
+        <script src="https://cdn.staticfile.net/translate.js/3.18.66/translate.js"></script>
 
         <!-- Custom JS scripts -->
         {{#each additional_js}}
         <script src="{{ resource this}}"></script>
         {{/each}}
+
+        <!-- Bytefield 渲染 -->
+        <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.querySelectorAll('code.language-bytefield').forEach(n => {
+                n.outerHTML = bytefield.generate(n.innerText, { 'embedded': true });
+            });
+        });
+        </script>
 
         {{#if is_print}}
         {{#if mathjax_support}}

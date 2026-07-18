@@ -203,11 +203,10 @@ fn bytefield_gen_html(mat_str: &str) -> String {
 fn latex_gen_html(mat_str: &str) -> String {
     let content = clean_codeblock(mat_str, "```latex tex");
     // 消除所有空行，避免 pulldown-cmark 提前结束 HTML 块
-    // （匹配 mdbook-demo 的 echarts 处理器行为）
     let re = Regex::new(r"\n{2,}").unwrap();
     let content = re.replace_all(&content, "\n");
 
-    format!(
+    let result = format!(
         r#"<div>
     <div id="CommonMark-latex"></div>
     <latex-js baseURL="https://cdn.jsdelivr.net/npm/latex.js/dist/"><code>
@@ -215,7 +214,9 @@ fn latex_gen_html(mat_str: &str) -> String {
     </code></latex-js>
 </div>"#,
         content
-    )
+    );
+
+    result
 }
 
 /// ===== latex tikz (TikZ 图片 → SVG) =====

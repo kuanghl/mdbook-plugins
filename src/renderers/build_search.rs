@@ -18,7 +18,7 @@ impl Renderer for BuildSearchRenderer {
     }
 
     fn render(&self, ctx: &RenderContext) -> Result<(), Error> {
-        // build-search 的输出目录是 books/build-search，
+        // build-search 的输出目录是 books/zz-build-search，
         // 但需要处理的是 HTML 目录（books/html）。
         // 从 ctx.destination 的父目录推断 HTML 目录。
         let html_dir = ctx.destination
@@ -29,7 +29,12 @@ impl Renderer for BuildSearchRenderer {
 
         eprintln!("build-search: 处理 HTML 目录: {}", html_dir.display());
         crate::build_search::run(&html_dir.to_string_lossy())
-            .map_err(|e| Error::msg(format!("build-search 失败: {}", e)))
+            .map_err(|e| Error::msg(format!("build-search 失败: {}", e)))?;
+
+        // 删除空的 zz-build-search 输出目录（实际工作已写入 html/）
+        let _ = std::fs::remove_dir_all(&ctx.destination);
+
+        Ok(())
     }
 }
 
