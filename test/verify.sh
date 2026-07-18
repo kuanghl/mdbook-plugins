@@ -29,9 +29,9 @@ if [ ! -f "$PLUGIN_BIN" ]; then
 fi
 pass "mdbook-plugins binary ($(du -h "$PLUGIN_BIN" | cut -f1))"
 
-# 部署单一二进制（无需软链接）
+# 部署单一二进制（各渲染器通过 book.toml 的 command 字段调用）
 cp "$PLUGIN_BIN" "$BIN_DIR/mdbook-plugins"
-pass "单一二进制已部署（无需软链接）"
+pass "单一二进制已部署"
 
 # tests: supports 协议（通过 mdbook-plugins <name> 方式）
 echo ""

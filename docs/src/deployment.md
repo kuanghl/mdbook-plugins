@@ -230,6 +230,6 @@ formats = ["docx", "xlsx", "pptx"]
 ## 注意事项
 
 1. **PATH 设置**：mdbook 通过 PATH 查找插件二进制，需确保 `bin/` 目录在 PATH 中
-2. **PDF 渲染**：`mdbook-pdf` 已合并为轻量版（`ren-pdf`），依赖系统安装 Chrome/Chromium
+2. **PDF 渲染**：`mdbook-pdf` 已合并（`ren-pdf`），依赖系统安装 Chrome/Chromium
 3. **权限**：符号链接需要可执行权限，`ln -sf` 创建的链接继承目标文件权限
 4. **版本兼容**：项目针对 mdbook 0.4.x 系列开发，如使用 mdbook 0.5+ 需调整 API 调用

@@ -475,40 +475,114 @@ stdin → RenderContext
 
 ### mdbook-pdf
 
-**模块**: `src/renderers/pdf.rs` (256 行)
+**模块**: `src/renderers/pdf.rs` + `src/renderers/pdf_chrome_cdp.rs` + `src/renderers/pdf_html_preprocess.rs`
 
-**功能**: 轻量 PDF 渲染器，通过 Chrome 命令行 `--print-to-pdf` 生成 PDF。
+**功能**: PDF 渲染器，通过 Chrome DevTools Protocol 生成高质量 PDF。
 
-**零额外 Rust 依赖**：仅使用 `std::process::Command` + 已有依赖。
+**核心特性**:
+- **四模式页眉/页脚**：`use-native-header-footer`（CDP 原生模板）与 `css-header-footer`（CSS 注入）两个正交开关，组合实现4种模式：仅 CSS 注入、仅 CDP 原生、CDP 原生+CSS 叠加、无页眉/页脚
+- **HTML 预处理**：使用 `scraper` DOM 解析，执行链接修正 + 增强分页 CSS 注入
+- **自动重试**：`trying-times` 参数控制失败重试，每次重试重新启动 Chrome 实例
+- **Chrome 版本检测**：通过 `chrome --version` 自动检测版本，>= 125 时自动启用原生模式
+- **回退机制**：CDP 后端失败时自动回退 CLI `--headless --print-to-pdf` 模式
 
-**算法流程**:
+**book.toml 完整配置**:
+```toml
+[output.pdf]
+command = "mdbook-plugins pdf"
+optional = true
+
+# ── 后端与重试 ──
+# backend = "chrome"                     # "chrome"（默认）或 "chrome-cli"
+# trying-times = 1                        # CDP 失败重试次数
+# browser-binary-path = ""                # Chrome 路径，留空自动探测（支持 CHROME 环境变量）
+
+# ── 页面几何（单位：英寸） ──
+# paper-width = 8.5
+# paper-height = 11.0
+# landscape = false
+# margin-top = 1.0
+# margin-bottom = 1.0
+# margin-left = 1.0
+# margin-right = 1.0
+# scale = 1.0                             # 全局缩放
+# prefer-css-page-size = false
+
+# ── 页眉/页脚 ──
+# display-header-footer = false           # 是否启用（被 no_header=true 覆盖）
+# use-native-header-footer = false        # true=CDP原生模板, false=CSS固定定位
+# css-header-footer = true                # CSS注入独立开关（与use-native-header-footer正交）
+# header-height = 0.7                     # 固定定位模式：页眉高度（英寸）
+# footer-height = 0.6                     # 固定定位模式：页脚高度（英寸）
+# header-template = ""                    # 支持 class='date/title/pageNumber/totalPages'
+# footer-template = ""
+# no_header = false                       # 设为 true 则无条件禁用所有页眉/页脚
+
+# ── 内容控制 ──
+# print-background = true
+# page-range = ""                         # 如 "1-5,8,11-13"
+# ignore-invalid-page-ranges = false
+# generate-document-outline = true        # PDF 书签大纲
+# generate-tagged-pdf = true              # 无障碍标签
+
+# ── 链接修复 ──
+# static-site-url = ""                    # 相对链接转绝对 URL 的基准
 ```
-1. 等待 HTML 后端生成 print.html
-2. 读取 print.html
-3. 注入 @page CSS 规则（纸张大小、边距、方向）
-4. 写入临时文件 print_pdf.html
-5. 调用 Chrome:
-   google-chrome --headless --print-to-pdf=output.pdf \
-     --print-to-pdf-no-header=true print_pdf.html
-6. 清理临时文件
+
+**架构流程**:
+```
+parse_config() → PdfOptions
+     │
+     ▼
+preprocess_html(html, cfg):             [pdf_html_preprocess.rs]
+  ├─ 1. fix_links()        (scraper DOM 解析)
+  ├─ 2. inject_print_css() (h1新页/代码保护/孤行控制)
+  └─ ▶ 返回处理后的 HTML
+     │
+     ▼
+render_chrome_cdp(html, output, cfg):   [pdf_chrome_cdp.rs]
+  ├─ 重试循环 (1..=cfg.trying_times)
+  │    └─ render_chrome_cdp_async()
+  │         ├─ chrome --version → 版本检测
+  │         ├─ determine_mode() → None / CSS / Native + CSS / Native
+  │         ├─ 启动 Chrome (no_sandbox)
+  │         ├─ 导航到临时 HTML
+  │         ├─ page.evaluate(注入JS)  [仅 Fixed 模式]
+  │         ├─ page.pdf(params)
+  │         └─ 写入 output.pdf
+  └─ 清理临时文件
 ```
 
 **Chrome 查找顺序**:
 1. 环境变量 `CHROME`
-2. book.toml 配置 `browser-binary-path`
-3. 自动检测：`google-chrome-stable` → `chromium-browser` → `chromium`
+2. `book.toml` 的 `browser-binary-path`
+3. PATH 搜索：`google-chrome-stable` → `chromium-browser` → `chromium`
 
-**CSS 注入**:
-```rust
-// 通过 @page CSS 规则控制 PDF 输出格式
-@page {{
-  size: {w}in {h}in{landscape};   // 纸张大小和方向
-  margin: {mt}in {mr}in {mb}in {ml}in;  // 四周边距
-}}
-```
+**页眉/页脚模式选择**:
 
-**注意**: 需要系统安装 Chrome/Chromium。与原 `mdbook-pdf` 相比，
-不支持页眉/页脚模板（通过 CDP 实现），但覆盖了 90% 的日常使用场景。
+`css-header-footer` 与 `use-native-header-footer` 是正交的独立开关，实现4种组合：
+
+| `display-header-footer` | `no_header` | `use-native-header-footer` | `css-header-footer` | 模式 | 说明 |
+|---|---|---|---|---|---|
+| `false` 或未设置 | — | — | — | None | 无页眉/页脚 |
+| `true` | `true` | — | — | None | `no_header` 覆盖，无页眉/页脚 |
+| `true` | `false`/未设置 | `false`（默认） | `true`（默认） | CSS 注入 | 仅 CSS 注入 |
+| `true` | `false`/未设置 | `false`（默认） | `false` | None | 无页眉/页脚 |
+| `true` | `false`/未设置 | `true` | `true` | Native + CSS | CDP 原生 + CSS 注入叠加 |
+| `true` | `false`/未设置 | `true` | `false` | Native | 仅 CDP 原生 |
+
+> **注意**：某些 Chrome 版本（如 v150）存在 `displayHeaderFooter` CDP 参数被忽略的 bug，导致 Chrome 默认页眉/页脚与自定义模板同时渲染。如果遇到此问题，建议升级 Chrome 或改用纯 CSS 注入模式（`use-native-header-footer=false` + `css-header-footer=true`）。
+
+**关键 CSS 规则**（固定定位模式）：
+- `@page` 边距 = 用户边距 + 页眉/页脚高度（补偿）
+- `.pf-header` / `.pf-footer`：`position: fixed`，`z-index: 10000`
+- CDP `PrintToPdfParams.margin` 设为 `0`，完全由 CSS 控制边距
+
+**分页保护 CSS**（两种模式均注入）：
+- `h1 { page-break-before: always; }` — 每章新页
+- `pre, code, table, img, svg { page-break-inside: avoid; }` — 代码块不断页
+- `p, li { widows: 2; orphans: 2; }` — 孤行控制
+- `.mermaid, .echarts { page-break-inside: avoid; }` — 图表保护
 
 ---
 
@@ -553,4 +627,4 @@ stdin → RenderContext
 | `ren-asciidoc` | mdbook-asciidoc | 渲染器 | — |
 | `ren-linkcheck` | mdbook-linkcheck | 渲染器 | tokio, reqwest |
 | `ren-office` | mdbook-office | 渲染器 | office_oxide |
-| `ren-pdf` | mdbook-pdf | 渲染器 | —（零额外依赖）|
+| `ren-pdf` | mdbook-pdf | 渲染器 | chromiumoxide + scraper（Chrome CDP 双模式 + HTML 预处理）|

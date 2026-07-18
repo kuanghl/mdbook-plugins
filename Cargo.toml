@@ -67,6 +67,15 @@ serde_yaml = "0.9"
 
 # Office 渲染
 office_oxide = "0.1"
+chromiumoxide = "0.9.1"
+chromiumoxide_cdp = "0.9.1"
+
+# HTML DOM 解析（PDF HTML 预处理）
+scraper = "0.22"
+
+# PDF 后处理（大纲/书签 + 元数据）
+lopdf = "0.34"
+indexmap = "2"
 
 # 特性开关
 [features]

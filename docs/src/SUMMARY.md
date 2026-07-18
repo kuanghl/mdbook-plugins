@@ -22,6 +22,7 @@
     - [渲染插件](./plugin-reference.md#渲染插件)
     - [未合并的插件说明](./plugin-reference.md#未合并的插件说明)
     - [特性清单](./plugin-reference.md#特性清单)
+- [PDF 渲染实现](./pdf-implementation.md)
 - [部署指南](./deployment.md)
     - [构建发布](./deployment.md#构建发布)
     - [部署步骤](./deployment.md#部署步骤)

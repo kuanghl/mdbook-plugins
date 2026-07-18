@@ -2,3 +2,7 @@ target/
 books/
 books-demo/
 html-demo/
+vscode-office/
+crowbook/
+.reasonix/
+mdbook-pdf/

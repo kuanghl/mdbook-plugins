@@ -76,7 +76,7 @@ command = "mdbook-plugins pikchr"
 [output.html]
 mathjax-support = true
 hash-files = false
-default-theme = "mocha"
+default-theme = "Light"
 preferred-dark-theme = "mocha"
 git-repository-url = "https://github.com/kuanghl/mdbook-demo"
 git-repository-icon = "fab-github"
@@ -126,20 +126,26 @@ editable = true
 enable = true
 
 [output.pdf]
-## Set for auto-retrying if failed to generate PDF.
-# trying-times = 1
-## This backend only support latest Chromium based browsers, not Safari and Firefox currently.
-## If needed, please specify the full path.
-## If you specify the wrong binary, chances are that there will be a timeout error.
-# browser-binary-path = ""
-## Assign the static hosting site url so that relative links outside the book can be fixed.
-static_site_url = "https://aye10032.gitbook.io/computernetwork/"
+command = "mdbook-plugins pdf"
 optional = true
+trying-times = 2                    # 生成失败时的重试次数（仅 CDP 模式）
+no-header = false                   # true 则强制禁用所有页眉/页脚（优先级最高）
+display-header-footer = true        # 控制页眉/页脚的启用/禁用
+use-native-header-footer = true     # true启用CDP headerTemplate/footerTemplate 渲染模板
+css-header-footer = false           # true启用CSS注入页眉/页脚（与CDP原生可共存）
+                                    # 与use-native-header-footer正交，组合实现4种模式
+                                    # 注意：Chrome v150+ 可能存在displayHeaderFooter参数
+                                    # 被忽略的bug，导致默认页眉与自定义模板同时渲染。
+                                    # 如遇此问题建议升级Chrome或改用CSS注入模式。
+## Chrome/Chromium 可执行文件路径，留空则自动探测
+## 支持环境变量 CHROME 优先
+# browser-binary-path = ""
+## 静态网站基准 URL，用于修正书中的相对链接
+static_site_url = "https://aye10032.gitbook.io/computernetwork/"
 ## Check Chrome Devtools Protocol Docs for the explanation of the following params:
 ## https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF
 landscape = false
 # format = "A4"
-display-header-footer = true
 print-background = true
 theme = "Light"
 scale = 1  # 画面比例

@@ -2,8 +2,8 @@
 
 ## 整体架构
 
-mdbook-plugins 采用**单二进制 + argv[0] 路由**架构。
-所有插件代码编译进一个可执行文件，运行时通过程序名称自动分发到对应的处理逻辑。
+mdbook-plugins 采用**单二进制 + command 路由**架构。
+所有插件代码编译进一个可执行文件，运行时通过 `command = "mdbook-plugins <name>"` 参数分发到对应的处理逻辑。无需符号链接。
 
 ```mermaid
 graph TB
@@ -14,11 +14,11 @@ graph TB
         RENDER["渲染器模块组"]
     end
 
-    subgraph "符号链接 (bin/)"
-        LN_ADMON["mdbook-admonish → mdbook-plugins"]
-        LN_ALERT["mdbook-alerts → mdbook-plugins"]
-        LN_TOC["mdbook-toc → mdbook-plugins"]
-        LN_OTHER["... 其他 13 个链接"]
+    subgraph "book.toml command 路由"
+        CMD_ADMON["[preprocessor.admonish]\ncommand = \"mdbook-plugins admonish\""]
+        CMD_TOC["[preprocessor.toc]\ncommand = \"mdbook-plugins toc\""]
+        CMD_PDF["[output.pdf]\ncommand = \"mdbook-plugins pdf\""]
+        CMD_OTHER["... 其他 17 个插件"]
     end
 
     subgraph "mdbook 调用方式"
@@ -27,15 +27,15 @@ graph TB
         REN_PROTO["stdin: RenderContext"]
     end
 
-    MDBOOK --> LN_ADMON
-    MDBOOK --> LN_ALERT
-    MDBOOK --> LN_TOC
-    MDBOOK --> LN_OTHER
+    MDBOOK --> CMD_ADMON
+    MDBOOK --> CMD_TOC
+    MDBOOK --> CMD_PDF
+    MDBOOK --> CMD_OTHER
 
-    LN_ADMON --> DISPATCH
-    LN_ALERT --> DISPATCH
-    LN_TOC --> DISPATCH
-    LN_OTHER --> DISPATCH
+    CMD_ADMON --> DISPATCH
+    CMD_TOC --> DISPATCH
+    CMD_PDF --> DISPATCH
+    CMD_OTHER --> DISPATCH
 
     DISPATCH -->|"supports 参数"| SUB
     DISPATCH -->|"argv[0] = mdbook-admonish"| PREPROC
@@ -47,33 +47,33 @@ graph TB
 
 ## 分发机制
 
-### argv[0] 路由
+### command 路由
 
-当 mdbook 调用 `mdbook-admonish` 时，操作系统通过符号链接执行 `mdbook-plugins`。
-Rust 程序读取 `std::env::args().next()` 获取调用路径，提取文件名作为插件名。
+当 mdbook 调用插件时，通过 `command` 字段传入 `mdbook-plugins <name>` 参数。
+Rust 程序读取 `argv[1]` 作为插件名进行路由。
 
 ```rust
 // main.rs 核心逻辑（简化）
 fn main() {
-    let bin_name = std::env::args().next()
-        .map(|p| Path::new(&p).file_stem().unwrap_or_default())
-        .unwrap_or_default();
-
-    let plugin_name = std::env::args().nth(1)
-        .filter(|a| a.starts_with("mdbook-"))
-        .unwrap_or(bin_name);
-
-    run_plugin(&plugin_name, &args);
+    let args: Vec<String> = std::env::args().collect();
+    let (plugin_name, plugin_args) = resolve_plugin(&args);
+    run_plugin(&plugin_name, &plugin_args);
 }
+
+// resolve_plugin 逻辑：
+// - argv[1] 是已知短名称（如 "katex"）→ 组装为 "mdbook-<name>"
+// - argv[1] 是 "mdbook-xxx" 格式 → 直接使用
+// - 否则从 argv[0]（符号链接名）推断（兼容旧式部署）
 ```
 
 ### 参数传递规则
 
 | 场景 | argv[0] | argv[1] | 行为 |
 |------|---------|---------|------|
-| 正常预处理 | `mdbook-toc` | — | 路由到 toc 模块 |
-| supports 检查 | `mdbook-toc` | `supports html` | 路由到 toc 的 supports 处理 |
-| 显式指定插件 | `./mdbook-plugins` | `mdbook-toc` | 用 argv[1] 覆盖 argv[0] |
+| 正常预处理 | `mdbook-plugins` | `katex` | 路由到 katex 模块 |
+| supports 检查 | `mdbook-plugins` | `katex` `supports` `html` | 路由到 katex 的 supports 处理 |
+| 渲染器调用 | `mdbook-plugins` | `pdf` | 路由到 pdf 模块 |
+| 符号链接兼容 | `mdbook-toc` | — | 用 argv[0] 推断插件名 |
 
 ### 预处理器分类
 
@@ -99,6 +99,7 @@ graph LR
         N["asciidoc<br/>AsciiDoc 输出"]
         O["linkcheck<br/>链接检查"]
         P["office<br/>Office 文档"]
+        Q["pdf<br/>PDF 双后端<br/>CDP / CLI"]
     end
 ```
 
@@ -125,10 +126,11 @@ src/
 │   ├── toc.rs               # 目录
 │   └── wavedrom.rs          # WaveDrom
 └── renderers/
-    ├── mod.rs               # 3 个渲染器模块索引
+    ├── mod.rs               # 4 个渲染器模块索引
     ├── asciidoc.rs           # AsciiDoc
     ├── linkcheck.rs          # 链接检查
-    └── office.rs             # Office 文档
+    ├── office.rs             # Office 文档
+    └── pdf.rs + pdf_chrome_cdp.rs + pdf_html_preprocess.rs  # PDF 三模块（CDP 双模式 + HTML 预处理）
 ```
 
 ### 模块接口约定

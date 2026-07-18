@@ -32,7 +32,7 @@
 | **mdbook-asciidoc** | 输出 AsciiDoc 格式 |
 | **mdbook-linkcheck** | 检查书中所有 Markdown 链接 |
 | **mdbook-office** | 输出 DOCX / XLSX / PPTX（依赖 Chrome/Chromium） |
-| **mdbook-pdf** | 通过 Chrome headless 生成 PDF |
+| **mdbook-pdf** | PDF 生成（Chrome CDP + CLI 双后端） |
 
 ## 快速开始
 
@@ -49,33 +49,62 @@ npm install katex@0.12.0
 cargo build --release
 ```
 
-构建完成后，二进制自动部署到 `test/bin/mdbook-plugins`（通过 `build.rs`）。
+构建完成后，二进制自动部署到 `test/bin/mdbook-plugins`（通过 `build.rs`）。如无 Chrome/Chromium，可用轻量方案：
+
+```bash
+# 1. 添加第三方 PPA 源
+sudo add-apt-repository ppa:xtradeb/apps -y
+# sudo add-apt-repository --remove ppa:xtradeb/apps
+
+# 2. 更新软件包列表
+sudo apt update
+
+# 3. 安装传统的 .deb 版 Chromium
+sudo apt install chromium
+
+# 或者
+# 下载 chrome的安装包
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+# 安装 Chrome
+sudo dpkg -i google-chrome-stable_current_amd64.deb
+
+# 移除软件包并删除配置文件
+sudo apt purge chromium
+
+# 清理不再需要的依赖包
+sudo apt autoremove
+```
 
 ### 部署
 
-为每个插件创建符号链接指向 `mdbook-plugins`：
+所有插件（预处理和渲染器）统一通过 `book.toml` 的 `command` 字段调用，无需符号链接：
 
-```bash
-cd test/bin
-for name in mdbook-admonish mdbook-alerts mdbook-echarts mdbook-emojicodes \
-    mdbook-embedify mdbook-katex mdbook-kroki-preprocessor mdbook-langtabs \
-    mdbook-mermaid mdbook-pikchr mdbook-svgbob mdbook-toc mdbook-wavedrom-rs \
-    mdbook-asciidoc mdbook-linkcheck mdbook-office mdbook-pdf; do
-    ln -sf mdbook-plugins "$name"
-done
+```toml
+[preprocessor.katex]
+command = "mdbook-plugins katex"
+
+[output.pdf]
+command = "mdbook-plugins pdf"
 ```
+
+二进制路径需在 `PATH` 中，或使用绝对路径：`command = "/path/to/mdbook-plugins pdf"`。
 
 ### 运行测试
 
 ```bash
 cd test
-./verify.sh --full
+
+# 首次需安装 KaTeX（用于公式预渲染，可选）
+npm install katex@0.12.0
+
+# 执行构建
+PATH="bin:$PATH" mdbook build
 ```
 
 测试包含：
-- 17 个插件的 `supports` 协议测试
+- 12 个预处理器插件的 `supports` 协议测试
 - 路由正确性测试
-- 完整 mdbook 构建测试
+- 完整 mdbook 构建 + PDF 生成测试
 
 ## 配置示例
 
@@ -158,14 +187,15 @@ cargo build --release
 ## 架构
 
 ```
-mdbook → external preprocessor/renderer → argv[0] 符号链接 → mdbook-plugins
+mdbook → external preprocessor/renderer → command 字段 → mdbook-plugins
                                                               │
                                                               ├─ src/main.rs (路由分发)
-                                                              ├─ src/preprocessors/ (13 插件)
-                                                              └─ src/renderers/ (4 插件)
+                                                              ├─ src/preprocessors/ (14 插件)
+                                                              └─ src/renderers/ (6 插件，pdf 含双后端：CDP + CLI)
 ```
 
-- **单二进制分发**：通过 `argv[0]` 名称路由到对应插件
+- **单二进制分发**：通过 `command = "mdbook-plugins <name>"` 统一路由到对应插件，无需符号链接
+- **PDF 双后端**：`backend = "chrome"`（默认，先 CDP 后 CLI 回退）
 - **内置 C 库**：`vendor/pikchr.c`（283 KB，Zero-Clause BSD）通过 `cc` crate 编译
 - **前端资产**：预编译 JS（ECharts / Mermaid / WaveDrom / Bytefield 等）存放在 `test/assets/`，通过 `additional-js` 引入
 - **KaTeX 渲染**：通过 Node.js 子进程调用 KaTeX（需安装 `katex` npm 包）
@@ -183,7 +213,7 @@ mdbook-plugins/
 │   ├── lib.rs           # 库入口
 │   ├── utils.rs         # 通用工具函数
 │   ├── preprocessors/   # 14 个预处理器
-│   └── renderers/       # 4 个渲染器
+│   └── renderers/       # 6 个渲染器（pdf 含双后端：CDP + CLI）
 ├── test/
 │   ├── book.toml        # 测试配置
 │   ├── bin/             # 符号链接部署目录
@@ -198,7 +228,17 @@ mdbook-plugins/
 
 - **Rust**：edition 2021，需 Rust 1.70+
 - **KaTeX**：（可选）`npm install katex@0.12.0`，用于服务端公式渲染
-- **Chrome/Chromium**：（可选）用于 PDF 和 Office 渲染
+- **Chrome/Chromium**：（可选）用于 Office 和 PDF 渲染。推荐轻量级安装方式：
+
+  ```bash
+  # 方案 A：chromium-browser（snap，一行命令，推荐）
+  sudo apt install chromium-browser
+
+  # 方案 B：Playwright Chromium（纯用户态，无需 root，适合 CI/CD）
+  # npx playwright install chromium
+  # CHROME="$HOME/.cache/ms-playwright/chromium-*/chrome-linux64/chrome"
+  ```
+
 - **Node.js**：（可选）用于 KaTeX 服务端渲染
 
 ## 许可
