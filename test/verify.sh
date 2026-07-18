@@ -68,9 +68,11 @@ if [ "${1:-}" = "--full" ]; then
     cd "$TEST_DIR"
 
     if PATH="$ABS_BIN_DIR:$PATH" mdbook build 2>&1 | tail -10; then
-        pass "mdbook build 成功"
+        pass "mdbook build 成功（含中文搜索索引）"
     else
         fail "mdbook build 失败"
+        cd "$REPO_DIR"
+        exit $FAIL
     fi
 
     cd "$REPO_DIR"

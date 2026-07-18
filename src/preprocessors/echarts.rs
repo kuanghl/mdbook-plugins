@@ -123,6 +123,14 @@ fn echarts_gen_html(mat_str: &str) -> String {
     let mut content = clean_codeblock(mat_str, "```echarts");
     let uuid = Uuid::new_v4().to_string().replace('-', "");
 
+    // 去除空行，防止 pulldown-cmark 将生成的 HTML 视为 type 6 块
+    // 并在空白行处提前截断，导致 script 内 JS 被当作 Markdown 解析（包裹 <p> 标签）。
+    content = content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+
     content = content.replace("chartDom", &format!("chartDom_{}", uuid));
     content = content.replace("myChart", &format!("chart_{}", uuid));
     content = content.replace("document.getElementById('main')",

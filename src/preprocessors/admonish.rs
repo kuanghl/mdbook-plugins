@@ -93,12 +93,6 @@ fn parse_admonish_start(line: &str) -> (String, Option<String>, bool) {
     (admonish_type, custom_title, collapsible)
 }
 
-/// 判断一行是否为 fence 代码块起始/结束标记（``` 或 ~~~）
-fn is_fence_marker(line: &str) -> bool {
-    let trimmed = line.trim();
-    trimmed.starts_with("```") || trimmed.starts_with("~~~")
-}
-
 fn process_chapter(content: &str) -> String {
     // 使用计数器跟踪每个类型的出现次数，生成与原始 mdbook-admonish 兼容的 ID
     let mut type_counter: HashMap<String, u32> = HashMap::new();

@@ -110,6 +110,10 @@ boost-paragraph = 1
 expand = true
 heading-split-level = 2
 
+# 中文搜索索引构建（自动在 HTML 渲染后运行，zz- 确保排在 html 之后）
+[output.zz-build-search]
+command = "mdbook-plugins build-search"
+
 [output.html.fold]
 enable = true # false
 level = 0 # 1

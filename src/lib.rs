@@ -3,6 +3,7 @@
 //! 本库将所有 mdbook 预处理器和渲染器合并为一个项目，
 //! 通过 argv[0] 或子命令分发到对应插件的处理逻辑。
 
+pub mod build_search;
 pub mod preprocessors;
 pub mod renderers;
 pub mod utils;

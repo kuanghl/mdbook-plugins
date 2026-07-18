@@ -17,12 +17,25 @@ const KNOWN_SHORT_NAMES: &[&str] = &[
     "mermaid", "pikchr", "plugins", "svgbob", "toc", "wavedrom-rs",
     // 渲染器
     "asciidoc", "linkcheck", "office", "pdf",
+    // 独立工具
+    "build-search",
 ];
 
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("warn"));
 
     let args: Vec<String> = std::env::args().collect();
+
+    // CLI 直接调用：mdbook-plugins build-search <html-dir>
+    // （区别于 Renderer 模式：后者通过 stdin 接收 RenderContext，无目录参数）
+    if args.len() >= 3 && args[1] == "build-search" {
+        let html_dir = &args[2];
+        if let Err(e) = mdbook_plugins::build_search::run(html_dir) {
+            eprintln!("mdbook-plugins build-search: 错误: {}", e);
+            process::exit(1);
+        }
+        return;
+    }
 
     // 解析插件名称和剩余参数
     let (plugin_name, plugin_args) = resolve_plugin(&args);
@@ -84,7 +97,7 @@ fn run_plugin(name: &str, args: &[String]) {
     );
 
     let _is_renderer = matches!(name,
-        "mdbook-asciidoc" | "mdbook-linkcheck" | "mdbook-office" | "mdbook-pdf"
+        "mdbook-asciidoc" | "mdbook-linkcheck" | "mdbook-office" | "mdbook-pdf" | "mdbook-build-search"
     );
 
     // 处理 `supports <renderer>` 子命令
@@ -133,6 +146,7 @@ fn run_plugin(name: &str, args: &[String]) {
         "mdbook-wavedrom-rs" => mdbook_plugins::preprocessors::wavedrom::run(),
         "mdbook-asciidoc" => mdbook_plugins::renderers::asciidoc::run(),
         "mdbook-linkcheck" => mdbook_plugins::renderers::linkcheck::run(),
+        "mdbook-build-search" => mdbook_plugins::renderers::build_search::run(),
         "mdbook-office" => mdbook_plugins::renderers::office::run(),
         "mdbook-pdf" => mdbook_plugins::renderers::pdf::run(),
         _ => {
