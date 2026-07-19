@@ -16,19 +16,38 @@ enable = true
 [output.pdf]
 command = "mdbook-plugins pdf"
 optional = true
-backend = "chrome"
-no-header = false
-display-header-footer = true
-use-native-header-footer = true
-css-header-footer = false
+trying-times = 2                    # 生成失败时的重试次数（仅 CDP 模式）
+timeout = 600                       # 单次 PDF 生成的超时秒数（默认 600），大文档需更长
+no-header = false                   # true 则强制禁用所有页眉/页脚（优先级最高）
+display-header-footer = true        # 控制页眉/页脚的启用/禁用
+use-native-header-footer = true     # true启用CDP headerTemplate/footerTemplate 渲染模板
+css-header-footer = false           # true启用CSS注入页眉/页脚（与CDP原生可共存）
+                                    # 与use-native-header-footer正交，组合实现4种模式
+                                    # 注意：Chrome v150+ 可能存在displayHeaderFooter参数
+                                    # 被忽略的bug，导致默认页眉与自定义模板同时渲染。
+                                    # 如遇此问题建议升级Chrome或改用CSS注入模式。
+## Chrome/Chromium 可执行文件路径，留空则自动探测
+## 支持环境变量 CHROME 优先
+# browser-binary-path = ""
+## 静态网站基准 URL，用于修正书中的相对链接
+static_site_url = "https://aye10032.gitbook.io/computernetwork/"
+## Check Chrome Devtools Protocol Docs for the explanation of the following params:
+## https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF
+landscape = false
+# format = "A4"
 print-background = true
+theme = "Light"
+scale = 1  # 画面比例
 paper-width = 8
 paper-height = 10
 margin-top = 0.5
 margin-bottom = 1.0
 margin-left = 0.5
 margin-right = 0.5
-generate-document-outline = true
+page-ranges = ""
+ignore-invalid-page-ranges = false
+# header-template = "<h3 style='font-size:8px; margin-left: 48%' class='title'></h3>"
+# footer-template = "<p style='font-size:10px; margin-left: 48%'><span class='pageNumber'></span> / <span class='totalPages'></span></p>"
 header-template = """<div style='position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;'>
                         <div style='display: flex; justify-content: space-between; align-items: center; padding: 0 5%;'>
                             <span style='font-size: 10px;' class='date'></span>
@@ -37,6 +56,16 @@ header-template = """<div style='position: relative; width: 100%; padding: 10px 
                         </div>
                         <hr style='border: none; border-top: 1px solid black; margin-top: 5px; width: 90%; margin-left: auto; margin-right: auto;'>
                     </div>"""
+# footer-template = """<div style='position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;'>
+#                        <div style='display: flex; justify-content: space-between; align-items: center; padding: 0 5%;'>
+#                            <span style='font-size: 10px;'>版本号</span>
+#                            <span style='font-size: 10px;'>
+#                               <span class='pageNumber'></span> / <span class='totalPages'></span>
+#                            </span>
+#                            <span style='font-size: 10px;'>BSN</span>
+#                        </div>
+#                        <hr style='border: none; border-top: 1px solid black; margin-top: 5px; width: 90%; margin-left: auto; margin-right: auto;'>
+#                    </div>"""
 footer-template = """<div style="position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;">
                         <hr style="border: none; border-bottom: 1px solid black; width: 90%; margin: 0 auto 5px auto;">
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 5%;">
@@ -47,3 +76,5 @@ footer-template = """<div style="position: relative; width: 100%; padding: 10px 
                             <span style="font-size: 10px;">BSN</span>
                         </div>
                     </div>"""
+prefer-css-page-size = true
+generate-document-outline = true

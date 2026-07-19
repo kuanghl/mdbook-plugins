@@ -54,6 +54,7 @@ mdbook build
 cd test
 export PATH="$PATH:$(pwd)/../target/release/"
 mdbook build
+# MDBOOK_LOG=html5ever=off mdbook build    # 禁用html5ever日志
 ```
 
 构建完成后，二进制自动部署到 `test/bin/mdbook-plugins`（通过 `build.rs`）。如无 Chrome/Chromium，可用轻量方案：

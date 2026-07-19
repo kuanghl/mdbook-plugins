@@ -7,7 +7,8 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Duration;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
@@ -39,9 +40,10 @@ pub fn render_chrome_cdp_light(
             Ok(()) => return Ok(()),
             Err(e) if attempt < max_attempts => {
                 log::warn!(
-                    "轻量 CDP 第 {}/{} 次尝试失败: {}. 500ms 后重试...",
+                    "轻量 CDP 第 {}/{} 次尝试失败: {}. 清空进程池后 500ms 重试...",
                     attempt, max_attempts, e
                 );
+                invalidate_pool_chrome();
                 std::thread::sleep(Duration::from_millis(500));
                 last_err = Some(e);
             }
@@ -65,24 +67,20 @@ async fn render_chrome_cdp_light_async(
     // 写入临时 HTML 文件
     std::fs::write(temp_html_path, html_content)?;
 
-    let chrome_path = resolve_chrome_path(cfg);
     let timeout = Duration::from_secs(cfg.timeout);
 
-    // 1. 启动 Chrome
-    log::info!("轻量 CDP: 启动 Chrome...");
-    let mut chrome = ChromeProcess::launch(chrome_path.as_deref(), timeout).await?;
-    let ws_url = chrome.ws_url.clone();
+    // 1. 从进程池获取 Chrome WebSocket URL（自动启动/复用）
+    let ws_url = acquire_chrome_ws_url(cfg, timeout).await?;
 
-    // 2. 连接 CDP
+    // 2. 连接 CDP（每次新建会话，WS 连接成本 ~10-50ms）
     log::info!("轻量 CDP: 连接 WebSocket...");
     let mut cdp = CdpSession::connect(&ws_url, timeout).await?;
 
-    // 使用 Result 来统一处理错误和清理
+    // 3. 渲染 PDF
     let result = render_inner(&mut cdp, temp_html_path, output_pdf, cfg, timeout).await;
 
-    // 3. 关闭 Chrome（无论成功失败）
-    let _ = chrome.kill().await;
-
+    // 4. 不关闭 Chrome — 放回进程池供下次复用
+    //    （闲置超时由 acquire_chrome_ws_url 在下次获取时处理）
     result
 }
 
@@ -142,61 +140,121 @@ fn search_path(name: &str) -> Option<std::path::PathBuf> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Chrome 进程管理
+// Chrome 进程池（复用 Chrome 进程，避免反复启动/销毁）
 // ═══════════════════════════════════════════════════════════
 
-struct ChromeProcess {
+/// Chrome 闲置超时秒数 — 超过此时间未使用则自动关闭
+const POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// 进程池中的 Chrome 实例状态
+struct PooledChrome {
     child: Child,
     ws_url: String,
     _temp_dir: tempfile::TempDir,
+    last_used: Instant,
 }
 
-impl ChromeProcess {
-    /// 启动 Chrome，返回 WebSocket URL
-    async fn launch(chrome_path: Option<&Path>, timeout: Duration) -> Result<Self> {
-        let chrome = chrome_path.map(|p| p.to_path_buf())
-            .or_else(find_chrome_in_path)
-            .ok_or_else(|| anyhow::anyhow!("找不到 Chrome/Chromium 可执行文件"))?;
+/// 全局 Chrome 进程池
+static CHROME_POOL: once_cell::sync::Lazy<Mutex<Option<PooledChrome>>> =
+    once_cell::sync::Lazy::new(|| Mutex::new(None));
 
-        // 使用独立临时用户数据目录
-        let temp_dir = tempfile::tempdir()
-            .map_err(|e| anyhow::anyhow!("无法创建临时目录: {}", e))?;
-        let data_dir = temp_dir.path().join("chrome-profile");
+/// 从进程池获取 Chrome WebSocket URL
+///
+/// 策略：
+/// 1. 若池中有实例且未超时 → 直接复用，减少 0.5-3s 启动时间
+/// 2. 若池中有实例但已超时 → 关闭旧进程，启动新实例
+/// 3. 若池为空 → 启动新实例并存入池中
+async fn acquire_chrome_ws_url(cfg: &PdfOptions, timeout: Duration) -> Result<String> {
+    // ── 尝试复用池中实例 ──
+    let pooled_to_kill = {
+        let mut pool = CHROME_POOL.lock().unwrap();
+        if let Some(ref mut inner) = *pool {
+            if inner.last_used.elapsed() > POOL_IDLE_TIMEOUT {
+                // 超时：从池中取出，稍后统一清理
+                Some(pool.take().unwrap())
+            } else {
+                log::info!(
+                    "复用 Chrome 进程池中的实例 (闲置 {:.1}s)",
+                    inner.last_used.elapsed().as_secs_f64()
+                );
+                inner.last_used = Instant::now();
+                return Ok(inner.ws_url.clone());
+            }
+        } else {
+            None
+        }
+    }; // ⚠️ MutexGuard 在此处释放，不跨 .await 持有
 
-        let mut cmd = TokioCommand::new(&chrome);
-        cmd.args([
-            "--headless",
-            "--no-sandbox",
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-dev-shm-usage",
-            "--disable-extensions",
-            "--disable-background-networking",
-            "--no-first-run",
-            "--hide-scrollbars",
-            "--mute-audio",
-            &format!("--user-data-dir={}", data_dir.display()),
-            "--remote-debugging-port=0", // 随机端口
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped());
-
-        let mut child = cmd.spawn()
-            .map_err(|e| anyhow::anyhow!("无法启动 Chrome: {}", e))?;
-
-        let stderr = child.stderr.take()
-            .ok_or_else(|| anyhow::anyhow!("无法获取 Chrome stderr"))?;
-
-        // 从 stderr 中读取 WebSocket URL
-        let ws_url = read_ws_url(stderr, timeout).await?;
-
-        Ok(Self { child, ws_url, _temp_dir: temp_dir })
+    // 清理超时的旧实例（在锁外执行 .await）
+    if let Some(mut p) = pooled_to_kill {
+        log::info!("Chrome 进程闲置超时，关闭旧进程...");
+        let _ = p.child.kill().await;
+        let _ = p.child.wait().await;
+        // p 在此处 drop，temp_dir 自动清理
     }
 
-    async fn kill(&mut self) -> Result<()> {
-        self.child.kill().await?;
-        self.child.wait().await?;
-        Ok(())
+    // ── 启动新 Chrome 进程 ──
+    log::info!("进程池为空，启动新的 Chrome 实例...");
+
+    let chrome = resolve_chrome_path(cfg)
+        .or_else(find_chrome_in_path)
+        .ok_or_else(|| anyhow::anyhow!("找不到 Chrome/Chromium 可执行文件"))?;
+
+    let temp_dir = tempfile::tempdir()
+        .map_err(|e| anyhow::anyhow!("无法创建临时目录: {}", e))?;
+    let data_dir = temp_dir.path().join("chrome-profile");
+
+    let mut cmd = TokioCommand::new(&chrome);
+    cmd.args([
+        "--headless",
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-software-rasterizer",
+        "--disable-dev-shm-usage",
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--no-first-run",
+        "--hide-scrollbars",
+        "--mute-audio",
+        &format!("--user-data-dir={}", data_dir.display()),
+        "--remote-debugging-port=0", // 随机端口
+    ])
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::piped());
+
+    let mut child = cmd.spawn()
+        .map_err(|e| anyhow::anyhow!("无法启动 Chrome: {}", e))?;
+
+    let stderr = child.stderr.take()
+        .ok_or_else(|| anyhow::anyhow!("无法获取 Chrome stderr"))?;
+
+    let ws_url = read_ws_url(stderr, timeout).await?;
+
+    // ── 存入进程池（锁外完成启动后） ──
+    {
+        let mut pool = CHROME_POOL.lock().unwrap();
+        *pool = Some(PooledChrome {
+            child,
+            ws_url: ws_url.clone(),
+            _temp_dir: temp_dir,
+            last_used: Instant::now(),
+        });
+    }
+
+    log::info!("新 Chrome 实例已启动并存入进程池");
+    Ok(ws_url)
+}
+
+/// 使池中 Chrome 实例失效（渲染失败时调用，确保下次重试启动新实例）
+fn invalidate_pool_chrome() {
+    let mut pool = CHROME_POOL.lock().unwrap();
+    if let Some(p) = pool.take() {
+        if let Some(pid) = p.child.id() {
+            // 先终止进程，再丢弃资源（child handle + temp dir）
+            unsafe { libc::kill(pid as i32, libc::SIGKILL); }
+        }
+        drop(p);
+        log::info!("已终止失效的 Chrome 进程");
     }
 }
 
@@ -351,6 +409,63 @@ impl CdpSession {
 // PDF 渲染核心逻辑
 // ═══════════════════════════════════════════════════════════
 
+/// 等待内容加载哨兵元素出现（替代固定 300ms 等待）
+///
+/// 通过 CDP `Runtime.evaluate` 轮询 DOM 中由 `inject_js` 注入的
+/// `#content-has-all-loaded-for-mdbook-pdf-generation` 元素。
+/// 该哨兵在页面 load 事件 + 可能存在的 MathJax 完成 + 100ms 后出现。
+///
+/// - 典型情况（无 MathJax）：~100-150ms 内返回
+/// - 有 MathJax：等待 MathJax 排版完成后返回
+/// - 超时保护：最多等待 `timeout`，超时后仍继续 PDF 生成
+async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
+    let check_expr =
+        "document.getElementById('content-has-all-loaded-for-mdbook-pdf-generation') !== null";
+    let start = Instant::now();
+
+    loop {
+        if start.elapsed() > timeout {
+            log::warn!(
+                "轻量 CDP: 内容加载哨兵等待超时 ({}s)，继续 PDF 生成",
+                timeout.as_secs()
+            );
+            return;
+        }
+
+        match cdp
+            .call(
+                "Runtime.evaluate",
+                Some(json!({
+                    "expression": check_expr,
+                    "returnByValue": true,
+                    "awaitPromise": false,
+                })),
+                Duration::from_secs(5),
+            )
+            .await
+        {
+            Ok(val) => {
+                let found = val
+                    .get("result")
+                    .and_then(|r| r.get("value"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                if found {
+                    log::info!(
+                        "轻量 CDP: 内容加载哨兵已出现（耗时 {:.0}ms）",
+                        start.elapsed().as_millis()
+                    );
+                    return;
+                }
+            }
+            Err(e) => {
+                log::warn!("轻量 CDP: 检查内容加载哨兵失败: {} (继续)", e);
+            }
+        }
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
 async fn render_inner(
     cdp: &mut CdpSession,
     html_path: &Path,
@@ -412,8 +527,9 @@ async fn render_inner(
         Err(_) => log::warn!("轻量 CDP: 页面加载超时 ({}s, 继续)", cfg.timeout),
     }
 
-    // 短暂等待确保渲染完成
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    // 3.5 等待内容加载哨兵（替代固定 300ms 等待）
+    log::info!("轻量 CDP: 等待内容加载哨兵...");
+    wait_for_content_sentinel(cdp, Duration::from_secs(cfg.timeout)).await;
 
     // 4. 调用 Page.printToPDF
     log::info!("轻量 CDP: 调用 Page.printToPDF...");

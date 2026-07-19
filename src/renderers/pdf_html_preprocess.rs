@@ -55,6 +55,11 @@ window.addEventListener('load', () => {
     } catch (e) {
         markAllContentHasLoadedForPrinting();
     }
+    // 移除主题注入的固定页眉/页脚，避免与 Chrome displayHeaderFooter 原生渲染冲突
+    let ph = document.getElementById('mdbook-print-header');
+    let pf = document.getElementById('mdbook-print-footer');
+    if (ph) ph.remove();
+    if (pf) pf.remove();
 });
 </script>"#;
     insert_before(html, "</body>", script)
@@ -114,9 +119,11 @@ fn fix_single_link(href: &str, base_url: &str) -> Option<String> {
     None
 }
 
-/// 注入打印 CSS (`@media print` 分页控制)
+/// 注入打印 CSS (@media print 分页控制 + 抑制主题打印页眉/页脚)
 ///
 /// 防止代码块、表格、图片在打印时分页断裂。
+/// 同时隐藏 `#mdbook-print-header` / `#mdbook-print-footer`，避免与 Chrome
+/// 原生 displayHeaderFooter 重复渲染。
 pub fn inject_print_css(html: &str) -> String {
     let css = r#"<style>
 @media print {
@@ -134,6 +141,10 @@ pub fn inject_print_css(html: &str) -> String {
     }
     a[href]::after {
         content: none !important;
+    }
+    /* 抑制主题打印页眉/页脚，避免与 Chrome CDP displayHeaderFooter 冲突 */
+    #mdbook-print-header, #mdbook-print-footer {
+        display: none !important;
     }
 }
 </style>"#;
