@@ -6,5 +6,6 @@ pub mod linkcheck;
 pub mod office;
 pub mod pdf;
 pub mod pdf_chrome_cdp;
+pub mod pdf_chrome_cdp_light;
 pub mod pdf_html_preprocess;
 pub mod pdf_outline;

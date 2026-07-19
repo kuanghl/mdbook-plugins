@@ -129,6 +129,7 @@ enable = true
 command = "mdbook-plugins pdf"
 optional = true
 trying-times = 2                    # 生成失败时的重试次数（仅 CDP 模式）
+timeout = 600                       # 单次 PDF 生成的超时秒数（默认 600），大文档需更长
 no-header = false                   # true 则强制禁用所有页眉/页脚（优先级最高）
 display-header-footer = true        # 控制页眉/页脚的启用/禁用
 use-native-header-footer = true     # true启用CDP headerTemplate/footerTemplate 渲染模板
@@ -188,7 +189,7 @@ footer-template = """<div style="position: relative; width: 100%; padding: 10px 
                         </div>
                     </div>"""
 prefer-css-page-size = true
-generate-document-outline = false
+generate-document-outline = true
 
 # pdf-outline 是 Python 辅助脚本，未合并到 mdbook-plugins
 # [output.pdf-outline]

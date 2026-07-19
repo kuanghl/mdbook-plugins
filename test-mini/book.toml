@@ -1,0 +1,49 @@
+[book]
+title = "Test PDF"
+authors = ["test"]
+language = "zh"
+src = "./src"
+
+[build]
+build-dir = "output"
+create-missing = true
+use-default-preprocessors = true
+
+[output.html]
+[output.html.print]
+enable = true
+
+[output.pdf]
+command = "mdbook-plugins pdf"
+optional = true
+backend = "chrome"
+no-header = false
+display-header-footer = true
+use-native-header-footer = true
+css-header-footer = false
+print-background = true
+paper-width = 8
+paper-height = 10
+margin-top = 0.5
+margin-bottom = 1.0
+margin-left = 0.5
+margin-right = 0.5
+generate-document-outline = true
+header-template = """<div style='position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;'>
+                        <div style='display: flex; justify-content: space-between; align-items: center; padding: 0 5%;'>
+                            <span style='font-size: 10px;' class='date'></span>
+                            <span style='font-size: 10px;' class='title'></span>
+                            <span style='font-size: 10px;'>kuanghl</span>
+                        </div>
+                        <hr style='border: none; border-top: 1px solid black; margin-top: 5px; width: 90%; margin-left: auto; margin-right: auto;'>
+                    </div>"""
+footer-template = """<div style="position: relative; width: 100%; padding: 10px 0; box-sizing: border-box;">
+                        <hr style="border: none; border-bottom: 1px solid black; width: 90%; margin: 0 auto 5px auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 5%;">
+                            <span style="font-size: 10px;">版本号</span>
+                            <span style="font-size: 10px;">
+                                <span class='pageNumber'></span> / <span class='totalPages'></span>
+                            </span>
+                            <span style="font-size: 10px;">BSN</span>
+                        </div>
+                    </div>"""

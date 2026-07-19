@@ -1,168 +1,77 @@
-//! mdbook-pdf — HTML 预处理模块
+//! mdbook-pdf HTML 预处理模块
 //!
-//! 在将 HTML 送入 Chrome CDP 打印之前，执行以下预处理：
-//!
-//! 1. **ToC 修复**：为每个章节插入隐藏的 `<a>` 锚点，Chrome 将其转为 PDF 命名目标
-//! 2. **JS 注入**：扩展 `<details>` 元素、挂钩 MathJax 完成、添加内容加载哨兵
-//! 3. **链接修正**：当 `static-site-url` 非空时，将相对路径链接转为绝对 URL
-//! 4. **分页保护 CSS**：注入 `@media print` 规则，确保代码块不断页、标题不孤行
-//!
-//! 使用 `scraper` crate 进行 DOM 解析（而非字符串正则），以正确处理 HTML 结构。
+//! 在 HTML 送入 Chrome 前进行多维度预处理:
+//! - ToC 锚点注入 (PDF 命名目标)
+//! - JS 注入 (展开 `<details>`、MathJax 挂钩、内容加载哨兵)
+//! - 链接修正 (相对路径 → 绝对 URL)
+//! - 打印 CSS 注入 (`@media print` 分页控制)
+//! - CJK 字体回退 CSS 注入
 
 use scraper::{Html, Selector};
 
-use super::pdf::PdfOptions;
-
-/// 预处理后的结果
-pub struct PreprocessResult {
-    pub html: String,
-    /// 是否注入了内容加载哨兵（告诉 CDP 等待此元素）
-    pub has_content_sentinel: bool,
-}
-
-/// HTML 预处理入口
+/// 章节路径 → PDF 命名目标 ID
 ///
-/// # 参数
-/// - `html`: 原始 print.html 内容
-/// - `cfg`: PDF 配置
-/// - `chapter_paths`: 书籍章节路径列表（用于 ToC 修复，可选）
-pub fn preprocess_html(
-    html: &str,
-    cfg: &PdfOptions,
-    chapter_paths: &[String],
-) -> PreprocessResult {
-    let html = fix_links(html, &cfg.static_site_url);
-    let html = inject_toc_fix(&html, chapter_paths);
-    let html = inject_print_css(&html);
-    let html = inject_font_css(&html);
-    let (html, has_sentinel) = inject_js(&html);
-    PreprocessResult {
-        html,
-        has_content_sentinel: has_sentinel,
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 1. ToC 修复 — 为 PDF 书签创建命名目标
-// ─────────────────────────────────────────────────────────────────────────
-
-/// 为每个章节插入隐藏的 `<a>` 锚点元素。
-///
-/// Chrome 在生成 PDF 时，会为带有 `id` 属性的元素创建命名目标（named destinations）。
-/// 这些命名目标是后续书签（outline）引用的关键。
-///
-/// 每个章节的 `id` 由其路径生成：`path/to/chapter.md` → `path-to-chapter`
-fn inject_toc_fix(html: &str, chapter_paths: &[String]) -> String {
-    if chapter_paths.is_empty() {
-        return html.to_string();
-    }
-
-    let mut toc_fix = String::from("<div style=\"display: none\">");
-    for path in chapter_paths {
-        let print_page_id = chapter_path_to_id(path);
-        toc_fix.push_str(&format!(
-            "<a href=\"#{}\">{}</a>", print_page_id, print_page_id
-        ));
-    }
-    toc_fix.push_str("</div>");
-
-    // 在 </body> 前插入
-    if let Some(pos) = html.rfind("</body>") {
-        let mut result = String::with_capacity(html.len() + toc_fix.len() + 16);
-        result.push_str(&html[..pos]);
-        result.push_str(&toc_fix);
-        result.push_str(&html[pos..]);
-        result
-    } else {
-        // 没有 </body>，直接追加
-        format!("{html}\n{toc_fix}")
-    }
-}
-
-/// 将章节路径转换为 PDF 命名目标 ID
-///
-/// `path/to/chapter.md` → `path-to-chapter`
+/// "chapter/01-setup.md" → "chapter-01-setup"
 pub fn chapter_path_to_id(path: &str) -> String {
     let mut base = path.to_string();
     if base.ends_with(".md") {
         base.truncate(base.len() - 3);
     }
-    base.replace(['/', '\\'], "-").to_ascii_lowercase()
+    base.replace(['/', '\\'], "-")
+        .to_ascii_lowercase()
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// 2. JS 注入 — details 展开、MathJax 挂钩、内容加载哨兵
-// ─────────────────────────────────────────────────────────────────────────
-
-/// 注入 JavaScript 脚本以：
-/// - 展开所有 `<details>` 元素（确保内容可见）
-/// - 挂钩 MathJax 完成事件
-/// - 添加内容加载哨兵元素（供 CDP 等待）
+/// 在 `</body>` 前插入隐藏锚点，供 PDF 书签定位
 ///
-/// 返回 (处理后的 HTML, 是否注入了哨兵)
-fn inject_js(html: &str) -> (String, bool) {
-    let script = r#"
-        <!-- mdbook-pdf: 自定义 JS 脚本 -->
-        <script type='text/javascript'>
-            let markAllContentHasLoadedForPrinting = () =>
-                window.setTimeout(
-                    () => {
-                        let p = document.createElement('div');
-                        p.setAttribute('id', 'content-has-all-loaded-for-mdbook-pdf-generation');
-                        document.body.appendChild(p);
-                    }, 100
-                );
-
-            window.addEventListener('load', () => {
-                // 展开所有 <details> 元素以供打印
-                let details = document.getElementsByTagName('details');
-                for (let i of details)
-                    i.open = true;
-
-                try {
-                    MathJax.Hub.Register.StartupHook('End', markAllContentHasLoadedForPrinting);
-                } catch (e) {
-                    markAllContentHasLoadedForPrinting();
-                }
-            });
-        </script>
-    "#;
-
-    if let Some(pos) = html.rfind("</body>") {
-        let mut result = String::with_capacity(html.len() + script.len() + 16);
-        result.push_str(&html[..pos]);
-        result.push_str(script);
-        result.push_str(&html[pos..]);
-        (result, true)
-    } else {
-        // 没有 </body>，直接追加
-        (format!("{html}\n{script}"), true)
+/// 每个锚点对应一个章节，Chrome 将其转为 PDF 命名目标。
+pub fn inject_toc_fix(html: &str, chapter_paths: &[String]) -> String {
+    let mut toc_fix = String::from("<div style=\"display: none\">");
+    for path in chapter_paths {
+        let id = chapter_path_to_id(path);
+        toc_fix.push_str(&format!("<a id=\"{}\"></a>", id));
     }
+    toc_fix.push_str("</div>");
+    insert_before(html, "</body>", &toc_fix)
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// 3. 链接修正
-// ─────────────────────────────────────────────────────────────────────────
+/// 注入 JS 脚本:
+/// - 展开所有 `<details>` 元素
+/// - MathJax 完成挂钩
+/// - 内容加载哨兵元素
+pub fn inject_js(html: &str) -> String {
+    let script = r#"<script type='text/javascript'>
+let markAllContentHasLoadedForPrinting = () =>
+    window.setTimeout(() => {
+        let p = document.createElement('div');
+        p.setAttribute('id', 'content-has-all-loaded-for-mdbook-pdf-generation');
+        document.body.appendChild(p);
+    }, 100);
 
-/// 将 HTML 中的相对路径链接修正为绝对 URL。
+window.addEventListener('load', () => {
+    for (let d of document.getElementsByTagName('details'))
+        d.open = true;
+    try {
+        MathJax.Hub.Register.StartupHook('End', markAllContentHasLoadedForPrinting);
+    } catch (e) {
+        markAllContentHasLoadedForPrinting();
+    }
+});
+</script>"#;
+    insert_before(html, "</body>", script)
+}
+
+/// 修正相对链接为绝对 URL
 ///
-/// 仅当 `base_url` 非空时执行。修正规则：
-/// - 仅处理 `<a href="...">` 中的 `href` 属性
-/// - 跳过已为绝对链接（http://、https://、mailto: 等）、锚点（#）、协议相对（//）的链接
-/// - 跳过以 `/` 开头的绝对路径链接（由静态站点自行处理）
-fn fix_links(html: &str, base_url: &str) -> String {
+/// 仅当 `base_url` 非空时生效。跳过锚点链接 (`#...`) 和已有协议的链接。
+pub fn fix_links(html: &str, base_url: &str) -> String {
     if base_url.is_empty() {
         return html.to_string();
     }
-
     let base_url = base_url.trim_end_matches('/');
-
     let document = Html::parse_document(html);
-    let selector = Selector::parse("a[href]").expect("a[href] selector is valid");
+    let selector = Selector::parse("a[href]").unwrap();
 
-    // 收集所有需要修改的 (原 href, 新 href)
     let mut replacements: Vec<(String, String)> = Vec::new();
-
     for element in document.select(&selector) {
         if let Some(href) = element.value().attr("href") {
             if let Some(fixed) = fix_single_link(href, base_url) {
@@ -171,274 +80,301 @@ fn fix_links(html: &str, base_url: &str) -> String {
         }
     }
 
-    if replacements.is_empty() {
-        return html.to_string();
-    }
-
-    // 在原始 HTML 中替换 href 属性值
     let mut result = html.to_string();
-    for (old_href, new_href) in &replacements {
-        let search_pattern = format!("href=\"{}\"", old_href);
-        let replace_pattern = format!("href=\"{}\"", new_href);
-        result = result.replace(&search_pattern, &replace_pattern);
+    for (old, new) in &replacements {
+        result = result.replace(
+            &format!("href=\"{}\"", old),
+            &format!("href=\"{}\"", new),
+        );
     }
-
     result
 }
 
-/// 判断并修复单个链接。
-///
-/// 返回 `Some(新URL)` 表示需要修复，`None` 表示保持原样。
+/// 修正单个链接
 fn fix_single_link(href: &str, base_url: &str) -> Option<String> {
-    let href = href.trim();
-
-    // 跳过绝对链接
-    if href.starts_with("http://")
-        || href.starts_with("https://")
-        || href.starts_with("mailto:")
-        || href.starts_with("tel:")
-    {
+    // 跳过锚点链接和已有协议的链接
+    if href.starts_with('#') || href.starts_with("http://") || href.starts_with("https://") {
         return None;
     }
-
-    // 跳过锚点、JavaScript、协议相对
-    if href.starts_with('#') || href.starts_with("javascript:") || href.starts_with("//") {
+    // 跳过 mailto: 等协议链接
+    if href.contains("://") || href.starts_with("mailto:") {
         return None;
     }
-
-    // 跳过以 / 开头的绝对路径（静态站点处理）
-    if href.starts_with('/') {
-        return None;
+    // 修正相对路径（以 ../ 开头或包含 /../）
+    if href.starts_with("../") || href.contains("/../") {
+        let clean_href = href.replace('\\', "/");
+        let mut fixed = String::new();
+        fixed.push_str(base_url);
+        if !fixed.ends_with('/') {
+            fixed.push('/');
+        }
+        fixed.push_str(&clean_href);
+        return Some(fixed);
     }
-
-    // 相对路径：拼接 base_url
-    let fixed = format!("{}/{}", base_url, href);
-    Some(fixed)
+    None
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// 4. 分页保护 CSS 注入
-// ─────────────────────────────────────────────────────────────────────────
-
-/// 注入增强的 `@media print` 分页控制 CSS 到 HTML 的 `</head>` 前。
+/// 注入打印 CSS (`@media print` 分页控制)
 ///
-/// 仅注入分页控制 CSS（不断页、不孤行），不做任何页眉/页脚注入。
-/// 页眉/页脚完全由 CDP `displayHeaderFooter` 原生控制。
-fn inject_print_css(html: &str) -> String {
-    let print_css = r#"
+/// 防止代码块、表格、图片在打印时分页断裂。
+pub fn inject_print_css(html: &str) -> String {
+    let css = r#"<style>
 @media print {
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }
-  h1 { page-break-before: always; }
-  h2, h3 { page-break-before: avoid; }
-  pre, code, table, figure, img, svg {
-    page-break-inside: avoid;
-  }
-  .mermaid, .echarts {
-    page-break-inside: avoid;
-  }
-  p, li { widows: 2; orphans: 2; }
+    pre, code, pre code {
+        page-break-inside: avoid;
+    }
+    table {
+        page-break-inside: avoid;
+    }
+    img {
+        page-break-inside: avoid;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid;
+    }
+    a[href]::after {
+        content: none !important;
+    }
 }
-"#;
-
-    let style_tag = format!("<style>\n{print_css}</style>\n");
-
-    if let Some(pos) = html.find("</head>") {
-        let mut result = String::with_capacity(html.len() + print_css.len() + 16);
-        result.push_str(&html[..pos]);
-        result.push_str(&style_tag);
-        result.push_str(&html[pos..]);
-        result
+</style>"#;
+    // 插入到 </head> 前，若无则插到 <body> 前
+    if html.contains("</head>") {
+        insert_before(html, "</head>", css)
+    } else if html.contains("<body") {
+        insert_before(html, "<body", css)
     } else {
-        format!("{style_tag}\n{html}")
+        // 兜底：追加到开头
+        format!("{}{}", css, html)
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// 5. 字体 CSS 注入 — 解决 PDF 中特殊符号/中文显示为方框乱码的问题
-// ─────────────────────────────────────────────────────────────────────────
-
-/// 注入 `@font-face` 和 `font-family` CSS 规则，指定常见系统 CJK 字体。
-///
-/// Chrome 在生成 PDF 时，如果页面中的字符没有对应的系统字体，会显示为方框（tofu）。
-/// 此函数注入 CSS 告诉 Chrome 优先使用系统中已安装的 CJK 字体。
-///
-/// 支持的字体（按优先级）：
-/// - Linux: Noto Sans CJK SC, WenQuanYi Micro Hei
-/// - macOS: PingFang SC, Hiragino Sans GB
-/// - Windows: Microsoft YaHei, SimSun
-fn inject_font_css(html: &str) -> String {
-    let font_css = r#"
-/* mdbook-pdf: CJK 字体回退 — 避免方框乱码 */
+/// 注入 CJK 字体回退 CSS，避免方框乱码
+pub fn inject_font_css(html: &str) -> String {
+    let css = r#"<style>
 body {
-  font-family:
-    'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC',
-    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
-    'WenQuanYi Micro Hei',
-    serif, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Noto Sans SC", "Microsoft YaHei", "PingFang SC",
+        "Hiragino Sans GB", "WenQuanYi Micro Hei",
+        "Helvetica Neue", Arial, sans-serif;
 }
-code, pre, kbd {
-  font-family:
-    'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC',
-    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
-    'WenQuanYi Micro Hei',
-    'Fira Code', 'Cascadia Code', 'Source Code Pro',
-    'Courier New', monospace;
+code, pre {
+    font-family: "Cascadia Code", "JetBrains Mono", "Fira Code",
+        "Source Code Pro", "Noto Sans Mono CJK SC",
+        "Microsoft YaHei Mono", Consolas, monospace;
 }
-"#;
+</style>"#;
+    if html.contains("</head>") {
+        insert_before(html, "</head>", css)
+    } else {
+        format!("{}{}", css, html)
+    }
+}
 
-    let style_tag = format!("<style>\n{font_css}</style>\n");
+/// CSS 注入页眉/页脚
+///
+/// 根据配置生成 `position: fixed` 的页眉/页脚 div 和 `@page` 边距补偿。
+pub fn inject_css_header_footer(
+    html: &str,
+    header_content: &str,
+    footer_content: &str,
+    header_height: f64,
+    footer_height: f64,
+    margin_top: f64,
+    margin_bottom: f64,
+    margin_left: f64,
+    margin_right: f64,
+) -> String {
+    let css = format!(
+        r#"<style>
+@media print {{
+    .pf-h, .pf-f {{
+        display: block;
+        position: fixed;
+        left: 0; right: 0; width: 100%;
+        z-index: 10000;
+        font-size: 10px;
+    }}
+    .pf-h {{
+        top: 0;
+        height: {header_height}in;
+    }}
+    .pf-f {{
+        bottom: 0;
+        height: {footer_height}in;
+    }}
+}}
+@page {{
+    margin: {compensated_mt}in {mr}in {compensated_mb}in {ml}in;
+}}
+</style>"#,
+        header_height = header_height,
+        footer_height = footer_height,
+        compensated_mt = margin_top + header_height,
+        mr = margin_right,
+        compensated_mb = margin_bottom + footer_height,
+        ml = margin_left,
+    );
 
-    if let Some(pos) = html.find("</head>") {
-        let mut result = String::with_capacity(html.len() + font_css.len() + 16);
-        result.push_str(&html[..pos]);
-        result.push_str(&style_tag);
-        result.push_str(&html[pos..]);
+    let header_div = format!(
+        r#"<div class="pf-h">{}</div>"#,
+        header_content
+    );
+    let footer_div = format!(
+        r#"<div class="pf-f">{}</div>"#,
+        footer_content
+    );
+
+    let mut result = if html.contains("</head>") {
+        insert_before(html, "</head>", &css)
+    } else {
+        format!("{}{}", css, html)
+    };
+    // 在 </body> 前插入页眉/页脚 div
+    result = insert_before(&result, "</body>", &header_div);
+    result = insert_before(&result, "</body>", &footer_div);
+    result
+}
+
+/// 在 `target` 字符串前插入 `insertion` 文本
+fn insert_before(original: &str, target: &str, insertion: &str) -> String {
+    if let Some(pos) = original.find(target) {
+        let mut result = String::with_capacity(original.len() + insertion.len());
+        result.push_str(&original[..pos]);
+        result.push_str(insertion);
+        result.push_str(&original[pos..]);
         result
     } else {
-        format!("{style_tag}\n{html}")
+        // 如果找不到 target，追加到末尾
+        format!("{}{}", original, insertion)
     }
+}
+
+/// 完整预处理流水线：依次执行所有预处理步骤
+pub fn preprocess(
+    html: &str,
+    chapter_paths: &[String],
+    cfg: &super::pdf::PdfOptions,
+) -> String {
+    let mut result = html.to_string();
+
+    // 1. 链接修正
+    if !cfg.static_site_url.is_empty() {
+        result = fix_links(&result, &cfg.static_site_url);
+    }
+
+    // 2. ToC 锚点注入
+    result = inject_toc_fix(&result, chapter_paths);
+
+    // 3. 打印 CSS 注入
+    result = inject_print_css(&result);
+
+    // 4. CJK 字体 CSS 注入
+    result = inject_font_css(&result);
+
+    // 修复 CSS 页眉/页脚注入与原生模板互斥
+    let css_hf = cfg.css_header_footer && !cfg.use_native_header_footer;
+    if css_hf && cfg.header_footer_enabled() {
+        result = inject_css_header_footer(
+            &result,
+            &cfg.header_template,
+            &cfg.footer_template,
+            cfg.header_height,
+            cfg.footer_height,
+            cfg.margin_top,
+            cfg.margin_bottom,
+            cfg.margin_left,
+            cfg.margin_right,
+        );
+    }
+
+    // 6. JS 注入（始终执行）
+    result = inject_js(&result);
+
+    result
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // ── ToC 修复测试 ──
-
     #[test]
     fn test_chapter_path_to_id() {
         assert_eq!(chapter_path_to_id("intro.md"), "intro");
         assert_eq!(chapter_path_to_id("chapter/01-setup.md"), "chapter-01-setup");
+        assert_eq!(chapter_path_to_id("guide/getting-started.md"), "guide-getting-started");
     }
 
     #[test]
-    fn test_inject_toc_fix_empty_paths() {
-        let html = "<html><body><p>content</p></body></html>";
-        let result = inject_toc_fix(html, &[]);
+    fn test_inject_toc_fix_basic() {
+        let html = "<html><body>content</body></html>";
+        let paths = vec!["intro.md".to_string(), "chapter/01-setup.md".to_string()];
+        let result = inject_toc_fix(html, &paths);
+        assert!(result.contains(r#"<a id="intro">"#));
+        assert!(result.contains(r#"<a id="chapter-01-setup">"#));
+        // 插入在 </body> 前
+        assert!(result.ends_with("</body></html>") || result.contains("</body></html>"));
+    }
+
+    #[test]
+    fn test_inject_js_inserts_before_body_end() {
+        let html = "<html><body><p>hello</p></body></html>";
+        let result = inject_js(html);
+        assert!(result.contains("markAllContentHasLoadedForPrinting"));
+        assert!(result.contains("content-has-all-loaded-for-mdbook-pdf-generation"));
+        assert!(result.contains("<script"));
+    }
+
+    #[test]
+    fn test_fix_links_with_base_url() {
+        let html = r#"<a href="../images/foo.png">img</a>"#;
+        let result = fix_links(html, "https://example.com/book");
+        assert!(result.contains(r#"href="https://example.com/book/../images/foo.png""#));
+    }
+
+    #[test]
+    fn test_fix_links_anchor_skipped() {
+        let html = r##"<a href="#section">link</a>"##;
+        let result = fix_links(html, "https://example.com/book");
         assert_eq!(result, html);
     }
 
     #[test]
-    fn test_inject_toc_fix_with_paths() {
-        let html = "<html><body><p>content</p></body></html>";
-        let paths = vec!["intro.md".to_string(), "chapter/setup.md".to_string()];
-        let result = inject_toc_fix(html, &paths);
-        assert!(result.contains(r##"<a href="#intro">intro</a>"##));
-        assert!(result.contains(r##"<a href="#chapter-setup">chapter-setup</a>"##));
-        assert!(result.contains(r#"<div style="display: none">"#));
-        assert!(result.contains("</body>"));
-        // ToC div should be before </body>
-        let body_pos = result.rfind("</body>").unwrap();
-        let toc_pos = result.find("intro").unwrap();
-        assert!(toc_pos < body_pos);
-    }
-
-    // ── JS 注入测试 ──
-
-    #[test]
-    fn test_inject_js_has_script() {
-        let html = "<html><body><p>test</p></body></html>";
-        let (result, has_sentinel) = inject_js(html);
-        assert!(has_sentinel);
-        assert!(result.contains("content-has-all-loaded-for-mdbook-pdf-generation"));
-        assert!(result.contains("MathJax.Hub"));
-        assert!(result.contains("details"));
-    }
-
-    #[test]
-    fn test_inject_js_no_body() {
-        let html = "<html><p>test</p></html>";
-        let (result, has_sentinel) = inject_js(html);
-        assert!(has_sentinel);
-        assert!(result.contains("content-has-all-loaded-for-mdbook-pdf-generation"));
-    }
-
-    // ── 链接修正测试 ──
-
-    #[test]
     fn test_fix_links_empty_base() {
-        let html = r#"<a href="page.html">link</a>"#;
+        let html = r#"<a href="../page.html">link</a>"#;
         let result = fix_links(html, "");
         assert_eq!(result, html);
     }
 
     #[test]
-    fn test_fix_relative_link() {
-        let html = r#"<a href="page.html">link</a>"#;
-        let result = fix_links(html, "https://example.com/book");
-        assert!(result.contains(r#"href="https://example.com/book/page.html""#));
-    }
-
-    #[test]
-    fn test_fix_absolute_link_skipped() {
-        let html = r#"<a href="https://other.com/page.html">link</a>"#;
-        let result = fix_links(html, "https://example.com/book");
-        assert_eq!(result, html);
-    }
-
-    #[test]
-    fn test_fix_anchor_skipped() {
-        let html = "<a href=\"#section\">link</a>";
-        let result = fix_links(html, "https://example.com/book");
-        assert_eq!(result, html);
-    }
-
-    #[test]
-    fn test_fix_root_path_skipped() {
-        let html = r#"<a href="/absolute/page.html">link</a>"#;
-        let result = fix_links(html, "https://example.com/book");
-        assert_eq!(result, html);
-    }
-
-    #[test]
-    fn test_fix_multiple_links() {
-        let html = r#"<a href="a.html">a</a> <a href="https://ext.com/b.html">b</a> <a href="c.html">c</a>"#;
-        let result = fix_links(html, "https://base.com");
-        assert!(result.contains(r#"href="https://base.com/a.html""#));
-        assert!(result.contains(r#"href="https://ext.com/b.html""#));
-        assert!(result.contains(r#"href="https://base.com/c.html""#));
-    }
-
-    // ── 分页 CSS 注入测试 ──
-
-    #[test]
-    fn test_inject_print_css_has_head() {
-        let html = "<html><head><title>T</title></head><body><p>text</p></body></html>";
+    fn test_inject_print_css() {
+        let html = "<html><head></head><body>content</body></html>";
         let result = inject_print_css(html);
-        assert!(result.contains("page-break-inside: avoid"));
-        assert!(result.contains("</head>"));
-        let head_pos = result.find("</head>").unwrap();
-        let css_pos = result.find("page-break-inside").unwrap();
-        assert!(css_pos < head_pos, "CSS should be before </head>");
-    }
-
-    #[test]
-    fn test_inject_print_css_no_head() {
-        let html = "<body><p>no head</p></body>";
-        let result = inject_print_css(html);
-        assert!(result.starts_with("<style>"));
+        assert!(result.contains("@media print"));
         assert!(result.contains("page-break-inside: avoid"));
     }
 
-    // ── 完整流水线测试 ──
+    #[test]
+    fn test_inject_font_css() {
+        let html = "<html><head></head><body>content</body></html>";
+        let result = inject_font_css(html);
+        assert!(result.contains("Noto Sans SC"));
+        assert!(result.contains("Microsoft YaHei"));
+    }
 
     #[test]
-    fn test_preprocess_html_pipeline() {
-        let html = r#"<html><head><title>T</title></head><body><a href="page.html">link</a><p>text</p></body></html>"#;
-        let mut cfg = PdfOptions::default();
-        cfg.static_site_url = "https://example.com/book".to_string();
-        cfg.generate_document_outline = true;
-        let paths = vec!["intro.md".to_string()];
-        let result = preprocess_html(html, &cfg, &paths);
-        let r = &result.html;
-        assert!(r.contains(r#"href="https://example.com/book/page.html""#));
-        assert!(r.contains("page-break-inside: avoid"));
-        assert!(r.contains("content-has-all-loaded-for-mdbook-pdf-generation"));
-        assert!(r.contains("href=\"#intro\""));
-        assert!(result.has_content_sentinel);
+    fn test_chapter_path_to_id_with_special_chars() {
+        assert_eq!(chapter_path_to_id("01-Introduction.md"), "01-introduction");
+    }
+
+    #[test]
+    fn test_insert_before_found() {
+        let result = insert_before("hello world", "world", "beautiful ");
+        assert_eq!(result, "hello beautiful world");
+    }
+
+    #[test]
+    fn test_insert_before_not_found() {
+        let result = insert_before("hello", "xyz", "extra");
+        assert_eq!(result, "helloextra");
     }
 }

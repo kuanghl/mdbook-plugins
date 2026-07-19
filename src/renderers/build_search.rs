@@ -27,7 +27,7 @@ impl Renderer for BuildSearchRenderer {
             .filter(|p| p.exists())
             .unwrap_or_else(|| ctx.root.join("book").join("html"));
 
-        eprintln!("build-search: 处理 HTML 目录: {}", html_dir.display());
+        log::info!("build-search: 处理 HTML 目录: {}", html_dir.display());
         crate::build_search::run(&html_dir.to_string_lossy())
             .map_err(|e| Error::msg(format!("build-search 失败: {}", e)))?;
 

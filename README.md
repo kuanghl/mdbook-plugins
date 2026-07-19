@@ -42,12 +42,18 @@
 git clone <repo-url>
 cd mdbook-plugins
 
-# 安装 KaTeX 依赖（用于 mdbook-katex 服务端预渲染）
-npm install katex@0.12.0
-
 # 构建（Release 模式）
 cargo build --release
 cp target/release/mdbook-plugins test/bin/
+
+# 测试
+cd test-mini
+export PATH="$PATH:$(pwd)/../target/release/"
+mdbook build
+
+cd test
+export PATH="$PATH:$(pwd)/../target/release/"
+mdbook build
 ```
 
 构建完成后，二进制自动部署到 `test/bin/mdbook-plugins`（通过 `build.rs`）。如无 Chrome/Chromium，可用轻量方案：

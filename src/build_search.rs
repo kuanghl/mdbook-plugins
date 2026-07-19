@@ -188,9 +188,9 @@ pub fn run(html_dir: &str) -> anyhow::Result<()> {
     }
 
     // 1. 扫描 HTML 文件
-    eprintln!("🔍 扫描 HTML 文件...");
+    log::info!("扫描 HTML 文件...");
     let html_files = scan_html_files(html_path, "");
-    eprintln!("   找到 {} 个 HTML 文件", html_files.len());
+    log::info!("  找到 {} 个 HTML 文件", html_files.len());
 
     // 2. 提取文档
     let mut docs: Vec<SearchDoc> = Vec::new();
@@ -206,10 +206,10 @@ pub fn run(html_dir: &str) -> anyhow::Result<()> {
             body: body.clone(),
         });
     }
-    eprintln!("   提取 {} 个文档", docs.len());
+    log::info!("  提取 {} 个文档", docs.len());
 
     // 3. 构建倒排索引（bigram 分词）
-    eprintln!("🔧 构建搜索索引（中文 bigram 分词）...");
+    log::info!("构建搜索索引（中文 bigram 分词）...");
     let mut index = SearchIndex {
         documents: docs,
         tokens: HashMap::new(),
@@ -235,19 +235,19 @@ pub fn run(html_dir: &str) -> anyhow::Result<()> {
     let js_path = html_path.join("searchindex.js");
     let js_content = format!("window.searchData = {};", json);
     fs::write(&js_path, &js_content)?;
-    eprintln!("   输出 searchindex.js ({:.0} KB)", js_content.len() as f64 / 1024.0);
+    log::info!("  输出 searchindex.js ({:.0} KB)", js_content.len() as f64 / 1024.0);
 
     // 5. 输出 searcher.js
     let searcher_path = html_path.join("searcher.js");
     fs::write(&searcher_path, SEARCHER_JS)?;
-    eprintln!("   输出 searcher.js（中文 bigram 搜索版）");
+    log::info!("  输出 searcher.js（中文 bigram 搜索版）");
 
     // 6. 删除不再需要的搜索库文件
     for filename in &["elasticlunr.min.js", "minisearch.umd.js"] {
         let path = html_path.join(filename);
         if path.exists() {
             fs::remove_file(&path)?;
-            eprintln!("   删除 {}", filename);
+            log::info!("  删除 {}", filename);
         }
     }
 
@@ -275,9 +275,9 @@ pub fn run(html_dir: &str) -> anyhow::Result<()> {
             }
         }
     }
-    eprintln!("   已清理 {} 个 HTML 文件中的旧搜索库引用", replaced);
+    log::info!("  已清理 {} 个 HTML 文件中的旧搜索库引用", replaced);
 
-    eprintln!("✅ 中文搜索索引构建完成！");
+    log::info!("中文搜索索引构建完成！");
     Ok(())
 }
 
