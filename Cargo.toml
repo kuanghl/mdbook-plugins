@@ -53,6 +53,15 @@ flate2 = "1"
 katex-rs = "0.2.4"
 rayon = "1"
 
+# TeX → PDF 编译（tectonic 引擎）
+tectonic = "0.16"
+sha2 = "0.10"
+
+# PDF → SVG 转换（hayro-svg）
+hayro-svg = "0.7"
+hayro-syntax = "0.7"
+hayro-interpret = "0.7"
+
 # C 依赖 (pikchr)
 libc = "0.2"
 

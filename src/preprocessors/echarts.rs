@@ -15,7 +15,10 @@
 use mdbook_core::book::{Book, BookItem};
 use mdbook_core::errors::Error;
 use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
+use rayon::prelude::*;
 use regex::Regex;
+use svgbob::Render;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI32, Ordering};
 use uuid::Uuid;
 
@@ -32,18 +35,33 @@ impl Preprocessor for ChartPreprocessor {
         Ok(renderer == "html")
     }
 
-    fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
+    fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book, Error> {
+        // Build svg output dir: {root}/src/images/ (both PDF and SVG stored here)
+        // mdbook copies non-markdown files from src/ to the build output automatically.
+        let svg_dir = ctx
+            .root
+            .join("src")
+            .join("images");
+
+        // Tectonic format cache: {root}/{build_dir}/Tectonic/
+        let tectonic_cache_dir = ctx
+            .root
+            .join(&ctx.config.build.build_dir)
+            .join("Tectonic");
+
         book.for_each_mut(|item: &mut BookItem| {
             PICTUREINDEX.store(0, Ordering::SeqCst);
             if let BookItem::Chapter(ref mut chapter) = item {
-                chapter.content = process_chapter(&chapter.name, &chapter.content);
+                let chapter_path = chapter.path.clone().unwrap_or_else(|| PathBuf::from("index.md"));
+                chapter.content =
+                    process_chapter(&chapter.name, &chapter.content, &svg_dir, &chapter_path, &tectonic_cache_dir);
             }
         });
         Ok(book)
     }
 }
 
-fn process_chapter(name: &str, content: &str) -> String {
+fn process_chapter(name: &str, content: &str, svg_dir: &Path, chapter_path: &Path, tectonic_cache_dir: &Path) -> String {
     let chapter_name = name.replace(['/', '\\', ' '], "_");
     let chapter_alt = name.split('/').last().unwrap_or(name); // for alt text, keep original chars
     let mut s = content.to_string();
@@ -78,11 +96,21 @@ fn process_chapter(name: &str, content: &str) -> String {
         s = s.replace(mat.as_str(), buf.as_str());
     }
 
-    // 5) ```latex tikz (TikZ 图片 → SVG)
+    // 5) ```latex tikz (TikZ 图片 → 并行编译 tectonic PDF → hayro-svg SVG)
     let re = Regex::new(r"```latex tikz((.*\n)+?)?```").unwrap();
-    for mat in re.find_iter(s.clone().as_str()) {
-        let buf = tikz_gen_file(&chapter_name, &chapter_alt, mat.as_str());
-        s = s.replace(mat.as_str(), buf.as_str());
+    {
+        let s_clone = s.clone();
+        let matches: Vec<&str> = re.find_iter(s_clone.as_str()).map(|m| m.as_str()).collect();
+
+        // 并行编译所有 TikZ 块：已缓存的立即返回，未缓存的并发执行 tectonic + hayro-svg
+        let results: Vec<String> = matches
+            .par_iter()
+            .map(|mat_str| tikz_gen_file(mat_str, svg_dir, chapter_path, tectonic_cache_dir))
+            .collect();
+
+        for (mat_str, result) in matches.into_iter().zip(results.into_iter()) {
+            s = s.replace(mat_str, &result);
+        }
     }
 
     // 6) ```pikchr
@@ -219,41 +247,36 @@ fn latex_gen_html(mat_str: &str) -> String {
     result
 }
 
-/// ===== latex tikz (TikZ 图片 → SVG) =====
-fn tikz_gen_file(chapter_name: &str, chapter_alt: &str, mat_str: &str) -> String {
-    let content = clean_codeblock(mat_str, "```latex tikz");
+/// ===== latex tikz (TikZ 图片 → tectonic PDF → hayro-svg SVG 文件) =====
+fn tikz_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: &Path) -> String {
+    let mut content = clean_codeblock(mat_str, "```latex tikz");
 
-    // 提取标题（从 % 注释中）
-    let re_title = Regex::new(r"^\s*%+\s*([[:word:]]+)").unwrap();
-    let title = content.lines().find_map(|line| {
-        re_title.captures(line)
-            .and_then(|caps| caps.get(1))
-            .map(|m| m.as_str().to_string())
-    }).unwrap_or_else(|| "samples".to_string());
+    // 去除所有空行
+    content = content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
 
-    let idx = PICTUREINDEX.fetch_add(1, Ordering::SeqCst);
-    let svgname = format!("{}_{}.svg", title, idx);
+    let rel_prefix = crate::tikz::relative_svg_prefix(chapter_path);
+    log::info!("TikZ svg_dir: {:?}", svg_dir);
 
-    // 消除多余空行
-    let re = Regex::new(r"\n{3,}").unwrap();
-    let display_content = re.replace_all(&content, "\n\n");
-
-    format!(
-        r#"<div><details><summary>{svgfile}</summary>
-<div id="CommonMark-latex tikz"></div>
-
-<pre><code class="language-latex tikz">
-{content}
-</code></pre></details></div>
-<div align=center>
-<img src="./../images/{chapter}/{svg}" alt="{chapter_alt}" class="miv_mdbook-image-viewer" onclick="miv_openModal(this.src)">
-</div>"#,
-        svgfile = svgname.replace(".svg", ".tex"),
-        content = display_content,
-        chapter = chapter_name,
-        chapter_alt = chapter_alt,
-        svg = svgname,
-    )
+    match crate::tikz::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir) {
+        Ok(img_tag) => {
+            format!(r#"<div align="center">{}</div>"#, img_tag)
+        }
+        Err(e) => {
+            log::warn!("TikZ 渲染失败: {}", e);
+            let re = Regex::new(r"\n{2,}").unwrap();
+            let display_content = re.replace_all(&content, "\n");
+            format!(
+                r#"<div><details><summary>TikZ 渲染失败 (点击展开源码)</summary>
+<pre><code>{}</code></pre>
+<pre><code>{}</code></pre></details></div>"#,
+                e, display_content,
+            )
+        }
+    }
 }
 
 /// ===== pikchr =====
@@ -319,7 +342,11 @@ fn wavedrom_gen_html(mat_str: &str) -> String {
 
 /// 统一的处理入口：供 UnifiedPreprocessor 调用
 pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
-    process_chapter("", content)
+    // 统一入口无法获取 svg_dir/chapter_path，退化为内联 SVG（无缓存）
+    let svg_dir = std::path::PathBuf::from("/dev/null/images");
+    let chapter_path = std::path::PathBuf::from("index.md");
+    let tectonic_cache_dir = std::path::PathBuf::from("/dev/null/Tectonic");
+    process_chapter("", content, &svg_dir, &chapter_path, &tectonic_cache_dir)
 }
 
 /// 运行 mdbook-echarts 预处理器
