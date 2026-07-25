@@ -6,7 +6,10 @@
 pub mod build_search;
 pub mod preprocessors;
 pub mod renderers;
+#[cfg(feature = "pre-tikz")]
 pub mod tikz;
+#[cfg(feature = "pre-typst")]
+pub mod typst;
 pub mod utils;
 
 /// 插件注册表 —— 所有支持的插件名称

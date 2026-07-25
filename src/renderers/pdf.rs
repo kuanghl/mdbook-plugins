@@ -94,6 +94,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
             std::fs::write(&temp_html, &processed_html)?;
             pdf_chrome_cdp::render_chrome_cli(&temp_html, &output_pdf, &cfg)
         }
+        #[cfg(feature = "pre-pdf-cdp-heavy")]
         "chrome-legacy" => {
             log::info!("使用 Chrome CDP 后端 (chromiumoxide)");
             let result =

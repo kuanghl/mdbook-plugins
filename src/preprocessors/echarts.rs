@@ -9,7 +9,7 @@
 //! - ```latex tex  → <latex-js> 包裹
 //! - ```latex tikz → <details> 折叠 + <img> SVG
 //! - ```pikchr     → pikchr 内联 SVG
-//! - ```typst      → <details> 折叠 + <img> SVG
+//! - ```typst      → typst crate 编译 → SVG + PDF 文件
 //! - ```wavedrom   → WaveDrom script
 
 use mdbook_core::book::{Book, BookItem};
@@ -19,10 +19,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use svgbob::Render;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI32, Ordering};
 use uuid::Uuid;
-
-static PICTUREINDEX: AtomicI32 = AtomicI32::new(0);
 
 pub struct ChartPreprocessor;
 
@@ -50,7 +47,6 @@ impl Preprocessor for ChartPreprocessor {
             .join("Tectonic");
 
         book.for_each_mut(|item: &mut BookItem| {
-            PICTUREINDEX.store(0, Ordering::SeqCst);
             if let BookItem::Chapter(ref mut chapter) = item {
                 let chapter_path = chapter.path.clone().unwrap_or_else(|| PathBuf::from("index.md"));
                 chapter.content =
@@ -61,9 +57,7 @@ impl Preprocessor for ChartPreprocessor {
     }
 }
 
-fn process_chapter(name: &str, content: &str, svg_dir: &Path, chapter_path: &Path, tectonic_cache_dir: &Path) -> String {
-    let chapter_name = name.replace(['/', '\\', ' '], "_");
-    let chapter_alt = name.split('/').last().unwrap_or(name); // for alt text, keep original chars
+fn process_chapter(_name: &str, content: &str, svg_dir: &Path, chapter_path: &Path, tectonic_cache_dir: &Path) -> String {
     let mut s = content.to_string();
 
     // 按顺序处理各种代码块（先处理 pikchr/svgbob 再处理其他）
@@ -96,19 +90,24 @@ fn process_chapter(name: &str, content: &str, svg_dir: &Path, chapter_path: &Pat
         s = s.replace(mat.as_str(), buf.as_str());
     }
 
-    // 5) ```latex tikz (TikZ 图片 → 并行编译 tectonic PDF → hayro-svg SVG)
+    // 5) ```latex tikz (TikZ 图片 → 并行编译 tectonic PDF → hayro-svg SVG, 最大并发 4)
     let re = Regex::new(r"```latex tikz((.*\n)+?)?```").unwrap();
     {
         let s_clone = s.clone();
-        let matches: Vec<&str> = re.find_iter(s_clone.as_str()).map(|m| m.as_str()).collect();
+        let all_matches: Vec<&str> = re.find_iter(s_clone.as_str()).map(|m| m.as_str()).collect();
 
-        // 并行编译所有 TikZ 块：已缓存的立即返回，未缓存的并发执行 tectonic + hayro-svg
-        let results: Vec<String> = matches
-            .par_iter()
-            .map(|mat_str| tikz_gen_file(mat_str, svg_dir, chapter_path, tectonic_cache_dir))
-            .collect();
+        // 分批并行编译，限制最大并发数避免 OOM
+        const TIKZ_MAX_CONCURRENT: usize = 4;
+        let mut results = Vec::with_capacity(all_matches.len());
+        for chunk in all_matches.chunks(TIKZ_MAX_CONCURRENT) {
+            let chunk_results: Vec<String> = chunk
+                .par_iter()
+                .map(|mat_str| tikz_gen_file(mat_str, svg_dir, chapter_path, tectonic_cache_dir))
+                .collect();
+            results.extend(chunk_results);
+        }
 
-        for (mat_str, result) in matches.into_iter().zip(results.into_iter()) {
+        for (mat_str, result) in all_matches.into_iter().zip(results.into_iter()) {
             s = s.replace(mat_str, &result);
         }
     }
@@ -120,11 +119,25 @@ fn process_chapter(name: &str, content: &str, svg_dir: &Path, chapter_path: &Pat
         s = s.replace(mat.as_str(), buf.as_str());
     }
 
-    // 7) ```typst
+    // 7) ```typst (Typst 图片 → 并行编译 typst crate → SVG + PDF, 最大并发 4)
     let re = Regex::new(r"```typst((.*\n)+?)?```").unwrap();
-    for mat in re.find_iter(s.clone().as_str()) {
-        let buf = typst_gen_file(&chapter_name, &chapter_alt, mat.as_str());
-        s = s.replace(mat.as_str(), buf.as_str());
+    {
+        let s_clone = s.clone();
+        let all_matches: Vec<&str> = re.find_iter(s_clone.as_str()).map(|m| m.as_str()).collect();
+
+        const TYPST_MAX_CONCURRENT: usize = 4;
+        let mut results = Vec::with_capacity(all_matches.len());
+        for chunk in all_matches.chunks(TYPST_MAX_CONCURRENT) {
+            let chunk_results: Vec<String> = chunk
+                .par_iter()
+                .map(|mat_str| typst_gen_file(mat_str, svg_dir, chapter_path, tectonic_cache_dir))
+                .collect();
+            results.extend(chunk_results);
+        }
+
+        for (mat_str, result) in all_matches.into_iter().zip(results.into_iter()) {
+            s = s.replace(mat_str, &result);
+        }
     }
 
     // 8) ```wavedrom
@@ -258,25 +271,31 @@ fn tikz_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: 
         .collect::<Vec<_>>()
         .join("\n");
 
-    let rel_prefix = crate::tikz::relative_svg_prefix(chapter_path);
+    let rel_prefix = crate::utils::relative_svg_prefix(chapter_path);
     log::info!("TikZ svg_dir: {:?}", svg_dir);
 
+    #[cfg(feature = "pre-tikz")]
     match crate::tikz::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir) {
         Ok(img_tag) => {
-            format!(r#"<div align="center">{}</div>"#, img_tag)
+            return format!(r#"<div align="center">{}</div>"#, img_tag);
         }
         Err(e) => {
             log::warn!("TikZ 渲染失败: {}", e);
-            let re = Regex::new(r"\n{2,}").unwrap();
-            let display_content = re.replace_all(&content, "\n");
-            format!(
-                r#"<div><details><summary>TikZ 渲染失败 (点击展开源码)</summary>
-<pre><code>{}</code></pre>
-<pre><code>{}</code></pre></details></div>"#,
-                e, display_content,
-            )
         }
     }
+
+    #[cfg(not(feature = "pre-tikz"))]
+    log::warn!("TikZ 渲染不可用（未编译 tectonic 支持）");
+
+    // 回退：显示源码
+    let re = Regex::new(r"\n{2,}").unwrap();
+    let display_content = re.replace_all(&content, "\n");
+    format!(
+        r#"<div><details><summary>TikZ 渲染失败 (点击展开源码)</summary>
+<pre><code>{}</code></pre>
+<pre><code>{}</code></pre></details></div>"#,
+        "tikz 渲染引擎未编译", display_content,
+    )
 }
 
 /// ===== pikchr =====
@@ -291,40 +310,65 @@ fn pikchr_gen_html(mat_str: &str) -> String {
 </code></pre>"#, content)
 }
 
-/// ===== typst =====
-fn typst_gen_file(chapter_name: &str, _chapter_alt: &str, mat_str: &str) -> String {
-    let content = clean_codeblock(mat_str, "```typst");
+/// ===== typst (Typst 图片 → typst crate → SVG + PDF 文件) =====
+fn typst_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: &Path) -> String {
+    let mut content = clean_codeblock(mat_str, "```typst");
 
-    // 提取标题（从 // 注释中）
-    let re_title = Regex::new(r"^\s*//+\s*([[:word:]]+)").unwrap();
-    let title = content.lines().find_map(|line| {
-        re_title.captures(line)
-            .and_then(|caps| caps.get(1))
-            .map(|m| m.as_str().to_string())
-    }).unwrap_or_else(|| "samples".to_string());
+    // 处理 fence info string: "```typst svg" → 去掉 " svg" 等后缀
+    // （只保留第一行中 ``` 之后紧跟 typst 的内容，移除额外参数）
+    content = clean_typst_fence(&content);
 
-    let idx = PICTUREINDEX.fetch_add(1, Ordering::SeqCst);
-    let svgname = format!("{}_{}.svg", title, idx);
+    // 去除所有空行
+    content = content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
 
-    // 消除多余空行
-    let re = Regex::new(r"\n{3,}").unwrap();
-    let display_content = re.replace_all(&content, "\n\n");
+    let rel_prefix = crate::utils::relative_svg_prefix(chapter_path);
 
+    #[cfg(feature = "pre-typst")]
+    match crate::typst::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir) {
+        Ok(img_tag) => {
+            return format!(r#"<div align="center">{}</div>"#, img_tag);
+        }
+        Err(e) => {
+            log::warn!("Typst 渲染失败: {}", e);
+        }
+    }
+
+    #[cfg(not(feature = "pre-typst"))]
+    log::warn!("Typst 渲染不可用（未编译 typst 支持）");
+
+    // 回退：显示源码
+    let re = Regex::new(r"\n{2,}").unwrap();
+    let display_content = re.replace_all(&content, "\n");
     format!(
-        r#"<div><details><summary>{svgfile}</summary>
-<div id="CommonMark-typst"></div>
-
-<pre><code class="language-typst">
-{content}
-</code></pre></details></div>
-<div align=center>
-<img src="./../images/{chapter}/{svg}" alt="{chapter}" class="miv_mdbook-image-viewer" onclick="miv_openModal(this.src)">
-</div>"#,
-        svgfile = svgname,
-        content = display_content,
-        chapter = chapter_name,
-        svg = svgname,
+        r#"<div><details><summary>Typst 渲染失败 (点击展开源码)</summary>
+<pre><code>{}</code></pre>
+<pre><code>{}</code></pre></details></div>"#,
+        "typst 渲染引擎未编译", display_content,
     )
+}
+
+/// 清理 typst fence info string，移除 ```typst 之后的额外参数
+///
+/// 例如 "```typst svg\ntext" → clean_codeblock 后变成 "svg\ntext"
+/// 这里只移除已知的渲染器指示关键字（svg/pdf/png/raw/plain），
+/// 保留所有其他 typst 源码行。
+fn clean_typst_fence(content: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return String::new();
+    }
+    // 只移除明确已知的渲染器指示关键字
+    let first = lines[0].trim();
+    const KNOWN_DIRECTIVES: &[&str] = &["svg", "pdf", "png", "raw", "plain"];
+    if KNOWN_DIRECTIVES.contains(&first) {
+        lines[1..].join("\n")
+    } else {
+        content.to_string()
+    }
 }
 
 /// ===== wavedrom =====

@@ -5,12 +5,17 @@
 use std::path::Path;
 use std::time::Duration;
 
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 use chromiumoxide::browser::{Browser, BrowserConfig};
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 use chromiumoxide_cdp::cdp::browser_protocol::page::{
     NavigateParams, PrintToPdfParams, PrintToPdfParamsBuilder,
 };
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 use chromiumoxide_cdp::cdp::browser_protocol::target::CreateTargetParams;
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 use futures::StreamExt;
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 use url::Url;
 
 use super::pdf::PdfOptions;
@@ -18,6 +23,7 @@ use super::pdf::PdfOptions;
 /// 通过 Chrome CDP 生成 PDF
 ///
 /// 异步核心函数：启动浏览器 → 打开页面 → 调用 printToPDF → 返回 PDF 字节
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 pub async fn render_chrome_cdp_async(
     html_content: &str,
     output_pdf: &Path,
@@ -65,6 +71,7 @@ pub async fn render_chrome_cdp_async(
     result
 }
 
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 async fn inner_render(
     browser: &mut Browser,
     temp_html_path: &Path,
@@ -139,6 +146,7 @@ async fn inner_render(
 }
 
 /// 等待页面内容完全加载（通过检测哨兵元素）
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 async fn wait_for_content_loaded(page: &chromiumoxide::page::Page) -> Result<(), anyhow::Error> {
     for _ in 0..300 {
         if page
@@ -154,6 +162,7 @@ async fn wait_for_content_loaded(page: &chromiumoxide::page::Page) -> Result<(),
 }
 
 /// 根据配置构建 CDP `PrintToPdfParams`
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 fn build_print_to_pdf_params(cfg: &PdfOptions) -> PrintToPdfParams {
     let hf_enabled = cfg.header_footer_enabled();
     let use_cdp_hf = hf_enabled && cfg.use_native_header_footer;
@@ -221,6 +230,7 @@ fn resolve_chrome_path(cfg: &PdfOptions) -> Option<std::path::PathBuf> {
 }
 
 /// CDP 渲染入口（带重试和超时）
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 pub fn render_chrome_cdp(
     html_content: &str,
     output_pdf: &Path,

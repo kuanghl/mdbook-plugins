@@ -22,6 +22,19 @@ use super::pdf::PdfOptions;
 // 公开接口
 // ═══════════════════════════════════════════════════════════
 
+/// 阻塞的外部网络 URL 模式列表
+///
+/// Chrome 在渲染 PDF 时将不发起这些网络请求，避免因 CDN 加载慢导致超时。
+const BLOCKED_URL_PATTERNS: &[&str] = &[
+    "*googleapis*",
+    "*gstatic*",
+    "*jsdelivr*",
+    "*cloudflare*",
+    "*fontawesome*",
+    "*google-analytics*",
+    "*googletagmanager*",
+];
+
 /// 通过轻量 CDP 客户端渲染 PDF（同步接口，内部使用 block_on）
 pub fn render_chrome_cdp_light(
     html_content: &str,
@@ -512,6 +525,21 @@ async fn render_inner(
     log::info!("轻量 CDP: 启用 Page 域...");
     if let Err(e) = cdp.call("Page.enable", None, timeout).await {
         log::warn!("轻量 CDP: Page.enable 失败 ({}，继续)", e);
+    }
+
+    // 2.6 启用 Network 域并阻止外部网络请求（加速页面加载，避免 CDN 超时）
+    log::info!("轻量 CDP: 启用 Network 域并阻止外部请求...");
+    if let Err(e) = cdp.call("Network.enable", None, timeout).await {
+        log::warn!("轻量 CDP: Network.enable 失败 ({}，继续)", e);
+    }
+    if let Err(e) = cdp.call(
+        "Network.setBlockedURLs",
+        Some(json!({"urls": BLOCKED_URL_PATTERNS})),
+        timeout,
+    )
+    .await
+    {
+        log::warn!("轻量 CDP: Network.setBlockedURLs 失败 ({}，继续)", e);
     }
 
     // 3. 等待页面加载完成

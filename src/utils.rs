@@ -36,3 +36,16 @@ pub fn run_renderer<R: mdbook_renderer::Renderer>(renderer: &R) -> anyhow::Resul
     renderer.render(&ctx)?;
     Ok(())
 }
+
+/// 计算从章节路径到 images 目录的相对路径前缀
+///
+/// 例如: "index.md" → "./images/", "test/7.md" → "../images/"
+pub fn relative_svg_prefix(chapter_path: &std::path::Path) -> String {
+    let depth = chapter_path.parent().map(|p| p.components().count()).unwrap_or(0);
+    if depth == 0 {
+        "./images/".to_string()
+    } else {
+        let parents: Vec<&str> = std::iter::repeat("..").take(depth).collect();
+        format!("{}/images/", parents.join("/"))
+    }
+}

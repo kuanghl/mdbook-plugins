@@ -48,22 +48,32 @@ futures = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking"] }
 base64 = "0.22"
 flate2 = "1"
+tar = "0.4"
 
 # KaTeX — 纯 Rust 实现，无需 Node.js
 katex-rs = "0.2.4"
 rayon = "1"
 
 # TeX → PDF 编译（tectonic 引擎）
-tectonic = "0.16"
+tectonic = { version = "0.16", optional = true }
+
 sha2 = "0.10"
 
 # PDF → SVG 转换（hayro-svg）
-hayro-svg = "0.7"
-hayro-syntax = "0.7"
-hayro-interpret = "0.7"
+hayro-svg = { version = "0.7", optional = true }
+hayro-syntax = { version = "0.7", optional = true }
+hayro-interpret = { version = "0.7", optional = true }
 
 # C 依赖 (pikchr)
 libc = "0.2"
+
+# Typst — 纯 Rust 排版引擎
+typst = { version = "0.15", optional = true }
+typst-svg = { version = "0.15", optional = true }
+typst-pdf = { version = "0.15", optional = true }
+typst-layout = { version = "0.15", optional = true }
+typst-assets = { version = "0.15", optional = true }
+typst-kit = { version = "0.15", features = ["scan-fonts", "embedded-fonts"], optional = true }
 
 # URL
 url = "2"
@@ -76,8 +86,8 @@ serde_yaml = "0.9"
 
 # Office 渲染
 office_oxide = "0.1"
-chromiumoxide = "0.9.1"
-chromiumoxide_cdp = "0.9.1"
+chromiumoxide = { version = "0.9.1", optional = true }
+chromiumoxide_cdp = { version = "0.9.1", optional = true }
 
 # 轻量 CDP 客户端（替代 chromiumoxide）
 tokio-tungstenite = "0.24"
@@ -90,6 +100,7 @@ lopdf = "0.34"
 indexmap = "2"
 tempfile = "3"
 
+
 # 特性开关
 [features]
 default = ["all"]
@@ -99,7 +110,9 @@ all = [
     "pre-svgbob", "pre-pikchr", "pre-kroki", "pre-embedify",
     "pre-image-viewer",
     "pre-wavedrom",
+    "pre-tikz", "pre-typst",
     "ren-asciidoc", "ren-linkcheck", "ren-office", "ren-pdf",
+    "pre-pdf-cdp-heavy",
 ]
 pre-alerts = []
 pre-emojicodes = []
@@ -115,6 +128,9 @@ pre-kroki = []
 pre-embedify = []
 pre-image-viewer = []
 pre-wavedrom = []
+pre-tikz = ["dep:tectonic", "dep:hayro-svg", "dep:hayro-syntax", "dep:hayro-interpret"]
+pre-typst = ["dep:typst", "dep:typst-svg", "dep:typst-pdf", "dep:typst-layout", "dep:typst-assets", "dep:typst-kit"]
+pre-pdf-cdp-heavy = ["dep:chromiumoxide", "dep:chromiumoxide_cdp"]
 ren-asciidoc = []
 ren-linkcheck = []
 ren-office = []

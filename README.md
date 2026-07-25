@@ -2,7 +2,7 @@
 
 单二进制多插件支持的 [mdbook](https://github.com/rust-lang/mdBook) 插件集合。
 
-将 17 个独立插件（13 个预处理器 + 4 个渲染器）整合为**一个二进制**，通过 `argv[0]` 符号链接路由分发。Release 体积约 **7.5 MB**（LTO + strip），原始独立二进制总大小约 **115 MB**，节省约 **94%**。
+将 17 个独立插件（13 个预处理器 + 4 个渲染器）整合为**一个二进制**，通过 `command` 字段路由分发。支持**选择性构建**——通过 Cargo features 按需编译，最小配置仅几 MB，完整功能约 **64 MB**（含 tectonic TeX 引擎 + typst + chromiumoxide 等大型依赖）。
 
 ## 插件列表
 
@@ -12,7 +12,7 @@
 |------|------|---------|
 | **mdbook-admonish** | Material Design 提示框（笔记/警告/危险等） | ` ```admonish <type> ` |
 | **mdbook-alerts** | GitHub 风格 Alert 语法 | `> [!NOTE]` / `> [!WARNING]` |
-| **mdbook-echarts** | 统一图表处理（ECharts / Svgbob / Bytefield / LaTeX / Pikchr / Typst / WaveDrom） | ` ```echarts ` / ` ```bob ` / ` ```bytefield ` 等 |
+| **mdbook-echarts** | 统一图表处理（ECharts / Svgbob / Bytefield / LaTeX / TikZ / Pikchr / Typst / WaveDrom） | ` ```echarts ` / ` ```bob ` / ` ```latex tikz ` / ` ```typst ` 等 |
 | **mdbook-emojicodes** | Emoji shortcode 替换 | `:smile:` → 😄 |
 | **mdbook-embedify** | 嵌入式内容（YouTube / CodePen / Giscus 等） | `{% youtube ... %}` |
 | **mdbook-image-viewer** | 图片点击放大（模态框，支持拖拽/滚轮缩放/触控） | `![alt](path)` |
@@ -32,7 +32,7 @@
 | **mdbook-asciidoc** | 输出 AsciiDoc 格式 |
 | **mdbook-linkcheck** | 检查书中所有 Markdown 链接 |
 | **mdbook-office** | 输出 DOCX / XLSX / PPTX（依赖 Chrome/Chromium） |
-| **mdbook-pdf** | PDF 生成（Chrome CDP + CLI 双后端） |
+| **mdbook-pdf** | PDF 生成（轻量 CDP + CLI 双后端，可选重型 CDP） |
 
 ## 快速开始
 
@@ -41,6 +41,9 @@
 ```bash
 git clone <repo-url>
 cd mdbook-plugins
+
+# debug 模式比release 构建速度更快，但体积大
+cargo build
 
 # 构建（Release 模式）
 cargo build --release
@@ -187,10 +190,17 @@ cargo build --release
 
 可用 features：
 
-| 类别 | Feature | 对应插件 |
-|------|---------|---------|
-| 预处理器 | `pre-alerts`, `pre-emojicodes`, `pre-toc`, `pre-echarts`, `pre-langtabs`, `pre-mermaid`, `pre-katex`, `pre-admonish`, `pre-svgbob`, `pre-pikchr`, `pre-kroki`, `pre-embedify`, `pre-image-viewer`, `pre-wavedrom` | 对应同名预处理器 |
-| 渲染器 | `ren-asciidoc`, `ren-linkcheck`, `ren-office`, `ren-pdf` | 对应同名渲染器 |
+| 类别 | Feature | 对应插件 | 说明 |
+|------|---------|---------|------|
+| 预处理器 | `pre-alerts`, `pre-emojicodes`, `pre-toc`, `pre-echarts`, `pre-langtabs`, `pre-mermaid`, `pre-katex`, `pre-admonish`, `pre-svgbob`, `pre-pikchr`, `pre-kroki`, `pre-embedify`, `pre-image-viewer`, `pre-wavedrom` | 对应同名预处理器 | 轻量，体积影响小 |
+| 预处理器 | `pre-tikz` | TikZ/LaTeX 图片渲染（tectonic + hayro-svg） | 🔴 **极大**（~几十 MB） |
+| 预处理器 | `pre-typst` | Typst 图表渲染（typst 引擎） | 🔴 **大** |
+| 渲染器 | `ren-asciidoc`, `ren-linkcheck`, `ren-office`, `ren-pdf` | 对应同名渲染器 | |
+| 渲染器 | `pre-pdf-cdp-heavy` | PDF 重型 CDP 后端（chromiumoxide） | 🟡 **中等**（默认启用轻量 CDP） |
+
+> **体积优化建议**：不需要 TikZ/LaTeX 时可关闭 `pre-tikz` 省去 tectonic 引擎（最大体积贡献者）；
+> 不需要 Typst 图表时关闭 `pre-typst`；
+> PDF 渲染默认使用轻量 CDP 后端，`pre-pdf-cdp-heavy` 仅在需要 chromiumoxide 兼容性时启用。
 
 ## 架构
 
@@ -199,11 +209,15 @@ mdbook → external preprocessor/renderer → command 字段 → mdbook-plugins
                                                               │
                                                               ├─ src/main.rs (路由分发)
                                                               ├─ src/preprocessors/ (14 插件)
-                                                              └─ src/renderers/ (6 插件，pdf 含双后端：CDP + CLI)
+                                                              ├─ src/renderers/ (6 插件)
+                                                              ├─ src/tikz/ (TikZ/LaTeX 编译，#[cfg] 门控)
+                                                              └─ src/typst/ (Typst 编译，#[cfg] 门控)
 ```
 
 - **单二进制分发**：通过 `command = "mdbook-plugins <name>"` 统一路由到对应插件，无需符号链接
-- **PDF 双后端**：`backend = "chrome"`（默认，先 CDP 后 CLI 回退）
+- **PDF 双后端**：轻量 CDP（默认）+ CLI 回退；可选重型 CDP（`pre-pdf-cdp-heavy`）
+- **TikZ/LaTeX 渲染**：tectonic → PDF → hayro-svg SVG（需要 `pre-tikz` feature）
+- **Typst 渲染**：typst crate 0.15 编译 → SVG + PDF 文件（需要 `pre-typst` feature）
 - **内置 C 库**：`vendor/pikchr.c`（283 KB，Zero-Clause BSD）通过 `cc` crate 编译
 - **前端资产**：预编译 JS（ECharts / Mermaid / WaveDrom / Bytefield 等）存放在 `test/assets/`，通过 `additional-js` 引入
 - **KaTeX 渲染**：通过 Node.js 子进程调用 KaTeX（需安装 `katex` npm 包）
@@ -221,7 +235,9 @@ mdbook-plugins/
 │   ├── lib.rs           # 库入口
 │   ├── utils.rs         # 通用工具函数
 │   ├── preprocessors/   # 14 个预处理器
-│   └── renderers/       # 6 个渲染器（pdf 含双后端：CDP + CLI）
+│   ├── renderers/       # 6 个渲染器（pdf 含双后端：CDP + CLI）
+│   ├── tikz/            # TikZ/LaTeX 编译引擎（条件编译，需 pre-tikz）
+│   └── typst/           # Typst 编译引擎（条件编译，需 pre-typst）
 ├── test/
 │   ├── book.toml        # 测试配置
 │   ├── bin/             # 符号链接部署目录
