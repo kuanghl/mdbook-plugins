@@ -21,6 +21,15 @@ use super::pdf_chrome_cdp_light;
 use super::pdf_html_preprocess;
 use super::pdf_outline;
 
+/// 一个 Drop guard，在离开作用域时关闭 Chrome 进程池
+struct ChromeCleanup;
+
+impl Drop for ChromeCleanup {
+    fn drop(&mut self) {
+        pdf_chrome_cdp_light::shutdown_pool();
+    }
+}
+
 /// PDF 渲染器
 pub struct PdfRenderer;
 
@@ -45,6 +54,9 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
         .as_ref()
         .and_then(|v| PdfOptions::from_toml_value(v))
         .unwrap_or_default();
+
+    // Drop guard 确保函数退出时关闭 Chrome 子进程
+    let _cleanup = ChromeCleanup;
 
     // 2. 定位 print.html
     let html_dir = ctx

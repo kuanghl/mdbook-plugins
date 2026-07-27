@@ -337,6 +337,26 @@ fn invalidate_pool_chrome() {
     }
 }
 
+/// 关闭 Chrome 进程池 — 正常退出时调用，确保子进程被回收
+///
+/// 调用方应在整个渲染流程结束后（成功或失败）调用此函数。
+/// 与 `invalidate_pool_chrome` 不同，本函数不会记录"失效"日志，
+/// 属于正常关闭操作。
+pub fn shutdown_pool() {
+    let mut pool = CHROME_POOL.lock().unwrap();
+    if let Some(p) = pool.take() {
+        // 先尝试优雅终止（SIGTERM），等待一小段时间后再强杀
+        if let Some(pid) = p.child.id() {
+            unsafe { libc::kill(pid as i32, libc::SIGTERM); }
+            // 给 Chrome 一点时间优雅退出
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+        // drop child 时会尝试 wait（非阻塞）
+        drop(p);
+        log::info!("Chrome 进程池已关闭");
+    }
+}
+
 /// 从 Chrome stderr 中读取 "DevTools listening on ws://..."
 async fn read_ws_url(mut stderr: impl tokio::io::AsyncRead + Unpin + Send, timeout: Duration) -> Result<String> {
     use tokio::io::AsyncBufReadExt;
