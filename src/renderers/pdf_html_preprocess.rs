@@ -6,6 +6,7 @@
 //! - 链接修正 (相对路径 → 绝对 URL)
 //! - 打印 CSS 注入 (`@media print` 分页控制)
 //! - CJK 字体回退 CSS 注入
+//! - Emoji 替换（Noto Emoji SVG，国旗使用 region-flags 子目录补全）
 
 use scraper::{Html, Selector};
 
@@ -40,27 +41,52 @@ pub fn inject_toc_fix(html: &str, chapter_paths: &[String]) -> String {
 /// - 内容加载哨兵元素
 pub fn inject_js(html: &str) -> String {
     let script = r#"<script type='text/javascript'>
-let markAllContentHasLoadedForPrinting = () =>
-    window.setTimeout(() => {
-        let p = document.createElement('div');
-        p.setAttribute('id', 'content-has-all-loaded-for-mdbook-pdf-generation');
-        document.body.appendChild(p);
-    }, 100);
+var _pdfSentinel = false;
+function _pdfTrySentinel() {
+    if (_pdfSentinel) return;
+    _pdfSentinel = true;
+    // 等待字体加载（最多 1 秒，仅系统字体无外部字体），再等待图片加载（最多 10 秒），再给 500ms 缓冲
+    var fontReady = document.fonts ? document.fonts.ready : Promise.resolve();
+    Promise.race([
+        fontReady,
+        new Promise(function (resolve) { setTimeout(resolve, 1000); })
+    ]).then(function () {
+        var images = document.querySelectorAll('img');
+        var imgPromises = Array.from(images).map(function(img) {
+            if (img.complete) return Promise.resolve();
+            return new Promise(function(resolve) {
+                img.addEventListener('load', resolve, {once: true});
+                img.addEventListener('error', resolve, {once: true});
+            });
+        });
+        return Promise.race([
+            Promise.all(imgPromises),
+            new Promise(function (resolve) { setTimeout(resolve, 10000); })
+        ]);
+    }).then(function () {
+        setTimeout(function () {
+            var p = document.createElement('div');
+            p.setAttribute('id', 'content-has-all-loaded-for-mdbook-pdf-generation');
+            document.body.appendChild(p);
+        }, 500);
+    });
+}
 
-window.addEventListener('load', () => {
-    for (let d of document.getElementsByTagName('details'))
+try { MathJax.Hub.Register.StartupHook('End', _pdfTrySentinel); } catch (e) {}
+
+window.addEventListener('load', function () {
+    for (var d of document.getElementsByTagName('details'))
         d.open = true;
-    try {
-        MathJax.Hub.Register.StartupHook('End', markAllContentHasLoadedForPrinting);
-    } catch (e) {
-        markAllContentHasLoadedForPrinting();
-    }
     // 移除主题注入的固定页眉/页脚，避免与 Chrome displayHeaderFooter 原生渲染冲突
-    let ph = document.getElementById('mdbook-print-header');
-    let pf = document.getElementById('mdbook-print-footer');
+    var ph = document.getElementById('mdbook-print-header');
+    var pf = document.getElementById('mdbook-print-footer');
     if (ph) ph.remove();
     if (pf) pf.remove();
+    _pdfTrySentinel();
 });
+
+// 首帧后即触发哨兵流程
+requestAnimationFrame(function () { _pdfTrySentinel(); });
 </script>"#;
     insert_before(html, "</body>", script)
 }
@@ -164,8 +190,10 @@ pub fn inject_font_css(html: &str) -> String {
     let css = r#"<style>
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Noto Sans SC", "Microsoft YaHei", "PingFang SC",
         "Hiragino Sans GB", "WenQuanYi Micro Hei",
+        "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
         "Helvetica Neue", Arial, sans-serif;
 }
 code, pre {
@@ -260,7 +288,125 @@ fn insert_before(original: &str, target: &str, insertion: &str) -> String {
     }
 }
 
-/// 完整预处理流水线：依次执行所有预处理步骤
+/// 将 .pdfviewer-container 替换为静态链接（PDF 输出用）
+///
+/// pdf_preview 预处理器生成的交互式容器在 PDF 中无法工作，
+/// 替换为指向 PDF 文件的 `<a>` 链接以保留可用性。
+pub fn replace_pdf_containers(html: &str) -> String {
+    let mut result = String::new();
+    let mut remaining = html;
+    let container_start = r#"<div class="pdfviewer-container" data-pdf-src=""#;
+
+    loop {
+        match remaining.find(container_start) {
+            None => {
+                result.push_str(remaining);
+                break;
+            }
+            Some(pos) => {
+                // 保留容器之前的内容
+                result.push_str(&remaining[..pos]);
+
+                let after_start = &remaining[pos + container_start.len()..];
+
+                // 提取 data-pdf-src 属性值
+                if let Some(quote_end) = after_start.find('"') {
+                    let pdf_src = &after_start[..quote_end];
+
+                    // 在剩余部分中查找 ppv-filename
+                    let fname_marker = r#"<div class="ppv-filename">"#;
+                    let after_src = &after_start[quote_end..];
+                    if let Some(fn_pos) = after_src.find(fname_marker) {
+                        let after_fn_tag = &after_src[fn_pos + fname_marker.len()..];
+                        if let Some(fn_end) = after_fn_tag.find("</div>") {
+                            let filename = &after_fn_tag[..fn_end];
+
+                            // 查找容器的闭合标签（</div>\n</div>）
+                            let container_close = "</div>\n</div>";
+                            if let Some(close_pos) = after_fn_tag[fn_end..].find(container_close) {
+                                // 替换为链接
+                                result.push_str(&format!(
+                                    r#"<a href="{}">📄 {}</a>"#,
+                                    pdf_src,
+                                    filename
+                                ));
+                                remaining = &after_fn_tag[fn_end + close_pos + container_close.len()..];
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                // 解析失败时保留原始内容
+                result.push_str(&remaining[pos..pos + container_start.len()]);
+                remaining = &remaining[pos + container_start.len()..];
+            }
+        }
+    }
+
+    result
+}
+
+/// Regional Indicator 字符对 → 两字母国家代码
+/// 如 🇨🇳 (U+1F1E8 U+1F1F3) → "CN"
+fn regional_indicator_to_country_code(emoji_str: &str) -> Option<String> {
+    let chars: Vec<char> = emoji_str.chars().filter(|&c| c as u32 != 0xFE0F).collect();
+    if chars.len() != 2 {
+        return None;
+    }
+    let c0 = chars[0] as u32;
+    let c1 = chars[1] as u32;
+    // Regional Indicator Symbols: U+1F1E6 (🇦) ~ U+1F1FF (🇿)
+    if c0 >= 0x1F1E6 && c0 <= 0x1F1FF && c1 >= 0x1F1E6 && c1 <= 0x1F1FF {
+        let a = |c: u32| -> Option<char> { char::from_u32((c - 0x1F1E6) + ('A' as u32)) };
+        Some(format!("{}{}", a(c0)?, a(c1)?))
+    } else {
+        None
+    }
+}
+
+/// 将 HTML 中的 emoji 替换为 Noto Emoji SVG 图片标签
+///
+/// 普通 emoji → `svg/emoji_u{codepoints}.svg`
+/// 国旗 emoji → `third_party/region-flags/svg/{CODE}.svg`
+pub fn replace_emoji_with_text(html: &str) -> String {
+    let mut emojis_list: Vec<&'static str> = emojis::iter().map(|e| e.as_str()).collect();
+    emojis_list.sort_by(|a, b| b.len().cmp(&a.len()));
+
+    let mut result = String::new();
+    let mut remaining = html;
+
+    'outer: while !remaining.is_empty() {
+        for e_str in &emojis_list {
+            if remaining.starts_with(e_str) {
+                if let Some(country_code) = regional_indicator_to_country_code(e_str) {
+                    // 国旗 → third_party/region-flags（唯一存在的国旗 SVG）
+                    result.push_str("<img src=\"https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/third_party/region-flags/svg/");
+                    result.push_str(&country_code);
+                    result.push_str(".svg\" alt=\"emoji\" class=\"noto-emoji\" style=\"height:1em;vertical-align:middle;\">");
+                } else {
+                    // 普通 emoji → svg/emoji_u{hex}.svg
+                    let codepoints: Vec<_> = e_str
+                        .chars()
+                        .filter(|&c| c as u32 != 0xFE0F)
+                        .map(|c| format!("{:x}", c as u32))
+                        .collect();
+                    result.push_str("<img src=\"https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/svg/emoji_u");
+                    result.push_str(&codepoints.join("_"));
+                    result.push_str(".svg\" alt=\"emoji\" class=\"noto-emoji\" style=\"height:1em;vertical-align:middle;\">");
+                }
+                remaining = &remaining[e_str.len()..];
+                continue 'outer;
+            }
+        }
+        let ch = remaining.chars().next().unwrap();
+        result.push(ch);
+        remaining = &remaining[ch.len_utf8()..];
+    }
+
+    result
+}
+
 pub fn preprocess(
     html: &str,
     chapter_paths: &[String],
@@ -301,6 +447,12 @@ pub fn preprocess(
     // 6. JS 注入（始终执行）
     result = inject_js(&result);
 
+    // 7. 替换 PDF 预览容器为静态链接（PDF 中交互式容器无法工作）
+    result = replace_pdf_containers(&result);
+
+    // 8. 将 emoji 替换为 Noto Emoji SVG 图片
+    result = replace_emoji_with_text(&result);
+
     result
 }
 
@@ -330,7 +482,7 @@ mod tests {
     fn test_inject_js_inserts_before_body_end() {
         let html = "<html><body><p>hello</p></body></html>";
         let result = inject_js(html);
-        assert!(result.contains("markAllContentHasLoadedForPrinting"));
+        assert!(result.contains("_pdfTrySentinel"));
         assert!(result.contains("content-has-all-loaded-for-mdbook-pdf-generation"));
         assert!(result.contains("<script"));
     }
@@ -373,6 +525,52 @@ mod tests {
     }
 
     #[test]
+    fn test_replace_emoji_with_text() {
+        let html = "<p>点击 📄 查看</p>";
+        let result = replace_emoji_with_text(html);
+        assert!(result.contains("noto-emoji@main/svg/emoji_u"));
+        assert!(result.contains("1f4c4.svg"));
+        assert!(result.contains("<img"));
+        assert!(!result.contains("📄"));
+    }
+
+    #[test]
+    fn test_replace_emoji_with_text_no_emoji() {
+        let html = "<p>纯文本内容 123</p>";
+        let result = replace_emoji_with_text(html);
+        assert_eq!(result, html);
+    }
+
+    #[test]
+    fn test_replace_emoji_with_text_multiple() {
+        let html = "📄🚀😊";
+        let result = replace_emoji_with_text(html);
+        assert!(result.contains("1f4c4"));
+        assert!(result.contains("1f680"));
+        assert!(result.contains("1f60a"));
+        assert!(!result.contains("📄"));
+        assert!(!result.contains("🚀"));
+    }
+
+    #[test]
+    fn test_replace_country_flag_emoji_with_text() {
+        // 🇨🇳 (U+1F1E8 U+1F1F3) 应使用 region-flags 路径
+        let html = "<p>🇨🇳</p>";
+        let result = replace_emoji_with_text(html);
+        assert!(result.contains("region-flags/svg/CN.svg"));
+        assert!(result.contains("<img"));
+    }
+
+    #[test]
+    fn test_replace_non_country_flag_emoji() {
+        // 🏁 (U+1F3C1) 普通旗帜使用标准路径
+        let html = "<p>🏁</p>";
+        let result = replace_emoji_with_text(html);
+        assert!(result.contains("svg/emoji_u1f3c1.svg"));
+        assert!(result.contains("<img"));
+    }
+
+    #[test]
     fn test_chapter_path_to_id_with_special_chars() {
         assert_eq!(chapter_path_to_id("01-Introduction.md"), "01-introduction");
     }
@@ -388,4 +586,55 @@ mod tests {
         let result = insert_before("hello", "xyz", "extra");
         assert_eq!(result, "helloextra");
     }
+
+    #[test]
+    fn test_replace_pdf_containers_basic() {
+        let html = r#"<p>some text</p>
+<div class="pdfviewer-container" data-pdf-src="./test.pdf">
+<div class="ppv-placeholder">
+<div class="ppv-icon">📄</div>
+<div class="ppv-filename">test.pdf</div>
+<div class="ppv-hint">点击加载 PDF 预览</div>
+</div>
+</div>
+<p>more text</p>"#;
+        let result = replace_pdf_containers(html);
+        assert!(result.contains(r#"<a href="./test.pdf">"#));
+        assert!(result.contains("📄"));
+        assert!(result.contains("test.pdf"));
+        assert!(!result.contains("pdfviewer-container"));
+        assert!(!result.contains("ppv-placeholder"));
+    }
+
+    #[test]
+    fn test_replace_pdf_containers_no_container() {
+        let html = r#"<p>no pdf container here</p>"#;
+        let result = replace_pdf_containers(html);
+        assert_eq!(result, html);
+    }
+
+    #[test]
+    fn test_replace_pdf_containers_multiple() {
+        let html = r#"
+<div class="pdfviewer-container" data-pdf-src="./doc1.pdf">
+<div class="ppv-placeholder">
+<div class="ppv-icon">📄</div>
+<div class="ppv-filename">doc1.pdf</div>
+<div class="ppv-hint">点击加载 PDF 预览</div>
+</div>
+</div>
+<p>separator</p>
+<div class="pdfviewer-container" data-pdf-src="./doc2.pdf">
+<div class="ppv-placeholder">
+<div class="ppv-icon">📄</div>
+<div class="ppv-filename">doc2.pdf</div>
+<div class="ppv-hint">点击加载 PDF 预览</div>
+</div>
+</div>"#;
+        let result = replace_pdf_containers(html);
+        assert!(result.contains(r#"<a href="./doc1.pdf">"#));
+        assert!(result.contains(r#"<a href="./doc2.pdf">"#));
+        assert!(!result.contains("pdfviewer-container"));
+    }
+
 }

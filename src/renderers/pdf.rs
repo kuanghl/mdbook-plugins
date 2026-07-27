@@ -102,7 +102,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
             match result {
                 Ok(()) => Ok(()),
                 Err(e) => {
-                    log::warn!("CDP 后端失败 ({}), 回退到 CLI 模式...", e);
+                    log::warn!("CDP 后端失败 ({:#}), 回退到 CLI 模式...", e);
                     std::fs::write(&temp_html, &processed_html)?;
                     pdf_chrome_cdp::render_chrome_cli(&temp_html, &output_pdf, &cfg)
                 }
@@ -116,7 +116,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
             match result {
                 Ok(()) => Ok(()),
                 Err(e) => {
-                    log::warn!("轻量 CDP 失败 ({}), 回退到 CLI 模式...", e);
+                    log::warn!("轻量 CDP 失败 ({:#}), 回退到 CLI 模式...", e);
                     std::fs::write(&temp_html, &processed_html)?;
                     pdf_chrome_cdp::render_chrome_cli(&temp_html, &output_pdf, &cfg)
                 }
@@ -126,9 +126,9 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
 
     // 处理后端结果
     if let Err(e) = &backend_result {
-        log::error!("所有 PDF 生成后端均失败: {}", e);
+        log::error!("所有 PDF 生成后端均失败: {:#}", e);
         let _ = std::fs::remove_file(&temp_html);
-        return Err(anyhow::anyhow!("PDF 生成失败: {}", e));
+        return Err(anyhow::anyhow!("PDF 生成失败: {:#}", e));
     }
 
     log::info!("PDF 原始文件已生成: {}", output_pdf.display());

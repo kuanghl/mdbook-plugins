@@ -66,6 +66,10 @@ command = "mdbook-plugins mermaid"
 command = "mdbook-plugins echarts"
 after = ["katex"]
 
+[preprocessor.pdf-preview]
+command = "mdbook-plugins pdf-preview"
+renderer = ["html"]
+
 [preprocessor.pikchr]
 command = "mdbook-plugins pikchr"
 
@@ -99,6 +103,7 @@ additional-js = [
     "./assets/bytefield/bytefield-svg.js",
     "./assets/wavedrom/wavedrom.min.js",
     "./assets/wavedrom/wavedrom.css.js",
+    "./assets/pdfviewer/pdf-preview.js",
     # "./assets/langtabs/langtabs.js", 
     ]
 

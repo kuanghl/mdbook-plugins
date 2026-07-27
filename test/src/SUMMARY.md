@@ -19,4 +19,5 @@
 - [WaveDrom](./test/9.wavedrom.md)
 - [Emoji](./test/10.emoji.md)
 - [Typst](./test/11.typst.md)
+- [PDF.js](./pdf/pdf_view.md)
   

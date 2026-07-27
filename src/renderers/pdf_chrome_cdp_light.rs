@@ -13,7 +13,8 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use tokio::process::{Child, Command as TokioCommand};
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::connect_async_with_config;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message;
 
 use super::pdf::PdfOptions;
@@ -25,10 +26,10 @@ use super::pdf::PdfOptions;
 /// 阻塞的外部网络 URL 模式列表
 ///
 /// Chrome 在渲染 PDF 时将不发起这些网络请求，避免因 CDN 加载慢导致超时。
+/// jsdelivr 保留，允许 Noto Emoji SVG 加载（PDF emoji 渲染需要）。
 const BLOCKED_URL_PATTERNS: &[&str] = &[
     "*googleapis*",
     "*gstatic*",
-    "*jsdelivr*",
     "*cloudflare*",
     "*fontawesome*",
     "*google-analytics*",
@@ -53,7 +54,7 @@ pub fn render_chrome_cdp_light(
             Ok(()) => return Ok(()),
             Err(e) if attempt < max_attempts => {
                 log::warn!(
-                    "轻量 CDP 第 {}/{} 次尝试失败: {}. 清空进程池后 500ms 重试...",
+                    "轻量 CDP 第 {}/{} 次尝试失败: {:#}. 清空进程池后 500ms 重试...",
                     attempt, max_attempts, e
                 );
                 invalidate_pool_chrome();
@@ -171,34 +172,99 @@ struct PooledChrome {
 static CHROME_POOL: once_cell::sync::Lazy<Mutex<Option<PooledChrome>>> =
     once_cell::sync::Lazy::new(|| Mutex::new(None));
 
+/// 通过 Browser.getVersion 快速验证 Chrome 进程是否健康
+async fn verify_chrome_health(ws_url: &str, timeout: Duration) -> bool {
+    match tokio::time::timeout(timeout, async {
+        let ws_config = WebSocketConfig {
+            max_frame_size: Some(256 * 1024 * 1024),
+            max_message_size: Some(256 * 1024 * 1024),
+            ..Default::default()
+        };
+        let (ws, _) = connect_async_with_config(ws_url, Some(ws_config), false)
+            .await
+            .map_err(|_| "连接失败")?;
+        let mut write = ws;
+
+        // 发送 Browser.getVersion（无需 session，最快验证方式）
+        let req = serde_json::json!({"id": 1, "method": "Browser.getVersion"});
+        futures::SinkExt::send(&mut write, Message::Text(req.to_string()))
+            .await
+            .map_err(|_| "发送失败")?;
+
+        // 读取响应
+        if let Some(Ok(Message::Text(text))) = futures::StreamExt::next(&mut write).await {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
+                if val.get("id").and_then(|v| v.as_i64()) == Some(1) && val.get("error").is_none()
+                {
+                    return Ok(());
+                }
+            }
+        }
+        Err("响应无效")
+    })
+    .await
+    {
+        Ok(Ok(())) => true,
+        _ => false,
+    }
+}
+
 /// 从进程池获取 Chrome WebSocket URL
 ///
 /// 策略：
-/// 1. 若池中有实例且未超时 → 直接复用，减少 0.5-3s 启动时间
-/// 2. 若池中有实例但已超时 → 关闭旧进程，启动新实例
-/// 3. 若池为空 → 启动新实例并存入池中
+/// 1. 若池中有实例且未超时 → 先验证 WebSocket 健康，健康则复用
+/// 2. 若健康检查失败 → 清理池中实例，启动新进程
+/// 3. 若池中有实例但已超时 → 关闭旧进程，启动新实例
+/// 4. 若池为空 → 启动新实例并存入池中
 async fn acquire_chrome_ws_url(cfg: &PdfOptions, timeout: Duration) -> Result<String> {
-    // ── 尝试复用池中实例 ──
+    // ── 尝试复用池中实例（含健康检查） ──
+    // 先取出池中实例的 ws_url（如果有且未超时），稍后验证健康
+    let pooled_ws_url = {
+        let mut pool = CHROME_POOL.lock().unwrap();
+        match pool.as_mut() {
+            Some(inner) if inner.last_used.elapsed() <= POOL_IDLE_TIMEOUT => {
+                Some(inner.ws_url.clone())
+            }
+            _ => None,
+        }
+    }; // ⚠️ MutexGuard 在此处释放，不跨 .await 持有
+
+    if let Some(ref ws_url) = pooled_ws_url {
+        if verify_chrome_health(ws_url, Duration::from_secs(5)).await {
+            // 健康：更新 last_used 后复用
+            let mut pool = CHROME_POOL.lock().unwrap();
+            if let Some(ref mut inner) = *pool {
+                if inner.ws_url == *ws_url {
+                    let idle = inner.last_used.elapsed().as_secs_f64();
+                    inner.last_used = Instant::now();
+                    log::info!(
+                        "复用 Chrome 进程池中的实例 (闲置 {:.1}s)",
+                        idle
+                    );
+                    return Ok(ws_url.clone());
+                }
+            }
+            // 池已被其他操作修改，继续向下启动新实例
+        } else {
+            log::warn!("Chrome 进程池中的实例不健康，将重新启动");
+            invalidate_pool_chrome();
+        }
+    }
+
+    // ── 清理超时实例 ──
     let pooled_to_kill = {
         let mut pool = CHROME_POOL.lock().unwrap();
         if let Some(ref mut inner) = *pool {
             if inner.last_used.elapsed() > POOL_IDLE_TIMEOUT {
-                // 超时：从池中取出，稍后统一清理
                 Some(pool.take().unwrap())
             } else {
-                log::info!(
-                    "复用 Chrome 进程池中的实例 (闲置 {:.1}s)",
-                    inner.last_used.elapsed().as_secs_f64()
-                );
-                inner.last_used = Instant::now();
-                return Ok(inner.ws_url.clone());
+                None
             }
         } else {
             None
         }
-    }; // ⚠️ MutexGuard 在此处释放，不跨 .await 持有
+    }; // ⚠️ MutexGuard 在此处释放
 
-    // 清理超时的旧实例（在锁外执行 .await）
     if let Some(mut p) = pooled_to_kill {
         log::info!("Chrome 进程闲置超时，关闭旧进程...");
         let _ = p.child.kill().await;
@@ -306,7 +372,13 @@ struct CdpSession {
 impl CdpSession {
     /// 连接到 Chrome DevTools
     async fn connect(ws_url: &str, timeout: Duration) -> Result<Self> {
-        let connect_fut = connect_async(ws_url);
+        let ws_config = WebSocketConfig {
+            // 默认 max_frame_size=16MB 对大型 PDF(base64) 不够，设为 256MB
+            max_frame_size: Some(256 * 1024 * 1024),
+            max_message_size: Some(256 * 1024 * 1024),
+            ..Default::default()
+        };
+        let connect_fut = connect_async_with_config(ws_url, Some(ws_config), false);
         let (ws, _) = tokio::time::timeout(timeout, connect_fut)
             .await
             .map_err(|_| anyhow::anyhow!("WebSocket 连接超时 ({}s)", timeout.as_secs()))?
@@ -453,7 +525,7 @@ async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
                     "returnByValue": true,
                     "awaitPromise": false,
                 })),
-                Duration::from_secs(5),
+                Duration::from_secs(30),
             )
             .await
         {
@@ -562,8 +634,35 @@ async fn render_inner(
     // 4. 调用 Page.printToPDF
     log::info!("轻量 CDP: 调用 Page.printToPDF...");
     let pdf_params = build_print_to_pdf_json(cfg);
-    let result = cdp.call("Page.printToPDF", Some(pdf_params), Duration::from_secs(cfg.timeout)).await
-        .context("Page.printToPDF 调用失败")?;
+
+    // 尝试 printToPDF，如果带 generateTaggedPDF 参数失败则降级重试
+    let result = match cdp
+        .call("Page.printToPDF", Some(pdf_params.clone()), Duration::from_secs(cfg.timeout))
+        .await
+    {
+        Ok(r) => r,
+        Err(e) if cfg.generate_tagged_pdf => {
+            log::warn!(
+                "轻量 CDP: printToPDF 带 generateTaggedPDF 参数失败 ({:#}), 尝试移除参数后重试...",
+                e
+            );
+            // 移除 generateTaggedPDF 参数后重试
+            if let Some(obj) = pdf_params.as_object() {
+                let mut fallback = obj.clone();
+                fallback.remove("generateTaggedPDF");
+                cdp.call(
+                    "Page.printToPDF",
+                    Some(serde_json::Value::Object(fallback)),
+                    Duration::from_secs(cfg.timeout),
+                )
+                .await
+                .context("Page.printToPDF 调用失败")?
+            } else {
+                return Err(e).context("Page.printToPDF 调用失败");
+            }
+        }
+        Err(e) => return Err(e).context("Page.printToPDF 调用失败"),
+    };
 
     // 5. 解码 base64 PDF
     let pdf_base64 = result.get("data")

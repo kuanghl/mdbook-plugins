@@ -14,7 +14,7 @@ const KNOWN_SHORT_NAMES: &[&str] = &[
     // 预处理器
     "admonish", "alerts", "echarts", "emojicodes", "embedify",
     "image-viewer", "katex", "kroki-preprocessor", "langtabs",
-    "mermaid", "pikchr", "plugins", "svgbob", "toc", "wavedrom-rs",
+    "mermaid", "pdf-preview", "pikchr", "plugins", "svgbob", "toc", "wavedrom-rs",
     // 渲染器
     "asciidoc", "linkcheck", "office", "pdf",
     // 独立工具
@@ -93,6 +93,7 @@ fn run_plugin(name: &str, args: &[String]) {
         "mdbook-admonish" | "mdbook-alerts" | "mdbook-echarts" |
         "mdbook-emojicodes" | "mdbook-embedify" | "mdbook-image-viewer" | "mdbook-katex" |
         "mdbook-kroki-preprocessor" | "mdbook-langtabs" | "mdbook-mermaid" |
+        "mdbook-pdf-preview" |
         "mdbook-pikchr" | "mdbook-plugins" | "mdbook-svgbob" | "mdbook-toc" | "mdbook-wavedrom-rs"
     );
 
@@ -114,6 +115,7 @@ fn run_plugin(name: &str, args: &[String]) {
             "mdbook-kroki-preprocessor" => Box::new(mdbook_plugins::preprocessors::kroki::KrokiPreprocessor),
             "mdbook-langtabs" => Box::new(mdbook_plugins::preprocessors::langtabs::LangTabsPreprocessor),
             "mdbook-mermaid" => Box::new(mdbook_plugins::preprocessors::mermaid::MermaidPreprocessor),
+            "mdbook-pdf-preview" => Box::new(mdbook_plugins::preprocessors::pdf_preview::PdfPreviewPreprocessor),
             "mdbook-pikchr" => Box::new(mdbook_plugins::preprocessors::pikchr::PikchrPreprocessor),
             "mdbook-plugins" => Box::new(mdbook_plugins::preprocessors::unified::UnifiedPreprocessor),
             "mdbook-svgbob" => Box::new(mdbook_plugins::preprocessors::svgbob::SvgbobPreprocessor),
@@ -139,6 +141,7 @@ fn run_plugin(name: &str, args: &[String]) {
         "mdbook-kroki-preprocessor" => mdbook_plugins::preprocessors::kroki::run(),
         "mdbook-langtabs" => mdbook_plugins::preprocessors::langtabs::run(),
         "mdbook-mermaid" => mdbook_plugins::preprocessors::mermaid::run(),
+        "mdbook-pdf-preview" => mdbook_plugins::preprocessors::pdf_preview::run(),
         "mdbook-pikchr" => mdbook_plugins::preprocessors::pikchr::run(),
         "mdbook-plugins" => mdbook_plugins::preprocessors::unified::run(),
         "mdbook-svgbob" => mdbook_plugins::preprocessors::svgbob::run(),

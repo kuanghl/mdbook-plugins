@@ -25,6 +25,7 @@ pub const PLUGIN_NAMES: &[&str] = &[
     "mdbook-kroki-preprocessor",
     "mdbook-langtabs",
     "mdbook-mermaid",
+    "mdbook-pdf-preview",
     "mdbook-pikchr",
     "mdbook-plugins",
     "mdbook-svgbob",

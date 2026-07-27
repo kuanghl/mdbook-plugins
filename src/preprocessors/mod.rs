@@ -10,6 +10,7 @@ pub mod katex;
 pub mod kroki;
 pub mod langtabs;
 pub mod mermaid;
+pub mod pdf_preview;
 pub mod pikchr;
 pub mod svgbob;
 pub mod toc;
