@@ -8,6 +8,9 @@
 //! - CJK 字体回退 CSS 注入
 //! - Emoji 替换（Noto Emoji SVG，国旗使用 region-flags 子目录补全）
 
+use std::path::Path;
+use std::fs;
+
 use scraper::{Html, Selector};
 
 /// 章节路径 → PDF 命名目标 ID
@@ -35,58 +38,89 @@ pub fn inject_toc_fix(html: &str, chapter_paths: &[String]) -> String {
     insert_before(html, "</body>", &toc_fix)
 }
 
-/// 注入 JS 脚本:
-/// - 展开所有 `<details>` 元素
-/// - MathJax 完成挂钩
-/// - 内容加载哨兵元素
-pub fn inject_js(html: &str) -> String {
-    let script = r#"<script type='text/javascript'>
-var _pdfSentinel = false;
-function _pdfTrySentinel() {
-    if (_pdfSentinel) return;
-    _pdfSentinel = true;
-    // 等待字体加载（最多 1 秒，仅系统字体无外部字体），再等待图片加载（最多 10 秒），再给 500ms 缓冲
-    var fontReady = document.fonts ? document.fonts.ready : Promise.resolve();
-    Promise.race([
-        fontReady,
-        new Promise(function (resolve) { setTimeout(resolve, 1000); })
-    ]).then(function () {
-        var images = document.querySelectorAll('img');
-        var imgPromises = Array.from(images).map(function(img) {
-            if (img.complete) return Promise.resolve();
-            return new Promise(function(resolve) {
-                img.addEventListener('load', resolve, {once: true});
-                img.addEventListener('error', resolve, {once: true});
-            });
-        });
-        return Promise.race([
-            Promise.all(imgPromises),
-            new Promise(function (resolve) { setTimeout(resolve, 10000); })
-        ]);
-    }).then(function () {
-        setTimeout(function () {
-            var p = document.createElement('div');
-            p.setAttribute('id', 'content-has-all-loaded-for-mdbook-pdf-generation');
-            document.body.appendChild(p);
-        }, 500);
-    });
+/// 删除阻塞型外部 CDN 资源（脚本、样式表），保留图片
+///
+/// `<script>` 和 `<link>` 标签是同步阻塞资源，在 WSL 中加载极慢（数分钟），
+/// 会阻塞 HTML 解析和 window.load。删除它们后页面加载不受外部 CDN 影响。
+/// `<img>` 图片是并行加载资源，保留以保证 PDF 内容完整（如 emoji SVG）。
+pub fn remove_external_resources(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let mut rest = html;
+
+    while let Some(start) = rest.find('<') {
+        result.push_str(&rest[..start]);
+        let tag_end = rest[start..].find('>').map(|i| start + i + 1).unwrap_or(rest.len());
+        let tag = &rest[start..tag_end];
+
+        let is_external = tag.contains("src=\"http") || tag.contains("src='http")
+            || tag.contains("href=\"http") || tag.contains("href='http");
+
+        if is_external {
+            // 脚本和样式表是同步阻塞资源，必须删除
+            // 图片是并行加载不阻塞 HTML 解析，保留以保证 PDF 内容完整
+            if tag.starts_with("<script ") || tag.starts_with("<script>") {
+                result.push_str("<script>/* CDN removed for PDF */</script>");
+            } else if tag.starts_with("<link ") {
+                // link 标签跳过即可
+            } else {
+                result.push_str(tag);
+            }
+        } else {
+            result.push_str(tag);
+        }
+        rest = &rest[tag_end..];
+    }
+    result.push_str(rest);
+    result
 }
 
-try { MathJax.Hub.Register.StartupHook('End', _pdfTrySentinel); } catch (e) {}
-
+/// 注入 JS 脚本:
+/// - 展开所有 `<details>` 元素，移除固定页眉/页脚
+/// - 纯本地加载：window.load（所有本地资源就绪）→ 2帧 → 注入哨兵
+pub fn inject_js(html: &str) -> String {
+    let script = r#"<script type='text/javascript'>
+// ── 纯本地加载哨兵 ──
+// 外部 CDN 脚本（MathJax、translate.js）已在预处理阶段删除，
+// window.load 只等本地资源（图片、字体、本地 JS）加载完成，< 1 秒。
+// 这是最可靠的方式：window.load 天然保证所有本地资源完整性。
 window.addEventListener('load', function () {
+    // 1. DOM 操作
     for (var d of document.getElementsByTagName('details'))
         d.open = true;
-    // 移除主题注入的固定页眉/页脚，避免与 Chrome displayHeaderFooter 原生渲染冲突
     var ph = document.getElementById('mdbook-print-header');
     var pf = document.getElementById('mdbook-print-footer');
     if (ph) ph.remove();
     if (pf) pf.remove();
-    _pdfTrySentinel();
+
+    // 2. 等 2 帧 — ECharts/Mermaid 等把渲染结果提交到屏幕
+    var frameCount = 2;
+    function frame() {
+        if (--frameCount <= 0) {
+            var p = document.createElement('div');
+            p.setAttribute('id', 'content-has-all-loaded-for-mdbook-pdf-generation');
+            document.body.appendChild(p);
+        } else {
+            requestAnimationFrame(frame);
+        }
+    }
+    requestAnimationFrame(frame);
 });
 
-// 首帧后即触发哨兵流程
-requestAnimationFrame(function () { _pdfTrySentinel(); });
+// MathJax 异步加载兼容：轮询等待 MathJax 就绪后注册钩子
+(function () {
+    var mjTimer = setInterval(function () {
+        try {
+            if (window.MathJax && MathJax.Hub) {
+                clearInterval(mjTimer);
+                MathJax.Hub.Register.StartupHook('End', function () {
+                    window.__pdfRenderLatch.push(Promise.resolve());
+                });
+            }
+        } catch (e) {}
+    }, 200);
+    // 60 秒后停止轮询（防止永久挂起）
+    setTimeout(function () { clearInterval(mjTimer); }, 60000);
+})();
 </script>"#;
     insert_before(html, "</body>", script)
 }
@@ -411,6 +445,7 @@ pub fn preprocess(
     html: &str,
     chapter_paths: &[String],
     cfg: &super::pdf::PdfOptions,
+    book_root: Option<&Path>,
 ) -> String {
     let mut result = html.to_string();
 
@@ -444,14 +479,47 @@ pub fn preprocess(
         );
     }
 
+    // 5. 删除阻塞型外部 CDN 资源（脚本、样式表），保留图片
+    result = remove_external_resources(&result);
+
     // 6. JS 注入（始终执行）
     result = inject_js(&result);
 
     // 7. 替换 PDF 预览容器为静态链接（PDF 中交互式容器无法工作）
     result = replace_pdf_containers(&result);
 
-    // 8. 将 emoji 替换为 Noto Emoji SVG 图片
-    result = replace_emoji_with_text(&result);
+    // 8. Emoji 字体：自动检测 theme/fonts/ 下的 emoji woff2 文件
+    //    直接使用，不复制。无需任何配置。
+    if let Some(root) = book_root {
+        let fonts_dir = root.join("theme").join("fonts");
+        let mut emoji_css = String::new();
+        if fonts_dir.is_dir() {
+            if let Ok(entries) = fs::read_dir(&fonts_dir) {
+                let mut files: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+                files.sort_by_key(|e| e.file_name());
+                for entry in &files {
+                    let name = entry.file_name();
+                    let name_str = name.to_string_lossy();
+                    if name_str.ends_with(".woff2") && name_str.contains("emoji") {
+                        let rel = format!("../../theme/fonts/{}", name_str);
+                        emoji_css.push_str(&format!(
+                            "@font-face {{ font-family: 'Emoji PDF'; src: url('{}') format('woff2'); }}\n",
+                            rel
+                        ));
+                    }
+                }
+            }
+        }
+        if !emoji_css.is_empty() {
+            emoji_css.push_str(
+                "body { font-family: 'Emoji PDF', 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; }"
+            );
+            let css = format!("<style>{}</style>", emoji_css);
+            if let Some(pos) = result.rfind("</head>") {
+                result.insert_str(pos, &css);
+            }
+        }
+    }
 
     result
 }
@@ -482,7 +550,7 @@ mod tests {
     fn test_inject_js_inserts_before_body_end() {
         let html = "<html><body><p>hello</p></body></html>";
         let result = inject_js(html);
-        assert!(result.contains("_pdfTrySentinel"));
+        assert!(result.contains("__pdfRenderLatch"));
         assert!(result.contains("content-has-all-loaded-for-mdbook-pdf-generation"));
         assert!(result.contains("<script"));
     }

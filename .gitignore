@@ -9,3 +9,4 @@ mdbook-pdf/
 output/
 pdfjs-viewer/
 .venv-emoji/
+.venv/

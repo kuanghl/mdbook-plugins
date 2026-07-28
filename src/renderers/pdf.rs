@@ -91,7 +91,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
     let html_content = std::fs::read_to_string(&print_html_path)?;
 
     // 6. HTML 预处理
-    let processed_html = pdf_html_preprocess::preprocess(&html_content, &chapter_paths, &cfg);
+    let processed_html = pdf_html_preprocess::preprocess(&html_content, &chapter_paths, &cfg, Some(&ctx.root));
 
     // 7. 确定输出路径
     let output_pdf = ctx.destination.join("output.pdf");

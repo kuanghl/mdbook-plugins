@@ -23,19 +23,6 @@ use super::pdf::PdfOptions;
 // 公开接口
 // ═══════════════════════════════════════════════════════════
 
-/// 阻塞的外部网络 URL 模式列表
-///
-/// Chrome 在渲染 PDF 时将不发起这些网络请求，避免因 CDN 加载慢导致超时。
-/// jsdelivr 保留，允许 Noto Emoji SVG 加载（PDF emoji 渲染需要）。
-const BLOCKED_URL_PATTERNS: &[&str] = &[
-    "*googleapis*",
-    "*gstatic*",
-    "*cloudflare*",
-    "*fontawesome*",
-    "*google-analytics*",
-    "*googletagmanager*",
-];
-
 /// 通过轻量 CDP 客户端渲染 PDF（同步接口，内部使用 block_on）
 pub fn render_chrome_cdp_light(
     html_content: &str,
@@ -514,25 +501,28 @@ impl CdpSession {
 // PDF 渲染核心逻辑
 // ═══════════════════════════════════════════════════════════
 
-/// 等待内容加载哨兵元素出现（替代固定 300ms 等待）
+/// 等待内容加载哨兵元素出现
 ///
 /// 通过 CDP `Runtime.evaluate` 轮询 DOM 中由 `inject_js` 注入的
 /// `#content-has-all-loaded-for-mdbook-pdf-generation` 元素。
-/// 该哨兵在页面 load 事件 + 可能存在的 MathJax 完成 + 100ms 后出现。
+/// 哨兵在状态机关键路径（DOM + 字体）就绪后立即注入，
+/// 不等待图片/框架等非关键资源（先渲染就绪部分，后续自行补充）。
 ///
-/// - 典型情况（无 MathJax）：~100-150ms 内返回
-/// - 有 MathJax：等待 MathJax 排版完成后返回
+/// - 典型情况：页面 load 事件后 ~1s 内返回（等字体最长 1s）
 /// - 超时保护：最多等待 `timeout`，超时后仍继续 PDF 生成
 async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
     let check_expr =
         "document.getElementById('content-has-all-loaded-for-mdbook-pdf-generation') !== null";
     let start = Instant::now();
+    let mut poll_count = 0u32;
 
     loop {
+        poll_count += 1;
         if start.elapsed() > timeout {
             log::warn!(
-                "轻量 CDP: 内容加载哨兵等待超时 ({}s)，继续 PDF 生成",
-                timeout.as_secs()
+                "轻量 CDP: 内容加载哨兵等待超时 ({}s，轮询 {} 次)，继续 PDF 生成",
+                timeout.as_secs(),
+                poll_count,
             );
             return;
         }
@@ -557,8 +547,9 @@ async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
                     .unwrap_or(false);
                 if found {
                     log::info!(
-                        "轻量 CDP: 内容加载哨兵已出现（耗时 {:.0}ms）",
-                        start.elapsed().as_millis()
+                        "轻量 CDP: 内容加载哨兵已出现（耗时 {:.0}ms，轮询 {} 次）",
+                        start.elapsed().as_millis(),
+                        poll_count,
                     );
                     return;
                 }
@@ -579,9 +570,10 @@ async fn render_inner(
     timeout: Duration,
 ) -> Result<()> {
     let url = file_url(html_path)?;
-    log::info!("轻量 CDP: 使用 Target.createTarget 创建页面并导航...");
+    log::info!("轻量 CDP: 创建页面并导航到: {}", url);
+    let t0 = std::time::Instant::now();
 
-    // 1. 创建新页面并导航到目标 URL
+    // ── 阶段 1：创建页面并导航到目标 URL ──
     let create_result = cdp.call("Target.createTarget", Some(json!({
         "url": url.clone(),
     })), timeout).await;
@@ -592,6 +584,7 @@ async fn render_inner(
             return Err(e.context(format!("无法创建页面 (url={})", url)));
         }
     };
+    log::info!("[timing] createTarget: {:.0}ms", t0.elapsed().as_millis());
 
     let target_id = create_result.get("targetId")
         .and_then(|v| v.as_str())
@@ -599,7 +592,7 @@ async fn render_inner(
 
     log::info!("轻量 CDP: 页面已创建 (targetId={}), 正在附加会话...", target_id);
 
-    // 2. 附加到页面并获取 sessionId
+    // ── 阶段 2：附加到页面并完成配置 ──
     let attach_result = cdp.call("Target.attachToTarget", Some(json!({
         "targetId": target_id,
         "flatten": true,
@@ -612,46 +605,37 @@ async fn render_inner(
 
     cdp.session_id = Some(session_id.to_string());
     log::info!("轻量 CDP: 会话已附加 (sessionId={})", session_id);
+    log::info!("[timing] attachToTarget: {:.0}ms", t0.elapsed().as_millis());
 
-    // 2.5 启用 Page 域（才能收到页面加载事件）
     log::info!("轻量 CDP: 启用 Page 域...");
     if let Err(e) = cdp.call("Page.enable", None, timeout).await {
         log::warn!("轻量 CDP: Page.enable 失败 ({}，继续)", e);
     }
+    log::info!("[timing] page+network setup: {:.0}ms", t0.elapsed().as_millis());
 
-    // 2.6 启用 Network 域并阻止外部网络请求（加速页面加载，避免 CDN 超时）
-    log::info!("轻量 CDP: 启用 Network 域并阻止外部请求...");
-    if let Err(e) = cdp.call("Network.enable", None, timeout).await {
-        log::warn!("轻量 CDP: Network.enable 失败 ({}，继续)", e);
-    }
-    if let Err(e) = cdp.call(
-        "Network.setBlockedURLs",
-        Some(json!({"urls": BLOCKED_URL_PATTERNS})),
-        timeout,
-    )
-    .await
-    {
-        log::warn!("轻量 CDP: Network.setBlockedURLs 失败 ({}，继续)", e);
-    }
-
-    // 3. 等待页面加载完成
-    log::info!("轻量 CDP: 等待页面加载...");
+    // ── 阶段 3：等待页面加载完成（短超时，等不到就靠哨兵） ──
+    // Page.frameStoppedLoading 事件可能在之前的 call()（Page.enable 等）
+    // 中被消费并丢弃。1s 短超时：收到就提前进入哨兵，收不到直接走哨兵。
+    // 哨兵阶段的 window.load 自然覆盖了页面加载等待，不依赖此事件。
+    log::info!("轻量 CDP: 尝试等待页面加载事件 (1s 超时)...");
     let load_result = tokio::time::timeout(
-        Duration::from_secs(cfg.timeout),
-        cdp.wait_for_event("Page.frameStoppedLoading", timeout),
+        Duration::from_secs(1),
+        cdp.wait_for_event("Page.frameStoppedLoading", Duration::from_secs(1)),
     ).await;
 
     match load_result {
         Ok(Ok(_)) => log::info!("轻量 CDP: 页面加载完成"),
-        Ok(Err(e)) => log::warn!("轻量 CDP: 页面加载事件异常: {} (继续)", e),
-        Err(_) => log::warn!("轻量 CDP: 页面加载超时 ({}s, 继续)", cfg.timeout),
+        Ok(Err(_e)) => log::info!("轻量 CDP: 页面加载事件超时 (1s)，继续等待哨兵"),
+        Err(_) => log::info!("轻量 CDP: 页面加载事件超时 (1s)，继续等待哨兵"),
     }
+    log::info!("[timing] frameStoppedLoading wait: {:.0}ms", t0.elapsed().as_millis());
 
-    // 3.5 等待内容加载哨兵（替代固定 300ms 等待）
+    // ── 阶段 4：等待内容哨兵 ──
     log::info!("轻量 CDP: 等待内容加载哨兵...");
-    wait_for_content_sentinel(cdp, Duration::from_secs(cfg.timeout)).await;
+    wait_for_content_sentinel(cdp, timeout).await;
+    log::info!("[timing] sentinel wait: {:.0}ms", t0.elapsed().as_millis());
 
-    // 4. 调用 Page.printToPDF
+    // ── 阶段 5：调用 Page.printToPDF ──
     log::info!("轻量 CDP: 调用 Page.printToPDF...");
     let pdf_params = build_print_to_pdf_json(cfg);
 
@@ -683,6 +667,7 @@ async fn render_inner(
         }
         Err(e) => return Err(e).context("Page.printToPDF 调用失败"),
     };
+    log::info!("[timing] printToPDF call: {:.0}ms", t0.elapsed().as_millis());
 
     // 5. 解码 base64 PDF
     let pdf_base64 = result.get("data")
@@ -699,6 +684,7 @@ async fn render_inner(
     // 6. 写入输出文件
     std::fs::write(output_pdf, &pdf_data)?;
     log::info!("轻量 CDP: PDF 已保存到: {}", output_pdf.display());
+    log::info!("[timing] TOTAL render_inner: {:.0}ms", t0.elapsed().as_millis());
 
     Ok(())
 }
