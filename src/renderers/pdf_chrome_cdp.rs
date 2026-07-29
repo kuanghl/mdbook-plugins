@@ -81,18 +81,18 @@ async fn inner_render(
     // 构建 file:// URL
     let file_url = Url::from_file_path(temp_html_path)
         .map_err(|_| anyhow::anyhow!("无法将路径转换为 URL: {:?}", temp_html_path))?;
-    log::info!("文件 URL: {}", file_url);
+    log::debug!("文件 URL: {}", file_url);
 
     // 创建新页面
-    log::info!("正在创建新页面...");
+    log::debug!("正在创建新页面...");
     let page = browser
         .new_page(CreateTargetParams::new("about:blank"))
         .await
         .map_err(|e| anyhow::anyhow!("无法创建页面: {}", e))?;
-    log::info!("页面已创建，正在导航到: {}", file_url);
+    log::debug!("页面已创建，正在导航到: {}", file_url);
 
     // 导航到文件 URL（带超时保护）
-    log::info!("正在导航到: {}（超时 {}s）", file_url, cfg.timeout);
+    log::debug!("正在导航到: {}（超时 {}s）", file_url, cfg.timeout);
     let goto_result = tokio::time::timeout(
         Duration::from_secs(cfg.timeout),
         page.goto(NavigateParams::new(file_url.as_str())),
@@ -100,13 +100,13 @@ async fn inner_render(
     .await;
 
     match goto_result {
-        Ok(Ok(_)) => log::info!("导航完成"),
+        Ok(Ok(_)) => log::debug!("导航完成"),
         Ok(Err(e)) => return Err(anyhow::anyhow!("无法导航到 HTML 文件: {}", e)),
         Err(_) => return Err(anyhow::anyhow!("导航超时 ({}s)", cfg.timeout)),
     }
 
     // 等待内容加载哨兵元素（由 inject_js 注入）
-    log::info!("正在等待内容加载...");
+    log::debug!("正在等待内容加载...");
     let wait_result = tokio::time::timeout(
         Duration::from_secs(cfg.timeout),
         wait_for_content_loaded(&page),
@@ -125,19 +125,19 @@ async fn inner_render(
 
     // 构建 printToPDF 参数
     let params = build_print_to_pdf_params(cfg);
-    log::info!("正在调用 page.pdf() 生成 PDF...");
+    log::debug!("正在调用 page.pdf() 生成 PDF...");
 
     // 调用 Page.printToPDF
     let pdf_data = page
         .pdf(params)
         .await
         .map_err(|e| anyhow::anyhow!("CDP printToPDF 调用失败: {}", e))?;
-    log::info!("PDF 数据已接收, {} 字节", pdf_data.len());
+    log::debug!("PDF 数据已接收, {} 字节", pdf_data.len());
 
     // 写入输出文件
     std::fs::write(output_pdf, &pdf_data)?;
 
-    log::info!(
+    log::debug!(
         "PDF 已成功生成: {} ({} 字节)",
         output_pdf.display(),
         pdf_data.len()
@@ -312,7 +312,7 @@ pub fn render_chrome_cli(
     cmd.arg("--disable-dev-shm-usage");
     cmd.arg(print_html.as_os_str());
 
-    log::info!("执行 Chrome CLI: {:?}", cmd);
+    log::debug!("执行 Chrome CLI: {:?}", cmd);
 
     // 设置超时，避免 Chrome 挂起导致构建卡住
     let timeout_secs = cfg.timeout.max(30);
@@ -336,7 +336,7 @@ pub fn render_chrome_cli(
     }
 
     let metadata = std::fs::metadata(output_pdf)?;
-    log::info!(
+    log::debug!(
         "PDF 已通过 CLI 生成: {} ({} 字节)",
         output_pdf.display(),
         metadata.len()

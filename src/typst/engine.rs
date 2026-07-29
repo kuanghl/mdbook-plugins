@@ -8,6 +8,7 @@
 
 use anyhow::Result;
 use std::path::PathBuf;
+use crate::utils::print_status;
 use std::sync::LazyLock;
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime, Duration};
@@ -92,13 +93,21 @@ impl TypstWorld {
         if package_dir.is_dir() {
             return Some(package_dir);
         }
-        log::info!(
+        log::debug!(
             "Typst 包 {}/{}:{} 未在本地找到，正在自动下载...",
             spec.namespace, spec.name, spec.version
         );
+        print_status(&format!(
+            "Downloading Typst package: {}/{} v{}",
+            spec.namespace, spec.name, spec.version
+        ));
         match Self::download_package(spec, &root) {
             Ok(dir) => {
-                log::info!(
+                print_status(&format!(
+                    "Typst package downloaded: {}/{} v{}",
+                    spec.namespace, spec.name, spec.version
+                ));
+                log::debug!(
                     "Typst 包 {}/{}:{} 下载完成到 {:?}",
                     spec.namespace, spec.name, spec.version, dir
                 );
@@ -138,7 +147,7 @@ impl TypstWorld {
             "https://packages.typst.org/{}/{}-{}.tar.gz",
             spec.namespace, spec.name, version_str
         );
-        log::info!("尝试官方 registry: {}", registry_url);
+        log::debug!("尝试官方 registry: {}", registry_url);
 
         if let Ok(resp) = client.get(&registry_url).send() {
             if resp.status().is_success() {
@@ -149,7 +158,11 @@ impl TypstWorld {
         // 官方 registry 不可用，尝试国内镜像（ghproxy → GitHub raw）
         log::warn!("官方 registry 不可用，切换国内镜像源...");
         let files = Self::list_package_files(spec, &version_str, &client)?;
-        log::info!("找到 {} 个文件，开始下载...", files.len());
+        log::debug!("找到 {} 个文件，开始下载...", files.len());
+        print_status(&format!(
+            "Downloading Typst package files: {} files",
+            files.len()
+        ));
 
         let base_url = "https://ghproxy.net/https://raw.githubusercontent.com/typst/packages/main";
         let prefix = format!("packages/{}/{}/{}", spec.namespace, spec.name, version_str);
@@ -160,7 +173,7 @@ impl TypstWorld {
                 let _ = std::fs::create_dir_all(parent);
             }
             let file_url = format!("{}/{}/{}", base_url, prefix, rel_path);
-            log::info!("  [{}/{}] {}", idx + 1, files.len(), rel_path);
+            log::debug!("  [{}/{}] {}", idx + 1, files.len(), rel_path);
 
             if let Ok(resp) = client.get(&file_url).send() {
                 if resp.status().is_success() {
@@ -171,7 +184,7 @@ impl TypstWorld {
             }
         }
 
-        log::info!("包 {} v{} 下载完成", spec.name, version_str);
+        log::debug!("包 {} v{} 下载完成", spec.name, version_str);
         Ok(package_dir)
     }
 
@@ -229,7 +242,7 @@ impl TypstWorld {
         version_str: &str,
     ) -> Result<PathBuf> {
         let total_size = response.content_length().unwrap_or(0);
-        log::info!("包大小: {} bytes", total_size);
+        log::debug!("包大小: {} bytes", total_size);
 
         let bytes = response.bytes()
             .map_err(|e| anyhow::anyhow!("读取包数据失败: {}", e))?;
@@ -266,7 +279,7 @@ impl TypstWorld {
             }
         }
         eprintln!("DEBUG: 解压完成: {} 个文件", file_count);
-        log::info!("包 {} v{} 下载并解压完成 ({} 文件)", spec.name, version_str, file_count);
+        log::debug!("包 {} v{} 下载并解压完成 ({} 文件)", spec.name, version_str, file_count);
         Ok(package_dir.clone())
     }
 }
@@ -332,7 +345,12 @@ pub fn typst_to_svg(source: &str) -> Result<String> {
 
     // 输出页面信息
     let pages = document.pages();
-    log::info!("Typst 编译完成: {} 页, {} 警告", pages.len(), warned.warnings.len());
+    log::debug!("Typst 编译完成: {} 页, {} 警告", pages.len(), warned.warnings.len());
+    print_status(&format!(
+        "Typst compilation: {} pages, {} warnings",
+        pages.len(),
+        warned.warnings.len()
+    ));
 
     let options = SvgOptions::default();
     let gap = Abs::zero();
@@ -354,7 +372,11 @@ pub fn typst_to_pdf(source: &str) -> Result<Vec<u8>> {
         anyhow::anyhow!("Typst 编译失败: {}", msgs.join("; "))
     })?;
 
-    log::info!("Typst PDF 输出: {} 页", document.pages().len());
+    log::debug!("Typst PDF 输出: {} 页", document.pages().len());
+    print_status(&format!(
+        "Typst PDF output: {} pages",
+        document.pages().len()
+    ));
 
     let options = PdfOptions::default();
     let pdf = typst_pdf::pdf(&document, &options).map_err(|errors| {

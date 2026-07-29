@@ -17,7 +17,7 @@ use tokio_tungstenite::connect_async_with_config;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message;
 
-use super::pdf::PdfOptions;
+use super::pdf::{PdfOptions, print_progress};
 
 // ═══════════════════════════════════════════════════════════
 // 公开接口
@@ -66,15 +66,17 @@ async fn render_chrome_cdp_light_async(
     temp_html_path: &Path,
 ) -> Result<()> {
     // 写入临时 HTML 文件
+    print_progress(1, 8, "Writing temp HTML");
     std::fs::write(temp_html_path, html_content)?;
 
     let timeout = Duration::from_secs(cfg.timeout);
 
     // 1. 从进程池获取 Chrome WebSocket URL（自动启动/复用）
+    print_progress(2, 8, "Starting Chrome");
     let ws_url = acquire_chrome_ws_url(cfg, timeout).await?;
 
     // 2. 连接 CDP（每次新建会话，WS 连接成本 ~10-50ms）
-    log::info!("轻量 CDP: 连接 WebSocket...");
+    print_progress(3, 8, "Connecting DevTools");
     let mut cdp = CdpSession::connect(&ws_url, timeout).await?;
 
     // 3. 渲染 PDF
@@ -224,7 +226,7 @@ async fn acquire_chrome_ws_url(cfg: &PdfOptions, timeout: Duration) -> Result<St
                 if inner.ws_url == *ws_url {
                     let idle = inner.last_used.elapsed().as_secs_f64();
                     inner.last_used = Instant::now();
-                    log::info!(
+                    log::debug!(
                         "复用 Chrome 进程池中的实例 (闲置 {:.1}s)",
                         idle
                     );
@@ -253,14 +255,14 @@ async fn acquire_chrome_ws_url(cfg: &PdfOptions, timeout: Duration) -> Result<St
     }; // ⚠️ MutexGuard 在此处释放
 
     if let Some(mut p) = pooled_to_kill {
-        log::info!("Chrome 进程闲置超时，关闭旧进程...");
+        log::debug!("Chrome 进程闲置超时，关闭旧进程...");
         let _ = p.child.kill().await;
         let _ = p.child.wait().await;
         // p 在此处 drop，temp_dir 自动清理
     }
 
     // ── 启动新 Chrome 进程 ──
-    log::info!("进程池为空，启动新的 Chrome 实例...");
+    log::debug!("进程池为空，启动新的 Chrome 实例...");
 
     let chrome = resolve_chrome_path(cfg)
         .or_else(find_chrome_in_path)
@@ -307,7 +309,7 @@ async fn acquire_chrome_ws_url(cfg: &PdfOptions, timeout: Duration) -> Result<St
         });
     }
 
-    log::info!("新 Chrome 实例已启动并存入进程池");
+    log::debug!("新 Chrome 实例已启动并存入进程池");
     Ok(ws_url)
 }
 
@@ -320,7 +322,7 @@ fn invalidate_pool_chrome() {
             unsafe { libc::kill(pid as i32, libc::SIGKILL); }
         }
         drop(p);
-        log::info!("已终止失效的 Chrome 进程");
+        log::debug!("已终止失效的 Chrome 进程");
     }
 }
 
@@ -340,7 +342,7 @@ pub fn shutdown_pool() {
         }
         // drop child 时会尝试 wait（非阻塞）
         drop(p);
-        log::info!("Chrome 进程池已关闭");
+        log::debug!("Chrome 进程池已关闭");
     }
 }
 
@@ -546,7 +548,7 @@ async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
                     .and_then(|v| v.as_bool())
                     .unwrap_or(false);
                 if found {
-                    log::info!(
+                    log::debug!(
                         "轻量 CDP: 内容加载哨兵已出现（耗时 {:.0}ms，轮询 {} 次）",
                         start.elapsed().as_millis(),
                         poll_count,
@@ -570,7 +572,8 @@ async fn render_inner(
     timeout: Duration,
 ) -> Result<()> {
     let url = file_url(html_path)?;
-    log::info!("轻量 CDP: 创建页面并导航到: {}", url);
+    print_progress(4, 8, "Loading page");
+    log::debug!("轻量 CDP: 创建页面并导航到: {}", url);
     let t0 = std::time::Instant::now();
 
     // ── 阶段 1：创建页面并导航到目标 URL ──
@@ -584,13 +587,13 @@ async fn render_inner(
             return Err(e.context(format!("无法创建页面 (url={})", url)));
         }
     };
-    log::info!("[timing] createTarget: {:.0}ms", t0.elapsed().as_millis());
+    log::debug!("[timing] createTarget: {:.0}ms", t0.elapsed().as_millis());
 
     let target_id = create_result.get("targetId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow::anyhow!("createTarget 缺少 targetId"))?;
 
-    log::info!("轻量 CDP: 页面已创建 (targetId={}), 正在附加会话...", target_id);
+    log::debug!("轻量 CDP: 页面已创建 (targetId={}), 正在附加会话...", target_id);
 
     // ── 阶段 2：附加到页面并完成配置 ──
     let attach_result = cdp.call("Target.attachToTarget", Some(json!({
@@ -604,39 +607,41 @@ async fn render_inner(
         .ok_or_else(|| anyhow::anyhow!("attachToTarget 缺少 sessionId"))?;
 
     cdp.session_id = Some(session_id.to_string());
-    log::info!("轻量 CDP: 会话已附加 (sessionId={})", session_id);
-    log::info!("[timing] attachToTarget: {:.0}ms", t0.elapsed().as_millis());
+    log::debug!("轻量 CDP: 会话已附加 (sessionId={})", session_id);
+    log::debug!("[timing] attachToTarget: {:.0}ms", t0.elapsed().as_millis());
 
-    log::info!("轻量 CDP: 启用 Page 域...");
+    log::debug!("轻量 CDP: 启用 Page 域...");
     if let Err(e) = cdp.call("Page.enable", None, timeout).await {
         log::warn!("轻量 CDP: Page.enable 失败 ({}，继续)", e);
     }
-    log::info!("[timing] page+network setup: {:.0}ms", t0.elapsed().as_millis());
+    log::debug!("[timing] page+network setup: {:.0}ms", t0.elapsed().as_millis());
 
     // ── 阶段 3：等待页面加载完成（短超时，等不到就靠哨兵） ──
     // Page.frameStoppedLoading 事件可能在之前的 call()（Page.enable 等）
     // 中被消费并丢弃。1s 短超时：收到就提前进入哨兵，收不到直接走哨兵。
     // 哨兵阶段的 window.load 自然覆盖了页面加载等待，不依赖此事件。
-    log::info!("轻量 CDP: 尝试等待页面加载事件 (1s 超时)...");
+    log::debug!("轻量 CDP: 尝试等待页面加载事件 (1s 超时)...");
     let load_result = tokio::time::timeout(
         Duration::from_secs(1),
         cdp.wait_for_event("Page.frameStoppedLoading", Duration::from_secs(1)),
     ).await;
 
     match load_result {
-        Ok(Ok(_)) => log::info!("轻量 CDP: 页面加载完成"),
-        Ok(Err(_e)) => log::info!("轻量 CDP: 页面加载事件超时 (1s)，继续等待哨兵"),
-        Err(_) => log::info!("轻量 CDP: 页面加载事件超时 (1s)，继续等待哨兵"),
+        Ok(Ok(_)) => log::debug!("轻量 CDP: 页面加载完成"),
+        Ok(Err(_e)) => log::debug!("轻量 CDP: 页面加载事件超时 (1s)，继续等待哨兵"),
+        Err(_) => log::debug!("轻量 CDP: 页面加载事件超时 (1s)，继续等待哨兵"),
     }
-    log::info!("[timing] frameStoppedLoading wait: {:.0}ms", t0.elapsed().as_millis());
+    log::debug!("[timing] frameStoppedLoading wait: {:.0}ms", t0.elapsed().as_millis());
 
     // ── 阶段 4：等待内容哨兵 ──
-    log::info!("轻量 CDP: 等待内容加载哨兵...");
+    print_progress(5, 8, "Waiting for content");
+    log::debug!("轻量 CDP: 等待内容加载哨兵...");
     wait_for_content_sentinel(cdp, timeout).await;
-    log::info!("[timing] sentinel wait: {:.0}ms", t0.elapsed().as_millis());
+    log::debug!("[timing] sentinel wait: {:.0}ms", t0.elapsed().as_millis());
 
     // ── 阶段 5：调用 Page.printToPDF ──
-    log::info!("轻量 CDP: 调用 Page.printToPDF...");
+    print_progress(6, 8, "Generating PDF");
+    log::debug!("轻量 CDP: 调用 Page.printToPDF...");
     let pdf_params = build_print_to_pdf_json(cfg);
 
     // 尝试 printToPDF，如果带 generateTaggedPDF 参数失败则降级重试
@@ -667,7 +672,7 @@ async fn render_inner(
         }
         Err(e) => return Err(e).context("Page.printToPDF 调用失败"),
     };
-    log::info!("[timing] printToPDF call: {:.0}ms", t0.elapsed().as_millis());
+    log::debug!("[timing] printToPDF call: {:.0}ms", t0.elapsed().as_millis());
 
     // 5. 解码 base64 PDF
     let pdf_base64 = result.get("data")
@@ -679,12 +684,12 @@ async fn render_inner(
         pdf_base64,
     ).map_err(|e| anyhow::anyhow!("base64 解码失败: {}", e))?;
 
-    log::info!("轻量 CDP: PDF 数据已接收, {} 字节", pdf_data.len());
+    log::debug!("轻量 CDP: PDF 数据已接收, {} 字节", pdf_data.len());
 
     // 6. 写入输出文件
     std::fs::write(output_pdf, &pdf_data)?;
-    log::info!("轻量 CDP: PDF 已保存到: {}", output_pdf.display());
-    log::info!("[timing] TOTAL render_inner: {:.0}ms", t0.elapsed().as_millis());
+    log::debug!("轻量 CDP: PDF 已保存到: {}", output_pdf.display());
+    log::debug!("[timing] TOTAL render_inner: {:.0}ms", t0.elapsed().as_millis());
 
     Ok(())
 }

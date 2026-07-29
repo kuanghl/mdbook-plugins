@@ -38,11 +38,11 @@ pub fn inject_toc_fix(html: &str, chapter_paths: &[String]) -> String {
     insert_before(html, "</body>", &toc_fix)
 }
 
-/// 删除阻塞型外部 CDN 资源（脚本、样式表），保留图片
+/// 删除阻塞型外部 CDN 脚本，保留图片和样式表
 ///
-/// `<script>` 和 `<link>` 标签是同步阻塞资源，在 WSL 中加载极慢（数分钟），
+/// `<script>` 标签是同步阻塞资源，在 WSL 中加载极慢（数分钟），
 /// 会阻塞 HTML 解析和 window.load。删除它们后页面加载不受外部 CDN 影响。
-/// `<img>` 图片是并行加载资源，保留以保证 PDF 内容完整（如 emoji SVG）。
+/// `<link>` 样式表和 `<img>` 图片是并行加载资源，保留以保证 PDF 内容和样式完整。
 pub fn remove_external_resources(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut rest = html;
@@ -56,12 +56,10 @@ pub fn remove_external_resources(html: &str) -> String {
             || tag.contains("href=\"http") || tag.contains("href='http");
 
         if is_external {
-            // 脚本和样式表是同步阻塞资源，必须删除
-            // 图片是并行加载不阻塞 HTML 解析，保留以保证 PDF 内容完整
+            // 脚本是同步阻塞资源，必须删除
+            // 图片和样式表是并行加载不阻塞 HTML 解析，保留以保证 PDF 内容完整
             if tag.starts_with("<script ") || tag.starts_with("<script>") {
                 result.push_str("<script>/* CDN removed for PDF */</script>");
-            } else if tag.starts_with("<link ") {
-                // link 标签跳过即可
             } else {
                 result.push_str(tag);
             }
@@ -84,7 +82,89 @@ pub fn inject_js(html: &str) -> String {
 // window.load 只等本地资源（图片、字体、本地 JS）加载完成，< 1 秒。
 // 这是最可靠的方式：window.load 天然保证所有本地资源完整性。
 window.addEventListener('load', function () {
-    // 1. DOM 操作
+    // 1. Emoji 结构化隔离：扫描所有文本节点，将 emoji 字符
+    //    （含键帽、国旗、ZWJ 序列等）包裹在 <span class="emoji-render">
+    //    中，由独立 @font-face 'Emoji PDF' 渲染。
+    //    正文文字不接触 emoji 字体，无需 unicode-range。
+    (function() {
+        // Emoji Unicode 范围表 [start, end] 含首尾
+        var R = [
+            [0x00A9,0x00AE],[0x203C,0x2049],[0x2122,0x2139],
+            [0x2194,0x2199],[0x21A9,0x21AA],
+            [0x231A,0x231B],[0x2328,0x2328],[0x23CF,0x23CF],
+            [0x23E9,0x23F3],[0x23F8,0x23FA],[0x24C2,0x24C2],
+            [0x25AA,0x25AB],[0x25B6,0x25B6],[0x25C0,0x25C0],[0x25FB,0x25FE],
+            [0x2600,0x27BF],
+            [0x2934,0x2935],[0x2B05,0x2B07],[0x2B1B,0x2B1C],
+            [0x2B50,0x2B50],[0x2B55,0x2B55],
+            [0x3030,0x3030],[0x303D,0x303D],[0x3297,0x3297],[0x3299,0x3299],
+            [0x1F000,0x1FFFF],[0x200D,0x200D],[0x20E3,0x20E3],[0xFE00,0xFE0F],
+            [0x1F1E6,0x1F1FF],
+        ];
+        function isEmoji(cp) {
+            for (var i = 0; i < R.length; i++)
+                if (cp >= R[i][0] && cp <= R[i][1]) return true;
+            return false;
+        }
+        function emojiLen(text, i) {
+            if (i >= text.length) return 0;
+            var cp = text.codePointAt(i);
+            // 键帽序列: #️⃣, *️⃣, 0️⃣-9️⃣ — 整体识别，不处理单独的 # * 0-9
+            if (cp === 0x0023 || cp === 0x002A || (cp >= 0x0030 && cp <= 0x0039)) {
+                var j = i + 1;
+                if (j < text.length && text.codePointAt(j) === 0xFE0F) j++;
+                if (j < text.length && text.codePointAt(j) === 0x20E3) return j + 1 - i;
+                return 0; // 单独的 # * 0-9 不是 emoji
+            }
+            if (!isEmoji(cp)) return 0;
+            var cl = cp > 0xFFFF ? 2 : 1;
+            var total = cl;
+            for (var j = i + cl; j < text.length;) {
+                var nc = text.codePointAt(j);
+                if (nc === 0x200D) { total += 1; j += 1; // ZWJ
+                    if (j >= text.length) break;
+                    var ec = text.codePointAt(j);
+                    if (!isEmoji(ec)) break;
+                    var el = ec > 0xFFFF ? 2 : 1;
+                    total += el; j += el;
+                } else if (nc === 0xFE0F || nc === 0xFE0E) { total += 1; j += 1; }
+                else if (nc === 0x20E3) { total += 1; j += 1; }
+                else if (nc >= 0x1F1E6 && nc <= 0x1F1FF && j + 1 < text.length) {
+                    var nc2 = text.codePointAt(j + 1);
+                    if (nc2 >= 0x1F1E6 && nc2 <= 0x1F1FF) { total += 4; j += 2; }
+                    else break;
+                } else break;
+            }
+            return total;
+        }
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        var nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        for (var n = 0; n < nodes.length; n++) {
+            var node = nodes[n], text = node.textContent, frag = null;
+            var i = 0, last = 0;
+            while (i < text.length) {
+                var sl = emojiLen(text, i);
+                if (sl > 0) {
+                    if (!frag) frag = document.createDocumentFragment();
+                    if (i > last) frag.appendChild(document.createTextNode(text.slice(last, i)));
+                    var sp = document.createElement('span');
+                    sp.className = 'emoji-render';
+                    sp.textContent = text.slice(i, i + sl);
+                    frag.appendChild(sp);
+                    i += sl; last = i;
+                } else {
+                    i += (text.codePointAt(i) > 0xFFFF ? 2 : 1);
+                }
+            }
+            if (frag) {
+                if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+                node.parentNode.replaceChild(frag, node);
+            }
+        }
+    })();
+
+    // 2. DOM 操作
     for (var d of document.getElementsByTagName('details'))
         d.open = true;
     var ph = document.getElementById('mdbook-print-header');
@@ -92,7 +172,7 @@ window.addEventListener('load', function () {
     if (ph) ph.remove();
     if (pf) pf.remove();
 
-    // 2. 等 2 帧 — ECharts/Mermaid 等把渲染结果提交到屏幕
+    // 3. 等 2 帧 — ECharts/Mermaid 等把渲染结果提交到屏幕
     var frameCount = 2;
     function frame() {
         if (--frameCount <= 0) {
@@ -223,7 +303,6 @@ pub fn inject_print_css(html: &str) -> String {
 pub fn inject_font_css(html: &str) -> String {
     let css = r#"<style>
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Noto Sans SC", "Microsoft YaHei", "PingFang SC",
         "Hiragino Sans GB", "WenQuanYi Micro Hei",
@@ -488,11 +567,13 @@ pub fn preprocess(
     // 7. 替换 PDF 预览容器为静态链接（PDF 中交互式容器无法工作）
     result = replace_pdf_containers(&result);
 
-    // 8. Emoji 字体：自动检测 theme/fonts/ 下的 emoji woff2 文件
-    //    直接使用，不复制。无需任何配置。
+    // 8. Emoji 字体——注入独立 @font-face（字体名 'Emoji PDF'，
+    //    不放在 body font-family 中），配合 JS 将文档中所有
+    //    emoji 字符包裹到 .emoji-render 元素，由独立字体渲染。
+    //    正文文字全程不接触 emoji 字体，无需 unicode-range 限制。
+    //    单 @font-face 只有一次字体处理开销，printToPDF 约 10-15s。
     if let Some(root) = book_root {
         let fonts_dir = root.join("theme").join("fonts");
-        let mut emoji_css = String::new();
         if fonts_dir.is_dir() {
             if let Ok(entries) = fs::read_dir(&fonts_dir) {
                 let mut files: Vec<_> = entries.filter_map(|e| e.ok()).collect();
@@ -502,21 +583,26 @@ pub fn preprocess(
                     let name_str = name.to_string_lossy();
                     if name_str.ends_with(".woff2") && name_str.contains("emoji") {
                         let rel = format!("../../theme/fonts/{}", name_str);
-                        emoji_css.push_str(&format!(
-                            "@font-face {{ font-family: 'Emoji PDF'; src: url('{}') format('woff2'); }}\n",
+                        let css = format!(
+                            "<style>\
+                            @font-face {{ \
+                            font-family: 'Emoji PDF'; \
+                            font-style: normal; font-display: swap; font-weight: 400; \
+                            src: url('{}') format('woff2'); \
+                            }} \
+                            .emoji-render {{ \
+                            font-family: 'Emoji PDF', 'Noto Color Emoji', \
+                            'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; \
+                            }} \
+                            </style>",
                             rel
-                        ));
+                        );
+                        if let Some(pos) = result.rfind("</head>") {
+                            result.insert_str(pos, &css);
+                        }
+                        break;
                     }
                 }
-            }
-        }
-        if !emoji_css.is_empty() {
-            emoji_css.push_str(
-                "body { font-family: 'Emoji PDF', 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; }"
-            );
-            let css = format!("<style>{}</style>", emoji_css);
-            if let Some(pos) = result.rfind("</head>") {
-                result.insert_str(pos, &css);
             }
         }
     }

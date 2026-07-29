@@ -37,14 +37,14 @@ pub fn postprocess_pdf(
 
     // ── 1. 提取书签条目 ──
     let entries = extract_bookmark_entries(html_content)?;
-    log::info!(
+    log::debug!(
         "mdbook-pdf(outline): 从 HTML 提取了 {} 个书签条目",
         entries.len()
     );
 
     // ── 2. 解析命名目标 ──
     let dest_map = resolve_dests(&doc);
-    log::info!(
+    log::debug!(
         "mdbook-pdf(outline): PDF 中解析了 {} 个命名目标",
         dest_map.len()
     );
@@ -55,7 +55,7 @@ pub fn postprocess_pdf(
         match add_bookmarks(&mut doc, &entries, &dest_map) {
             Ok(Some(oid)) => {
                 outline_id = Some(oid);
-                log::info!("mdbook-pdf(outline): 成功添加 {} 个书签", entries.len());
+                log::debug!("mdbook-pdf(outline): 成功添加 {} 个书签", entries.len());
             }
             Ok(None) => {
                 log::warn!("mdbook-pdf(outline): add_bookmarks 返回 None");
@@ -78,7 +78,7 @@ pub fn postprocess_pdf(
     doc.save(pdf_path)
         .map_err(|e| anyhow::anyhow!("无法保存 PDF: {}", e))?;
 
-    log::info!("mdbook-pdf(outline): 后处理完成");
+    log::debug!("mdbook-pdf(outline): 后处理完成");
     Ok(())
 }
 
@@ -117,7 +117,7 @@ pub fn extract_bookmark_entries(html: &str) -> Result<Vec<BEntry>, anyhow::Error
 
     // ── 策略 2：回退 — 直接扫描 h1-h6[id] ──
     if entries.is_empty() {
-        log::info!("mdbook-pdf(outline): .header 锚点未匹配，回退到直接扫描 h1-h6");
+        log::debug!("mdbook-pdf(outline): .header 锚点未匹配，回退到直接扫描 h1-h6");
         if let Ok(heading_sel) = Selector::parse("h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]") {
             for el in doc.select(&heading_sel) {
                 let id = match el.value().attr("id") {

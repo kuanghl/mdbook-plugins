@@ -21,6 +21,12 @@ use super::pdf_chrome_cdp_light;
 use super::pdf_html_preprocess;
 use super::pdf_outline;
 
+use std::io::IsTerminal;
+use std::sync::OnceLock;
+use std::time::Instant;
+
+use regex::Regex;
+
 /// 一个 Drop guard，在离开作用域时关闭 Chrome 进程池
 struct ChromeCleanup;
 
@@ -102,13 +108,13 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
     // 9. 后端调度
     let backend_result = match cfg.backend.as_str() {
         "chrome-cli" => {
-            log::info!("使用 Chrome CLI 后端");
+            log::debug!("使用 Chrome CLI 后端");
             std::fs::write(&temp_html, &processed_html)?;
             pdf_chrome_cdp::render_chrome_cli(&temp_html, &output_pdf, &cfg)
         }
         #[cfg(feature = "pre-pdf-cdp-heavy")]
         "chrome-legacy" => {
-            log::info!("使用 Chrome CDP 后端 (chromiumoxide)");
+            log::debug!("使用 Chrome CDP 后端 (chromiumoxide)");
             let result =
                 pdf_chrome_cdp::render_chrome_cdp(&processed_html, &output_pdf, &cfg, &temp_html);
             match result {
@@ -121,7 +127,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
             }
         }
         _ => {
-            log::info!("使用轻量 CDP 后端");
+            log::debug!("使用轻量 CDP 后端");
             let result = pdf_chrome_cdp_light::render_chrome_cdp_light(
                 &processed_html, &output_pdf, &cfg, &temp_html,
             );
@@ -143,11 +149,12 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
         return Err(anyhow::anyhow!("PDF 生成失败: {:#}", e));
     }
 
-    log::info!("PDF 原始文件已生成: {}", output_pdf.display());
+    log::debug!("PDF 原始文件已生成: {}", output_pdf.display());
 
     // 10. PDF 后处理（非致命）
     if cfg.generate_document_outline {
-        log::info!("执行 PDF 后处理（书签 + 元数据）...");
+        print_progress(7, 8, "Adding bookmarks & metadata");
+        log::debug!("执行 PDF 后处理（书签 + 元数据）...");
         let author_str = book_authors.as_deref();
         pdf_outline::postprocess_pdf(
             &output_pdf,
@@ -156,20 +163,24 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
             author_str,
             book_language,
         )?;
-        log::info!("PDF 后处理完成");
+        log::debug!("PDF 后处理完成");
+    } else {
+        print_progress(7, 8, "Skipping outline");
     }
 
     // 11. 清理临时文件
     let _ = std::fs::remove_file(&temp_html);
 
-    // 12. 输出日志
-    if let Ok(metadata) = std::fs::metadata(&output_pdf) {
-        log::info!(
-            "PDF 成功生成: {} ({} 字节)",
-            output_pdf.display(),
-            metadata.len()
-        );
-    }
+    // 12. Output summary
+    let chapter_count = chapter_paths.len();
+    let (file_size, page_count) = if let Ok(meta) = std::fs::metadata(&output_pdf) {
+        (meta.len(), get_pdf_page_count(&output_pdf).unwrap_or(0))
+    } else {
+        (0, 0)
+    };
+    let size_str = format_file_size(file_size);
+    let summary = format!("Done! {} chapters, {}, {} pages", chapter_count, size_str, page_count);
+    print_progress(8, 8, &summary);
 
     Ok(())
 }
@@ -196,6 +207,102 @@ pub fn run() -> anyhow::Result<()> {
 // ═══════════════════════════════════════════════════════════════
 // 配置系统
 // ═══════════════════════════════════════════════════════════════
+
+/// 独立输出进度条到 stderr，格式: " \x1b[32m INFO\x1b[0m [====>---]  12% - label (3.2s)"
+///
+/// 在终端中 INFO 显示为绿色，与 env_logger 的 info 级别颜色一致。
+/// 输出到文件/管道时自动降级为纯文本 " INFO"。
+/// 不依赖 log::info，避免时间戳和模块名前缀。
+/// 自动记录首次调用时间，每次显示累计耗时。
+/// - `current`: 当前进度序号（从 1 开始）
+/// - `total`: 总步骤数
+/// - `label`: 英文步骤描述
+pub(crate) fn print_progress(current: u8, total: u8, label: &str) {
+    static START: OnceLock<Instant> = OnceLock::new();
+    let start = *START.get_or_init(Instant::now);
+    let elapsed = start.elapsed();
+
+    let pct = (current as f64) / (total as f64);
+    let width: usize = 20;
+    let filled = (pct * width as f64).round() as usize;
+    let filled = filled.min(width);
+    let pct_int = (pct * 100.0).round() as u8;
+
+    let bar = if filled == 0 {
+        format!("[>{}]", "-".repeat(width - 1))
+    } else if filled >= width {
+        format!("[{}]", "=".repeat(width))
+    } else {
+        format!(
+            "[{}{}{}]",
+            "=".repeat(filled - 1),
+            ">",
+            "-".repeat(width - filled)
+        )
+    };
+
+    let elapsed_str = format_elapsed(elapsed);
+    let info_prefix = if std::io::stderr().is_terminal() {
+        "\x1b[32m INFO\x1b[0m"  // green
+    } else {
+        " INFO"
+    };
+    eprintln!("{} {} {:3}% - {} ({})", info_prefix, bar, pct_int, label, elapsed_str);
+}
+
+/// 格式化持续时间，如 "0.1s", "12.3s", "1m 23s", "2h 5m"
+fn format_elapsed(d: std::time::Duration) -> String {
+    let secs = d.as_secs_f64();
+    if secs < 60.0 {
+        format!("{:.1}s", secs)
+    } else if secs < 3600.0 {
+        let m = (secs / 60.0) as u64;
+        let s = (secs % 60.0) as u64;
+        format!("{}m {}s", m, s)
+    } else {
+        let h = (secs / 3600.0) as u64;
+        let m = ((secs % 3600.0) / 60.0) as u64;
+        format!("{}h {}m", h, m)
+    }
+}
+
+/// 从 PDF 文件中提取总页数
+///
+/// 在嵌套 Pages 结构中查找根 Pages 对象（有 /Type /Pages 和 /Count
+/// 但没有 /Parent），从中提取总页数。
+fn get_pdf_page_count(path: &std::path::Path) -> Option<u32> {
+    let content = std::fs::read(path).ok()?;
+    let text = String::from_utf8_lossy(&content);
+    // 遍历每个 obj...endobj 块，找含 /Type /Pages 和 /Count 但不含 /Parent 的
+    let obj_re = Regex::new(r"(?m)^(\d+ \d+ obj[\s\S]*?endobj)").ok()?;
+    let count_re = Regex::new(r"/Count\s*(\d+)").ok()?;
+    for cap in obj_re.captures_iter(&text) {
+        let block = cap.get(1)?.as_str();
+        if (block.contains("/Type /Pages") || block.contains("/Type/Pages"))
+            && !block.contains("/Parent")
+        {
+            if let Some(c) = count_re.captures(block) {
+                return c.get(1)?.as_str().parse().ok();
+            }
+        }
+    }
+    // 兜底：取所有 /Count 中的最大值（兼容扁平页面结构）
+    let all_re = Regex::new(r"/Count\s*(\d+)").ok()?;
+    all_re.captures_iter(&text)
+        .filter_map(|c| c.get(1)?.as_str().parse::<u32>().ok())
+        .max()
+}
+
+/// 格式化文件大小，如 "1.2 KB", "23.0 MB", "5.5 MB"
+fn format_file_size(bytes: u64) -> String {
+    if bytes >= 1_000_000 {
+        format!("{:.1} MB", bytes as f64 / 1_000_000.0)
+    } else if bytes >= 1_000 {
+        format!("{:.1} KB", bytes as f64 / 1_000.0)
+    } else {
+        format!("{} B", bytes)
+    }
+}
 
 /// PDF 输出配置
 ///

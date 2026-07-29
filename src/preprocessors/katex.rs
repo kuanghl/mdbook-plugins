@@ -185,7 +185,7 @@ fn render_katex(latex: &str, display_mode: bool) -> String {
     use std::sync::OnceLock;
     static CTX: OnceLock<katex::KatexContext> = OnceLock::new();
     let ctx = CTX.get_or_init(|| {
-        log::info!("初始化纯 Rust KaTeX 引擎");
+        log::debug!("初始化纯 Rust KaTeX 引擎");
         katex::KatexContext::default()
     });
     let mut settings = katex::Settings::default();

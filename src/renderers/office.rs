@@ -14,6 +14,7 @@ use mdbook_core::book::BookItem;
 use mdbook_core::errors::Error;
 use mdbook_renderer::{RenderContext, Renderer};
 use std::path::{Path, PathBuf};
+use crate::utils::print_status;
 
 pub struct OfficeRenderer;
 
@@ -54,7 +55,8 @@ fn run_office(ctx: &RenderContext) -> Result<(), Error> {
     let _diags = if need_chrome {
         match capture_diagrams(&raw, &ctx.root) {
             Ok(d) => {
-                log::info!("mdbook-office: captured {} diagrams via Chrome", d.len());
+                log::debug!("mdbook-office: captured {} diagrams via Chrome", d.len());
+                print_status(&format!("Chrome capture: {} diagrams", d.len()));
                 d
             }
             Err(e) => {
@@ -71,17 +73,20 @@ fn run_office(ctx: &RenderContext) -> Result<(), Error> {
             "docx" => {
                 let p = dest.join("book.docx");
                 build_docx(&text, &p)?;
-                log::info!("mdbook-office: docx ({})", fsize(&p));
+                log::debug!("mdbook-office: docx ({})", fsize(&p));
+                print_status(&format!("Office output: docx ({})", fsize(&p)));
             }
             "xlsx" => {
                 let p = dest.join("book.xlsx");
                 build_xlsx(&text, &p)?;
-                log::info!("mdbook-office: xlsx ({})", fsize(&p));
+                log::debug!("mdbook-office: xlsx ({})", fsize(&p));
+                print_status(&format!("Office output: xlsx ({})", fsize(&p)));
             }
             "pptx" => {
                 let p = dest.join("book.pptx");
                 build_pptx(&text, &p)?;
-                log::info!("mdbook-office: pptx ({})", fsize(&p));
+                log::debug!("mdbook-office: pptx ({})", fsize(&p));
+                print_status(&format!("Office output: pptx ({})", fsize(&p)));
             }
             _ => log::warn!("mdbook-office: unsupported format \"{f}\""),
         }

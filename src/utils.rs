@@ -1,5 +1,7 @@
 //! 插件通用的工具函数
 
+use std::io::IsTerminal;
+
 /// 标准的 mdbook 预处理器入口：从 stdin 读取，处理，写入 stdout
 pub fn run_preprocessor<P: mdbook_preprocessor::Preprocessor>(
     pre: &P,
@@ -48,4 +50,18 @@ pub fn relative_svg_prefix(chapter_path: &std::path::Path) -> String {
         let parents: Vec<&str> = std::iter::repeat("..").take(depth).collect();
         format!("{}/images/", parents.join("/"))
     }
+}
+
+/// 独立输出状态信息到 stderr，格式: " \x1b[32m INFO\x1b[0m <message>"
+///
+/// 与 print_progress 风格一致，终端中 INFO 显示为绿色。
+/// 不受 RUST_LOG 级别影响，始终输出。
+/// 输出到文件/管道时自动降级为纯文本 " INFO"。
+pub fn print_status(msg: &str) {
+    let info_prefix = if std::io::stderr().is_terminal() {
+        "\x1b[32m INFO\x1b[0m"
+    } else {
+        " INFO"
+    };
+    eprintln!("{} {}", info_prefix, msg);
 }

@@ -23,11 +23,11 @@ impl Renderer for LinkCheckRenderer {
         collect_links(book, &mut all_links);
 
         if all_links.is_empty() {
-            log::info!("linkcheck: 没有发现需要检查的链接");
+            log::debug!("linkcheck: 没有发现需要检查的链接");
             return Ok(());
         }
 
-        log::info!("linkcheck: 发现 {} 个链接需要检查", all_links.len());
+        log::debug!("linkcheck: 发现 {} 个链接需要检查", all_links.len());
 
         // 使用 tokio 运行时进行异步检查
         let rt = tokio::runtime::Runtime::new()?;
@@ -124,7 +124,7 @@ async fn check_links(links: &HashSet<String>) -> Result<(), Error> {
         // 不返回错误，仅记录日志（避免中断构建）
         log::warn!("linkcheck: {} 个链接检查失败", errors.len());
     } else {
-        log::info!("linkcheck: 所有链接检查通过");
+        log::debug!("linkcheck: 所有链接检查通过");
     }
 
     Ok(())

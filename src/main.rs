@@ -22,7 +22,7 @@ const KNOWN_SHORT_NAMES: &[&str] = &[
 ];
 
 fn main() {
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("warn"));
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
 
     let args: Vec<String> = std::env::args().collect();
 

@@ -272,7 +272,7 @@ fn tikz_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: 
         .join("\n");
 
     let rel_prefix = crate::utils::relative_svg_prefix(chapter_path);
-    log::info!("TikZ svg_dir: {:?}", svg_dir);
+    log::debug!("TikZ svg_dir: {:?}", svg_dir);
 
     #[cfg(feature = "pre-tikz")]
     match crate::tikz::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir) {
