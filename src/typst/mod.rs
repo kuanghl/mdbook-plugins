@@ -34,6 +34,7 @@ pub fn text2svg_file(
     images_dir: &Path,
     rel_prefix: &str,
     _cache_dir: &Path,
+    source_path: &str,
 ) -> Result<String> {
     let hash = typst_content_hash(content);
     let svg_filename = format!("{}.svg", hash);
@@ -54,17 +55,18 @@ pub fn text2svg_file(
                     .map_err(|e| anyhow::anyhow!("无法写入 PDF 文件: {}", e))?;
             }
             Err(e) => {
-                // PDF 编译失败不阻塞 SVG 输出，仅记录警告
                 log::warn!("Typst PDF 编译失败（仅保存 SVG）: {}", e);
             }
         }
 
-        std::fs::write(&svg_filepath, &svg)
+        let svg_with_source = format!("<!-- Source: {} -->\n{}", source_path, svg);
+        std::fs::write(&svg_filepath, &svg_with_source)
             .map_err(|e| anyhow::anyhow!("无法写入 SVG 文件: {}", e))?;
     }
 
     Ok(format!(
-        r#"<img src="{}{}" alt="Typst diagram" style="max-width:100%;">"#,
+        r#"<img src="{}{}" alt="Typst diagram" class="miv_mdbook-image-viewer"
+onclick="miv_openModal(this.src)" style="max-width:100%;cursor:zoom-in;">"#,
         rel_prefix, svg_filename
     ))
 }

@@ -37,6 +37,7 @@ pub fn text2svg_file(
     images_dir: &Path,
     rel_prefix: &str,
     cache_dir: &Path,
+    source_path: &str,
 ) -> Result<String> {
     let hash = tikz_content_hash(content);
     let svg_filename = format!("{}.svg", hash);
@@ -50,17 +51,19 @@ pub fn text2svg_file(
         // Compile TeX → PDF
         let pdf_data = engine::tex_to_pdf(content, cache_dir)?;
 
-        // Save PDF first, then convert to SVG (pdf_to_svg takes ownership to avoid clone)
+        // Save intermediate PDF
         std::fs::write(images_dir.join(&pdf_filename), &pdf_data)
             .map_err(|e| anyhow::anyhow!("failed to write PDF file: {}", e))?;
 
         let svg = pdf2svg::pdf_to_svg(pdf_data)?;
-        std::fs::write(&svg_filepath, &svg)
+        let svg_with_source = format!("<!-- Source: {} -->\n{}", source_path, svg);
+        std::fs::write(&svg_filepath, &svg_with_source)
             .map_err(|e| anyhow::anyhow!("failed to write SVG file: {}", e))?;
     }
 
     Ok(format!(
-        r#"<img src="{}{}" alt="TikZ diagram" style="max-width:100%;">"#,
+        r#"<img src="{}{}" alt="TikZ diagram" class="miv_mdbook-image-viewer"
+onclick="miv_openModal(this.src)" style="max-width:100%;cursor:zoom-in;">"#,
         rel_prefix, svg_filename
     ))
 }

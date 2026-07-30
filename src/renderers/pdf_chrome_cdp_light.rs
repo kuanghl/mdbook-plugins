@@ -505,26 +505,31 @@ impl CdpSession {
 
 /// 等待内容加载哨兵元素出现
 ///
-/// 通过 CDP `Runtime.evaluate` 轮询 DOM 中由 `inject_js` 注入的
-/// `#content-has-all-loaded-for-mdbook-pdf-generation` 元素。
-/// 哨兵在状态机关键路径（DOM + 字体）就绪后立即注入，
-/// 不等待图片/框架等非关键资源（先渲染就绪部分，后续自行补充）。
+/// 通过 CDP `Runtime.evaluate` 执行返回 Promise 的 JS 脚本，
+/// 内部使用 MutationObserver 监听 DOM 变化，哨兵出现时立即 resolve。
+/// 不在 JS 内部设硬超时（避免大文档加载慢时提前放弃），
+/// 由 Rust 端循环 + 总超时 `timeout` 控制重试。
 ///
-/// - 典型情况：页面 load 事件后 ~1s 内返回（等字体最长 1s）
-/// - 超时保护：最多等待 `timeout`，超时后仍继续 PDF 生成
+/// - 快路径：哨兵出现 → Promise resolve → 立即返回
+/// - 慢路径：cdp.call 超时（120s）→ 重试 → 直到总超时
 async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
-    let check_expr =
-        "document.getElementById('content-has-all-loaded-for-mdbook-pdf-generation') !== null";
     let start = Instant::now();
-    let mut poll_count = 0u32;
+    let script = r#"
+        new Promise((resolve) => {
+            const id = 'content-has-all-loaded-for-mdbook-pdf-generation';
+            if (document.getElementById(id)) { resolve(true); return; }
+            const obs = new MutationObserver((_, ob) => {
+                if (document.getElementById(id)) { ob.disconnect(); resolve(true); }
+            });
+            obs.observe(document.body, { childList: true, subtree: true });
+        })
+    "#;
 
     loop {
-        poll_count += 1;
         if start.elapsed() > timeout {
             log::warn!(
-                "轻量 CDP: 内容加载哨兵等待超时 ({}s，轮询 {} 次)，继续 PDF 生成",
+                "轻量 CDP: 内容加载哨兵等待超时 ({}s)，继续 PDF 生成",
                 timeout.as_secs(),
-                poll_count,
             );
             return;
         }
@@ -533,11 +538,11 @@ async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
             .call(
                 "Runtime.evaluate",
                 Some(json!({
-                    "expression": check_expr,
+                    "expression": script.trim(),
+                    "awaitPromise": true,
                     "returnByValue": true,
-                    "awaitPromise": false,
                 })),
-                Duration::from_secs(30),
+                Duration::from_secs(120),
             )
             .await
         {
@@ -549,19 +554,19 @@ async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
                     .unwrap_or(false);
                 if found {
                     log::debug!(
-                        "轻量 CDP: 内容加载哨兵已出现（耗时 {:.0}ms，轮询 {} 次）",
+                        "轻量 CDP: 内容加载哨兵已出现（耗时 {:.0}ms）",
                         start.elapsed().as_millis(),
-                        poll_count,
                     );
                     return;
                 }
+                // Promise resolve(false) 不应发生（无 setTimeout），
+                // 如果发生则重试
+                log::debug!("轻量 CDP: 哨兵 Promise resolve(false)，重试");
             }
             Err(e) => {
-                log::warn!("轻量 CDP: 检查内容加载哨兵失败: {} (继续)", e);
+                log::debug!("轻量 CDP: 哨兵 Promise 超时 (120s)，重试: {}", e);
             }
         }
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
 async fn render_inner(

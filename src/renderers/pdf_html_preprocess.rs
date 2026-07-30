@@ -387,6 +387,41 @@ pub fn inject_css_header_footer(
     result
 }
 
+/// 为 TikZ/Typst 图形添加唯一 ID，供 PDF 后处理页面定位使用
+///
+/// 找到所有 `data-pdf-hash` 属性所在的 `<div>` 标签，直接添加
+/// `id="tikz-grp-{n}"` 属性（不插入额外元素，不破坏 HTML 结构）。
+/// Chrome printToPDF 会将这些 ID 转换为 PDF 命名目标。
+pub fn inject_tikz_anchors(html: &str) -> String {
+    let marker = "data-pdf-hash=\"";
+    let mut result = String::with_capacity(html.len() + 512);
+    let mut remaining = html;
+    let mut count = 0;
+
+    loop {
+        match remaining.find(marker) {
+            None => {
+                result.push_str(remaining);
+                break;
+            }
+            Some(pos) => {
+                // 保留 marker 之前的内容
+                result.push_str(&remaining[..pos]);
+                // 在 data-pdf-hash 属性之前添加 id 属性
+                result.push_str(&format!(r#"id="tikz-grp-{}" "#, count));
+                result.push_str(marker);
+                remaining = &remaining[pos + marker.len()..];
+                count += 1;
+            }
+        }
+    }
+
+    if count > 0 {
+        log::debug!("为 {} 个 TikZ/Typst 图形添加了 id 属性", count);
+    }
+    result
+}
+
 /// 在 `target` 字符串前插入 `insertion` 文本
 fn insert_before(original: &str, target: &str, insertion: &str) -> String {
     if let Some(pos) = original.find(target) {
@@ -526,11 +561,13 @@ pub fn preprocess(
     cfg: &super::pdf::PdfOptions,
     book_root: Option<&Path>,
 ) -> String {
-    let mut result = html.to_string();
+    let mut result = String::with_capacity(html.len() * 2);
+    result.push_str(html);
 
     // 1. 链接修正
     if !cfg.static_site_url.is_empty() {
         result = fix_links(&result, &cfg.static_site_url);
+        result.reserve(result.len() / 2);
     }
 
     // 2. ToC 锚点注入
@@ -566,6 +603,9 @@ pub fn preprocess(
 
     // 7. 替换 PDF 预览容器为静态链接（PDF 中交互式容器无法工作）
     result = replace_pdf_containers(&result);
+
+    // 7b. 为 TikZ/Typst 图形注入命名锚点（方案B: 后处理页面定位）
+    result = inject_tikz_anchors(&result);
 
     // 8. Emoji 字体——注入独立 @font-face（字体名 'Emoji PDF'，
     //    不放在 body font-family 中），配合 JS 将文档中所有

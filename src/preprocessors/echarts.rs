@@ -274,10 +274,14 @@ fn tikz_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: 
     let rel_prefix = crate::utils::relative_svg_prefix(chapter_path);
     log::debug!("TikZ svg_dir: {:?}", svg_dir);
 
+    // 计算内容 hash，用于关联中间 PDF 文件（PDF 后处理页面合并）
+    let content_hash = crate::tikz::tikz_content_hash(&content);
+
     #[cfg(feature = "pre-tikz")]
-    match crate::tikz::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir) {
+    match crate::tikz::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir,
+        &chapter_path.to_string_lossy()) {
         Ok(img_tag) => {
-            return format!(r#"<div align="center">{}</div>"#, img_tag);
+            return format!(r#"<div data-pdf-hash="{}" align="center">{}</div>"#, content_hash, img_tag);
         }
         Err(e) => {
             log::warn!("TikZ 渲染失败: {}", e);
@@ -327,10 +331,14 @@ fn typst_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir:
 
     let rel_prefix = crate::utils::relative_svg_prefix(chapter_path);
 
+    // 计算内容 hash，用于关联中间 PDF 文件（PDF 后处理页面合并）
+    let content_hash = crate::typst::typst_content_hash(&content);
+
     #[cfg(feature = "pre-typst")]
-    match crate::typst::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir) {
+    match crate::typst::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir,
+        &chapter_path.to_string_lossy()) {
         Ok(img_tag) => {
-            return format!(r#"<div align="center">{}</div>"#, img_tag);
+            return format!(r#"<div data-pdf-hash="{}" align="center">{}</div>"#, content_hash, img_tag);
         }
         Err(e) => {
             log::warn!("Typst 渲染失败: {}", e);

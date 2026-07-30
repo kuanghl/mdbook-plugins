@@ -278,18 +278,38 @@ pub fn render_chrome_cli(
         .or_else(find_chrome)
         .ok_or_else(|| anyhow::anyhow!("找不到 Chrome/Chromium 可执行文件"))?;
 
+    // 每个调用使用独立的临时 profile 目录，避免并行时 Chrome 的
+    // ProcessSingleton 冲突（"Failed to create a ProcessSingleton"）。
+    // 保持 TempDir 存活直到函数返回，以便自动清理。
+    let user_data_dir: std::path::PathBuf;
+    let _keep_user_data_dir: Option<tempfile::TempDir>;
+
+    match tempfile::tempdir() {
+        Ok(dir) => {
+            user_data_dir = dir.path().to_path_buf();
+            _keep_user_data_dir = Some(dir);
+        }
+        Err(_) => {
+            let fallback = format!(
+                "/tmp/mdbook-pdf-runner/{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_nanos())
+                    .unwrap_or(0)
+            );
+            let _ = std::fs::create_dir_all(&fallback);
+            user_data_dir = std::path::PathBuf::from(fallback);
+            _keep_user_data_dir = None;
+        }
+    }
+
     let mut cmd = std::process::Command::new(&chrome);
     cmd.arg("--headless")
         .arg("--disable-gpu")
         .arg("--no-sandbox")
-        .arg(format!("--print-to-pdf={}", output_pdf.display()));
-
-    // 使用独立临时用户数据目录避免 SingletonLock 冲突
-    if let Ok(_tmp_dir) = std::fs::create_dir_all("/tmp/mdbook-pdf-runner") {
-        let user_data_dir = format!("/tmp/mdbook-pdf-runner/{}", std::process::id());
-        let _ = std::fs::remove_dir_all(&user_data_dir);
-        cmd.arg(format!("--user-data-dir={}", user_data_dir));
-    }
+        .arg(format!("--print-to-pdf={}", output_pdf.display()))
+        .arg(format!("--user-data-dir={}", user_data_dir.display()));
 
     if !cfg.header_footer_enabled() {
         cmd.arg("--print-to-pdf-no-header");
@@ -460,6 +480,7 @@ mod tests {
         // print_background 默认 true，所以为 Some(true)
         assert_eq!(params.print_background, Some(true));
         assert_eq!(params.scale, None);
+        // print_to_pdf_params 的默认 paper size 可能不同于 PdfOptions
         assert_eq!(params.paper_width, Some(8.5));
         assert_eq!(params.paper_height, Some(11.0));
         assert_eq!(params.generate_document_outline, Some(false));

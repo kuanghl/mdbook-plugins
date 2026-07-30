@@ -121,14 +121,24 @@
 │  (通用工具)     │  │  (PDF渲染器)    │  │                 │
 └─────────────────┘  └────────┬────────┘  └─────────────────┘
                               │
-              ┌───────────────┼───────────────┐
-              │               │               │
-              ▼               ▼               ▼
-   ┌────────────────┐ ┌──────────────┐ ┌────────────────────┐
-   │pdf_chrome_cdp  │ │pdf_html_     │ │  pdf_outline.rs    │
-   │.rs             │ │preprocess.rs │ │  (PDF后处理)       │
-   │(CDP后端)       │ │(HTML预处理)  │ │  (书签+元数据)     │
-   └────────────────┘ └──────────────┘ └────────────────────┘
+              ┌───────────────┼───────────────────────┐
+              │               │                       │
+              ▼               ▼                       ▼
+   ┌────────────────┐ ┌──────────────┐ ┌──────────────────────┐
+   │pdf_chrome_cdp  │ │pdf_html_     │ │  pdf_outline.rs      │
+   │.rs             │ │preprocess.rs │ │  (PDF 后处理)        │
+   │(CDP重型后端)   │ │(HTML预处理)  │ │  (书签+元数据)       │
+   │(pre-pdf-cdp-   │ └──────────────┘ └──────────────────────┘
+   │ heavy feature) │                       │
+   └────────────────┘                       │
+                    ▼                       ▼
+   ┌──────────────────────┐  ┌──────────────────────┐
+   │pdf_chrome_cdp_light  │  │   lopdf              │
+   │.rs                   │  │   IncrementalDocument│
+   │(轻量CDP: 主路径)     │  │   (增量保存)         │
+   │(Chrome 进程池)       │  └──────────────────────┘
+   │(MutationObserver)    │
+   └──────────────────────┘
 ```
 
 ---
@@ -397,7 +407,54 @@ fn build_pdf_params(cfg: &PdfOptions) -> PrintToPdfParams {
 }
 ```
 
-### 4.3 模块三：HTML 预处理 (`pdf_html_preprocess.rs`)
+### 4.3 模块二B：轻量 CDP 后端 (`pdf_chrome_cdp_light.rs`)
+
+**职责**：自实现轻量 WebSocket CDP 客户端，替代 `chromiumoxide` 重型依赖。
+
+**设计动机**：`chromiumoxide` 编译慢、依赖重，且无法精细控制超时和连接生命周期。
+
+**核心架构**：
+
+```rust
+┌────────────────────────────────────────────────────────────┐
+│                   轻量 CDP 客户端架构                        │
+│                                                            │
+│  CdpSession                                                │
+│  ├── WebSocket 连接（tokio_tungstenite）                    │
+│  ├── call(method, params, timeout) → Result<Value>         │
+│  │   └── 发送 CDP 命令 → 等待 id 匹配的响应                │
+│  ├── session_id: Option<String> (Target 级别会话)           │
+│  └── 原子 id 计数器 (next_id)                              │
+│                                                            │
+│  CHROME_POOL (全局进程池)                                   │
+│  ├── once_cell::sync::Lazy<Mutex<Option<PooledChrome>>>    │
+│  ├── 复用 Chrome 实例，避免反复启动（闲置120s超时关闭）     │
+│  ├── PooledChrome { child, ws_url, _temp_dir, last_used }  │
+│  └── verify_chrome_health() → Browser.getVersion           │
+│                                                            │
+│  渲染流程:                                                  │
+│  1. acquire_chrome_ws_url()  → 从池取 ws_url || 启动新实例 │
+│  2. CdpSession::connect()    → WebSocket 连接              │
+│  3. Target.createTarget      → 创建空白标签页              │
+│  4. Target.attachToTarget    → 附加 CDP 会话               │
+│  5. Page.enable              → 启用 Page 域                │
+│  6. wait_for_content_sentinel → MutationObserver Promise    │
+│  7. Page.printToPDF          → 生成 PDF                    │
+│  8. 解码 base64 → 写入磁盘                                 │
+└────────────────────────────────────────────────────────────┘
+```
+
+**与重型后端的对比**：
+
+| 维度 | 重型 (chromiumoxide) | 轻量 (自实现) |
+|------|---------------------|--------------|
+| 编译时间 | ~60s | ~5s |
+| 依赖数量 | 100+ crates | 3 crates (tokio-tungstenite, serde_json, futures) |
+| 超时控制 | 受限 | 完全可控 |
+| 连接池 | 无 | 内置 `CHROME_POOL` |
+| 状态 | feature gate: `pre-pdf-cdp-heavy` | **默认启用** |
+
+### 4.4 模块三：HTML 预处理 (`pdf_html_preprocess.rs`)
 
 **职责**：在 HTML 送入 Chrome 前进行多维度预处理
 
@@ -731,35 +788,61 @@ fn render_chrome(
                     ┌───────────┴───────────┐
                     │                       │
                     ▼                       ▼
-         ┌─────────────────┐    ┌─────────────────┐
-         │  Chrome CDP     │    │  Chrome CLI     │
-         │  (WebSocket)    │    │  (subprocess)   │
-         │                 │    │                 │
-         │  Page.printToPDF│    │  --print-to-pdf │
-         └────────┬────────┘    └────────┬────────┘
-                  │                      │
-                  └──────────┬───────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │   原始 PDF (无书签)  │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                  ┌─────────────────────────────────┐
-                  │        PDF 后处理                │
-                  │                                 │
-                  │  print.html ──► 提取标题结构    │
-                  │  PDF ──► 解析命名目标           │
-                  │  合并 ──► 构建书签树            │
-                  │  写入 ──► 元数据                │
-                  └──────────────────┬──────────────┘
-                                     │
-                                     ▼
-                  ┌─────────────────────────────────┐
-                  │   最终 PDF (带书签+元数据)       │
-                  │   output/pdf/output.pdf         │
-                  └─────────────────────────────────┘
+         ┌─────────────────────┐  ┌─────────────────┐
+         │  轻量 CDP (主路径)  │  │  Chrome CLI     │
+         │  pdf_chrome_cdp_    │  │  (降级回退)     │
+         │  light.rs           │  │                 │
+         │                     │  │  --print-to-pdf │
+         │  ┌───────────────┐  │  └────────┬────────┘
+         │  │ CHROME_POOL   │  │           │
+         │  │ (进程池复用)  │  │           │
+         │  └───────┬───────┘  │           │
+         │          │           │           │
+         │          ▼           │           │
+         │  ┌───────────────┐  │           │
+         │  │ createTarget  │  │           │
+         │  │ attachSession │  │           │
+         │  │ Page.enable   │  │           │
+         │  └───────┬───────┘  │           │
+         │          │           │           │
+         │          ▼           │           │
+         │  ┌───────────────┐  │           │
+         │  │ MutationObser-│  │           │
+         │  │ ver Promise   │  │           │
+         │  │ (事件驱动)    │  │           │
+         │  └───────┬───────┘  │           │
+         │          │           │           │
+         │          ▼           │           │
+         │  ┌───────────────┐  │           │
+         │  │ printToPDF    │  │           │
+         │  │ awaitPromise  │  │           │
+         │  └───────┬───────┘  │           │
+         └──────────┼──────────┘           │
+                    │                      │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   原始 PDF (无书签)  │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────────────────┐
+                    │        PDF 后处理                │
+                    │                                 │
+                    │  print.html ──► 提取标题结构    │
+                    │  PDF ──► 解析命名目标           │
+                    │  合并 ──► 构建书签树            │
+                    │  写入 ──► 增量保存              │
+                    │  IncrementalDocument            │
+                    │  (只写变更，不重写全文件)       │
+                    └──────────────────┬──────────────┘
+                                       │
+                                       ▼
+                    ┌─────────────────────────────────┐
+                    │   最终 PDF (带书签+元数据)       │
+                    │   output/pdf/output.pdf         │
+                    └─────────────────────────────────┘
 ```
 
 ### 5.2 书签生成数据流
@@ -1255,26 +1338,32 @@ mod tests {
 ## 11. 项目目录结构
 
 ```
-mdbook-pdf-rs/
-├── Cargo.toml                    # 项目配置 + 依赖
+mdbook-plugins/
+├── Cargo.toml                       # 项目配置 + 依赖
 ├── src/
-│   ├── main.rs                   # 入口：CLI 参数解析 + 子命令分发
-│   ├── lib.rs                    # 库入口：模块声明
-│   ├── utils.rs                  # 通用工具（run_renderer, run_preprocessor）
-│   ├── pdf/
-│   │   ├── mod.rs                # PDF 模块入口
-│   │   ├── pdf.rs                # PdfRenderer + run_pdf + 配置 + CLI 后端
-│   │   ├── pdf_chrome_cdp.rs     # Chrome CDP 后端（异步）
-│   │   ├── pdf_html_preprocess.rs # HTML 预处理流水线
-│   │   └── pdf_outline.rs        # PDF 后处理（书签 + 元数据）
-│   └── (其他插件模块...)
+│   ├── main.rs                      # 入口：CLI 参数解析 + 子命令分发
+│   ├── lib.rs                       # 库入口：模块声明
+│   ├── utils.rs                     # 通用工具（run_renderer, run_preprocessor）
+│   └── renderers/
+│       ├── mod.rs                   # 渲染器模块入口
+│       ├── pdf.rs                   # PdfRenderer + run_pdf + 配置 + CLI 后端
+│       ├── pdf_chrome_cdp.rs        # Chrome CDP 后端（chromiumoxide 重型，feature gate）
+│       ├── pdf_chrome_cdp_light.rs  # 轻量 CDP 后端（自实现 WebSocket，默认启用）
+│       │   ├── CHROME_POOL         # Chrome 进程池复用
+│       │   ├── CdpSession          # WebSocket CDP 客户端
+│       │   ├── wait_for_content_sentinel  # MutationObserver Promise
+│       │   └── build_print_to_pdf_json    # printToPDF 参数
+│       ├── pdf_html_preprocess.rs  # HTML 预处理流水线
+│       └── pdf_outline.rs         # PDF 后处理（书签 + 元数据 + 增量保存）
 ├── tests/
-│   ├── integration_test.rs       # 端到端集成测试
+│   ├── integration_test.rs          # 端到端集成测试
 │   └── fixtures/
-│       ├── sample_print.html     # 测试用 print.html
-│       └── sample.pdf            # 测试用 PDF
-├── book.toml                     # 示例配置
-└── README.md
+│       ├── sample_print.html        # 测试用 print.html
+│       └── sample.pdf               # 测试用 PDF
+├── book.toml                        # 示例配置
+└── docs/                            # 架构文档
+    └── src/
+        └── pdf-implementation.md    # 本文件
 ```
 
 ---
@@ -1335,10 +1424,14 @@ Phase 6 (打磨) ─────────────────────
 
 | 决策点 | 选择 | 理由 |
 |--------|------|------|
-| CDP 客户端 | `chromiumoxide` | 纯 Rust 实现，类型安全，活跃维护 [[17]] |
+| CDP 客户端（主路径） | **自实现轻量 WebSocket** (`pdf_chrome_cdp_light.rs`) | 编译快（~5s vs ~60s），超时完全可控，内置进程池 |
+| CDP 客户端（备选） | `chromiumoxide` (`pre-pdf-cdp-heavy` feature) | 保留兼容，功能完整但编译慢 |
+| Chrome 进程管理 | **全局进程池** (`CHROME_POOL`) | 复用 Chrome 实例，避免反复启动（2-5s 启动开销） |
+| 内容加载检测 | **MutationObserver + Promise** (`awaitPromise: true`) | 事件驱动，零轮询开销，内容就绪后立即返回 |
+| PDF 后处理保存 | **增量保存** (`IncrementalDocument`) | 只写变更部分，避免重写整个 23MB+ PDF |
 | PDF 操作 | `lopdf` | 纯 Rust，支持书签/元数据操作 [[26]] |
 | HTML 解析 | `scraper` | 基于 Servo 引擎，CSS 选择器支持完整 [[33]] |
-| 异步运行时 | `tokio` | chromiumoxide 依赖，生态成熟 |
+| 异步运行时 | `tokio` | 生态成熟 |
 | 书签生成 | 后处理而非 CDP | 更精确控制层级结构，不依赖 Chrome 版本 |
 | 命名目标 | `<a id>` 注入 | Chrome 只为有 id 的元素创建命名目标 |
 | 配置格式 | kebab-case | 与 mdbook 生态一致 |
@@ -1371,7 +1464,8 @@ output/pdf/output.pdf
 
 ---
 
-> **文档版本**: v1.0
-> **最后更新**: 2026-07-19
+> **文档版本**: v1.1
+> **最后更新**: 2026-07-30
+> **主要变更**: v1.1 新增轻量 CDP 客户端、Chrome 进程池、MutationObserver 哨兵、增量保存
 > **参考项目**: [HollowMan6/mdbook-pdf](https://github.com/HollowMan6/mdbook-pdf.git) [[10]]
 > **CDP 规范**: [Chrome DevTools Protocol - Page.printToPDF](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF) [[2]]

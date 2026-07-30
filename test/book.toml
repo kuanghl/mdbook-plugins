@@ -151,12 +151,12 @@ static_site_url = "https://aye10032.gitbook.io/computernetwork/"
 ## Check Chrome Devtools Protocol Docs for the explanation of the following params:
 ## https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF
 landscape = false
-# format = "A4"
+# A4: 210×297mm ≈ 8.27×11.69 英寸（中文用户默认）
+paper-width = 8.27      # 8.5
+paper-height = 11.69    # 11.0
 print-background = true
 theme = "Light"
 scale = 1  # 画面比例
-paper-width = 8
-paper-height = 10
 margin-top = 0.5
 margin-bottom = 1.0
 margin-left = 0.5
@@ -195,11 +195,7 @@ footer-template = """<div style="position: relative; width: 100%; padding: 10px 
                     </div>"""
 prefer-css-page-size = true
 generate-document-outline = true
-
-# pdf-outline 是 Python 辅助脚本，未合并到 mdbook-plugins
-# [output.pdf-outline]
-# like-wkhtmltopdf = true
-# optional = true
+# generate_tagged_pdf = true
 
 # 有点儿鸡肋...
 # [output.asciidoc]

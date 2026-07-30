@@ -10,3 +10,5 @@ output/
 pdfjs-viewer/
 .venv-emoji/
 .venv/
+LaTeX.js/
+Typst/
