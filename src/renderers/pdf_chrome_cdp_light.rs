@@ -66,17 +66,17 @@ async fn render_chrome_cdp_light_async(
     temp_html_path: &Path,
 ) -> Result<()> {
     // 写入临时 HTML 文件
-    print_progress(1, 8, "Writing temp HTML");
+    print_progress(1, 12, "Writing temp HTML");
     std::fs::write(temp_html_path, html_content)?;
 
     let timeout = Duration::from_secs(cfg.timeout);
 
     // 1. 从进程池获取 Chrome WebSocket URL（自动启动/复用）
-    print_progress(2, 8, "Starting Chrome");
+    print_progress(2, 12, "Starting Chrome");
     let ws_url = acquire_chrome_ws_url(cfg, timeout).await?;
 
     // 2. 连接 CDP（每次新建会话，WS 连接成本 ~10-50ms）
-    print_progress(3, 8, "Connecting DevTools");
+    print_progress(3, 12, "Connecting DevTools");
     let mut cdp = CdpSession::connect(&ws_url, timeout).await?;
 
     // 3. 渲染 PDF
@@ -512,61 +512,86 @@ impl CdpSession {
 ///
 /// - 快路径：哨兵出现 → Promise resolve → 立即返回
 /// - 慢路径：cdp.call 超时（120s）→ 重试 → 直到总超时
+/// 等待内容哨兵，同时报告中间进度
 async fn wait_for_content_sentinel(cdp: &CdpSession, timeout: Duration) {
     let start = Instant::now();
-    let script = r#"
-        new Promise((resolve) => {
-            const id = 'content-has-all-loaded-for-mdbook-pdf-generation';
-            if (document.getElementById(id)) { resolve(true); return; }
-            const obs = new MutationObserver((_, ob) => {
-                if (document.getElementById(id)) { ob.disconnect(); resolve(true); }
-            });
-            obs.observe(document.body, { childList: true, subtree: true });
-        })
+    let mut last_reported_step = 0u8;
+    
+    // 进度检查脚本 - 检查各个阶段的完成状态
+    let progress_script = r#"
+        (function() {
+            var status = {
+                dom_ready: !!window.__mdbookPdfDomReady,
+                emoji_done: !!window.__mdbookPdfEmojiDone,
+                fonts_ready: !!window.__mdbookPdfFontsReady,
+                content_ready: !!window.__mdbookPdfContentReady
+            };
+            return status;
+        })()
     "#;
 
+    // 主等待循环 - 定期检查进度并更新进度条
     loop {
         if start.elapsed() > timeout {
             log::warn!(
-                "轻量 CDP: 内容加载哨兵等待超时 ({}s)，继续 PDF 生成",
+                "轻量 CDP: 内容加载等待超时 ({}s)，继续 PDF 生成",
                 timeout.as_secs(),
             );
             return;
         }
 
-        match cdp
-            .call(
+        // 检查进度
+        let result = tokio::time::timeout(
+            Duration::from_millis(500),
+            cdp.call(
                 "Runtime.evaluate",
                 Some(json!({
-                    "expression": script.trim(),
-                    "awaitPromise": true,
+                    "expression": progress_script.trim(),
                     "returnByValue": true,
                 })),
-                Duration::from_secs(120),
+                Duration::from_secs(5),
             )
-            .await
-        {
-            Ok(val) => {
-                let found = val
-                    .get("result")
-                    .and_then(|r| r.get("value"))
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-                if found {
+        ).await;
+
+        if let Ok(Ok(val)) = result {
+            if let Some(result) = val.get("result").and_then(|r| r.get("value")) {
+                let dom_ready = result.get("dom_ready").and_then(|v| v.as_bool()).unwrap_or(false);
+                let emoji_done = result.get("emoji_done").and_then(|v| v.as_bool()).unwrap_or(false);
+                let fonts_ready = result.get("fonts_ready").and_then(|v| v.as_bool()).unwrap_or(false);
+                let content_ready = result.get("content_ready").and_then(|v| v.as_bool()).unwrap_or(false);
+
+                // 根据当前状态计算进度步骤（5-12步）
+                let (current_step, current_label) = if content_ready {
+                    (12u8, "Content ready")
+                } else if fonts_ready {
+                    (11u8, "Finalizing content")
+                } else if emoji_done {
+                    (10u8, "Loading fonts")
+                } else if dom_ready {
+                    (9u8, "Processing emoji")
+                } else {
+                    (5u8, "Waiting for DOM")
+                };
+
+                // 只在步骤变化时更新进度条
+                if current_step > last_reported_step {
+                    print_progress(current_step, 14, current_label);
+                    last_reported_step = current_step;
+                }
+
+                // 内容完全就绪
+                if content_ready {
                     log::debug!(
-                        "轻量 CDP: 内容加载哨兵已出现（耗时 {:.0}ms）",
+                        "轻量 CDP: 内容加载完成（耗时 {:.0}ms）",
                         start.elapsed().as_millis(),
                     );
                     return;
                 }
-                // Promise resolve(false) 不应发生（无 setTimeout），
-                // 如果发生则重试
-                log::debug!("轻量 CDP: 哨兵 Promise resolve(false)，重试");
-            }
-            Err(e) => {
-                log::debug!("轻量 CDP: 哨兵 Promise 超时 (120s)，重试: {}", e);
             }
         }
+
+        // 等待一小段时间再检查
+        tokio::time::sleep(Duration::from_millis(300)).await;
     }
 }
 async fn render_inner(
@@ -577,7 +602,7 @@ async fn render_inner(
     timeout: Duration,
 ) -> Result<()> {
     let url = file_url(html_path)?;
-    print_progress(4, 8, "Loading page");
+    print_progress(4, 12, "Loading page");
     log::debug!("轻量 CDP: 创建页面并导航到: {}", url);
     let t0 = std::time::Instant::now();
 
@@ -638,14 +663,12 @@ async fn render_inner(
     }
     log::debug!("[timing] frameStoppedLoading wait: {:.0}ms", t0.elapsed().as_millis());
 
-    // ── 阶段 4：等待内容哨兵 ──
-    print_progress(5, 8, "Waiting for content");
-    log::debug!("轻量 CDP: 等待内容加载哨兵...");
+    // ── 阶段 4：等待内容哨兵（进度在 wait_for_content_sentinel 中动态更新 5→12） ──
     wait_for_content_sentinel(cdp, timeout).await;
     log::debug!("[timing] sentinel wait: {:.0}ms", t0.elapsed().as_millis());
 
     // ── 阶段 5：调用 Page.printToPDF ──
-    print_progress(6, 8, "Generating PDF");
+    print_progress(12, 14, "Generating PDF");
     log::debug!("轻量 CDP: 调用 Page.printToPDF...");
     let pdf_params = build_print_to_pdf_json(cfg);
 

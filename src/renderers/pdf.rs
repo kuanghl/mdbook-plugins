@@ -153,7 +153,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
 
     // 10. PDF 后处理（非致命）
     if cfg.generate_document_outline {
-        print_progress(7, 8, "Adding bookmarks & metadata");
+        print_progress(13, 14, "Adding bookmarks & metadata");
         log::debug!("执行 PDF 后处理（书签 + 元数据）...");
         let author_str = book_authors.as_deref();
         pdf_outline::postprocess_pdf(
@@ -165,7 +165,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
         )?;
         log::debug!("PDF 后处理完成");
     } else {
-        print_progress(7, 8, "Skipping outline");
+        print_progress(13, 14, "Skipping outline");
     }
 
     // 11. 清理临时文件
@@ -180,7 +180,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
     };
     let size_str = format_file_size(file_size);
     let summary = format!("Done! {} chapters, {}, {} pages", chapter_count, size_str, page_count);
-    print_progress(8, 8, &summary);
+    print_progress(14, 14, &summary);
 
     Ok(())
 }
@@ -357,6 +357,11 @@ pub struct PdfOptions {
 
     // ── 链接修复 ──
     pub static_site_url: String,
+
+    // ── 性能优化 ──
+    /// 启用 Emoji 字体处理（@font-face + TreeWalker 扫描）
+    /// 关闭后系统字体回退，可节省 10-15s 渲染时间
+    pub enable_emoji_font: bool,
 }
 
 impl PdfOptions {
@@ -445,6 +450,9 @@ impl PdfOptions {
                 if let Some(v) = table.get("static-site-url").and_then(|v| v.as_str()) {
                     opts.static_site_url = v.to_string();
                 }
+                if let Some(v) = table.get("enable-emoji-font").and_then(|v| v.as_bool()) {
+                    opts.enable_emoji_font = v;
+                }
 
                 Some(opts)
             }
@@ -492,6 +500,7 @@ impl Default for PdfOptions {
             generate_document_outline: true,
             generate_tagged_pdf: true,
             static_site_url: String::new(),
+            enable_emoji_font: true, // 默认启用，可通过配置关闭以提升性能
         }
     }
 }

@@ -154,14 +154,18 @@ landscape = false
 # A4: 210×297mm ≈ 8.27×11.69 英寸（中文用户默认）
 paper-width = 8.27      # 8.5
 paper-height = 11.69    # 11.0
-print-background = true
 theme = "Light"
-scale = 1  # 画面比例
 margin-top = 0.5
 margin-bottom = 1.0
 margin-left = 0.5
 margin-right = 0.5
 page-ranges = ""
+scale = 1                           # 画面比例，性能
+print-background = true             # 背景及图片光栅化，性能
+prefer-css-page-size = true         # 优先使用CSS页面大小，性能
+generate-document-outline = true    
+# generate_tagged_pdf = true        # 标签引用支持，性能
+# enable-emoji-font = false         # emoji字体注入，支持性能
 ignore-invalid-page-ranges = false
 # header-template = "<h3 style='font-size:8px; margin-left: 48%' class='title'></h3>"
 # footer-template = "<p style='font-size:10px; margin-left: 48%'><span class='pageNumber'></span> / <span class='totalPages'></span></p>"
@@ -193,9 +197,6 @@ footer-template = """<div style="position: relative; width: 100%; padding: 10px 
                             <span style="font-size: 10px;">BSN</span>
                         </div>
                     </div>"""
-prefer-css-page-size = true
-generate-document-outline = true
-# generate_tagged_pdf = true
 
 # 有点儿鸡肋...
 # [output.asciidoc]

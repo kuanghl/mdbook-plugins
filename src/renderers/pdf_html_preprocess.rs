@@ -73,136 +73,246 @@ pub fn remove_external_resources(html: &str) -> String {
 }
 
 /// 注入 JS 脚本:
-/// - 展开所有 `<details>` 元素，移除固定页眉/页脚
-/// - 纯本地加载：window.load（所有本地资源就绪）→ 2帧 → 注入哨兵
-pub fn inject_js(html: &str) -> String {
-    let script = r#"<script type='text/javascript'>
-// ── 纯本地加载哨兵 ──
-// 外部 CDN 脚本（MathJax、translate.js）已在预处理阶段删除，
-// window.load 只等本地资源（图片、字体、本地 JS）加载完成，< 1 秒。
-// 这是最可靠的方式：window.load 天然保证所有本地资源完整性。
-window.addEventListener('load', function () {
-    // 1. Emoji 结构化隔离：扫描所有文本节点，将 emoji 字符
-    //    （含键帽、国旗、ZWJ 序列等）包裹在 <span class="emoji-render">
-    //    中，由独立 @font-face 'Emoji PDF' 渲染。
-    //    正文文字不接触 emoji 字体，无需 unicode-range。
-    (function() {
-        // Emoji Unicode 范围表 [start, end] 含首尾
-        var R = [
-            [0x00A9,0x00AE],[0x203C,0x2049],[0x2122,0x2139],
-            [0x2194,0x2199],[0x21A9,0x21AA],
-            [0x231A,0x231B],[0x2328,0x2328],[0x23CF,0x23CF],
-            [0x23E9,0x23F3],[0x23F8,0x23FA],[0x24C2,0x24C2],
-            [0x25AA,0x25AB],[0x25B6,0x25B6],[0x25C0,0x25C0],[0x25FB,0x25FE],
-            [0x2600,0x27BF],
-            [0x2934,0x2935],[0x2B05,0x2B07],[0x2B1B,0x2B1C],
-            [0x2B50,0x2B50],[0x2B55,0x2B55],
-            [0x3030,0x3030],[0x303D,0x303D],[0x3297,0x3297],[0x3299,0x3299],
-            [0x1F000,0x1FFFF],[0x200D,0x200D],[0x20E3,0x20E3],[0xFE00,0xFE0F],
-            [0x1F1E6,0x1F1FF],
-        ];
-        function isEmoji(cp) {
-            for (var i = 0; i < R.length; i++)
-                if (cp >= R[i][0] && cp <= R[i][1]) return true;
-            return false;
-        }
-        function emojiLen(text, i) {
-            if (i >= text.length) return 0;
-            var cp = text.codePointAt(i);
-            // 键帽序列: #️⃣, *️⃣, 0️⃣-9️⃣ — 整体识别，不处理单独的 # * 0-9
-            if (cp === 0x0023 || cp === 0x002A || (cp >= 0x0030 && cp <= 0x0039)) {
-                var j = i + 1;
-                if (j < text.length && text.codePointAt(j) === 0xFE0F) j++;
-                if (j < text.length && text.codePointAt(j) === 0x20E3) return j + 1 - i;
-                return 0; // 单独的 # * 0-9 不是 emoji
-            }
-            if (!isEmoji(cp)) return 0;
-            var cl = cp > 0xFFFF ? 2 : 1;
-            var total = cl;
-            for (var j = i + cl; j < text.length;) {
-                var nc = text.codePointAt(j);
-                if (nc === 0x200D) { total += 1; j += 1; // ZWJ
-                    if (j >= text.length) break;
-                    var ec = text.codePointAt(j);
-                    if (!isEmoji(ec)) break;
-                    var el = ec > 0xFFFF ? 2 : 1;
-                    total += el; j += el;
-                } else if (nc === 0xFE0F || nc === 0xFE0E) { total += 1; j += 1; }
-                else if (nc === 0x20E3) { total += 1; j += 1; }
-                else if (nc >= 0x1F1E6 && nc <= 0x1F1FF && j + 1 < text.length) {
-                    var nc2 = text.codePointAt(j + 1);
-                    if (nc2 >= 0x1F1E6 && nc2 <= 0x1F1FF) { total += 4; j += 2; }
-                    else break;
-                } else break;
-            }
-            return total;
-        }
-        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-        var nodes = [];
-        while (walker.nextNode()) nodes.push(walker.currentNode);
-        for (var n = 0; n < nodes.length; n++) {
-            var node = nodes[n], text = node.textContent, frag = null;
-            var i = 0, last = 0;
-            while (i < text.length) {
-                var sl = emojiLen(text, i);
-                if (sl > 0) {
-                    if (!frag) frag = document.createDocumentFragment();
-                    if (i > last) frag.appendChild(document.createTextNode(text.slice(last, i)));
-                    var sp = document.createElement('span');
-                    sp.className = 'emoji-render';
-                    sp.textContent = text.slice(i, i + sl);
-                    frag.appendChild(sp);
-                    i += sl; last = i;
-                } else {
-                    i += (text.codePointAt(i) > 0xFFFF ? 2 : 1);
-                }
-            }
-            if (frag) {
-                if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
-                node.parentNode.replaceChild(frag, node);
-            }
-        }
-    })();
+/// - enable_emoji=true: 包含 Emoji 处理（正则预过滤 + 二分查找）
+/// - enable_emoji=false: 跳过 Emoji 处理，使用系统字体回退，节省 10-15s
+/// - 执行顺序：window.load → DOM操作 → Emoji处理 → 2帧RAF → 哨兵
+pub fn inject_js(html: &str, enable_emoji: bool) -> String {
+    // 1. Emoji 函数定义（必须放在最前面，在调用之前）
+    let emoji_defs = if enable_emoji {
+        r#"
+// ── Emoji 处理：优化版 ──
+// 使用二分查找代替 Map 构建（零初始化开销）
+// 使用快速跳过优化（纯 ASCII 文本直接跳过）
+var EMOJI_RANGES = [
+    [0x00A9,0x00AE],
+    [0x200D,0x200D],
+    [0x203C,0x2049],
+    [0x20E3,0x20E3],
+    [0x2122,0x2139],
+    [0x2194,0x2199],
+    [0x21A9,0x21AA],
+    [0x231A,0x231B],
+    [0x2328,0x2328],
+    [0x23CF,0x23CF],
+    [0x23E9,0x23F3],
+    [0x23F8,0x23FA],
+    [0x24C2,0x24C2],
+    [0x25AA,0x25AB],
+    [0x25B6,0x25B6],
+    [0x25C0,0x25C0],
+    [0x25FB,0x25FE],
+    [0x2600,0x27BF],
+    [0x2934,0x2935],
+    [0x2B05,0x2B07],
+    [0x2B1B,0x2B1C],
+    [0x2B50,0x2B50],
+    [0x2B55,0x2B55],
+    [0x3030,0x3030],
+    [0x303D,0x303D],
+    [0x3297,0x3297],
+    [0x3299,0x3299],
+    [0xFE00,0xFE0F],
+    [0x1F000,0x1FFFF],
+    [0x1F1E6,0x1F1FF],
+];
 
-    // 2. DOM 操作
-    for (var d of document.getElementsByTagName('details'))
-        d.open = true;
+function isEmoji(cp) {
+    if (cp < 0x00A9 || cp > 0x1FFFF) return false;
+    var lo = 0, hi = EMOJI_RANGES.length - 1;
+    while (lo <= hi) {
+        var mid = (lo + hi) >> 1;
+        var r = EMOJI_RANGES[mid];
+        if (cp < r[0]) hi = mid - 1;
+        else if (cp > r[1]) lo = mid + 1;
+        else return true;
+    }
+    return false;
+}
+
+// 快速检测：文本是否可能包含 emoji（使用 charCodeAt，比 codePointAt 快）
+function hasEmoji(text) {
+    for (var i = 0; i < text.length; i++) {
+        var cp = text.charCodeAt(i);
+        // 纯 ASCII 快速跳过（大部分技术文档正文）
+        if (cp < 0x00A9) continue;
+        // BMP 范围快速检查
+        if (cp <= 0x00AE || (cp >= 0x200D && cp <= 0x2049) ||
+            (cp >= 0x20E3 && cp <= 0x20E3) ||
+            (cp >= 0x2122 && cp <= 0x2139) || (cp >= 0x2194 && cp <= 0x21AA) ||
+            (cp >= 0x231A && cp <= 0x23F3) || (cp >= 0x23F8 && cp <= 0x23FA) ||
+            (cp >= 0x24C2 && cp <= 0x24C2) || (cp >= 0x25AA && cp <= 0x25FE) ||
+            (cp >= 0x2600 && cp <= 0x27BF) || (cp >= 0x2934 && cp <= 0x2935) ||
+            (cp >= 0x2B05 && cp <= 0x2B07) || (cp >= 0x2B1B && cp <= 0x2B1C) ||
+            (cp >= 0x2B50 && cp <= 0x2B50) || (cp >= 0x2B55 && cp <= 0x2B55) ||
+            (cp >= 0x3030 && cp <= 0x3030) || (cp >= 0x303D && cp <= 0x303D) ||
+            (cp >= 0x3297 && cp <= 0x3297) || (cp >= 0x3299 && cp <= 0x3299) ||
+            (cp >= 0xFE00 && cp <= 0xFE0F)) {
+            return true;
+        }
+        // 代理对检查（补充平面 emoji）
+        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < text.length) {
+            var low = text.charCodeAt(i + 1);
+            if (low >= 0xDC00 && low <= 0xDFFF) {
+                var codePoint = ((cp - 0xD800) << 10) + (low - 0xDC00) + 0x10000;
+                if (codePoint >= 0x1F000 && codePoint <= 0x1FFFF) return true;
+            }
+        }
+    }
+    return false;
+}
+
+// 计算 emoji 序列长度（处理 ZWJ、键帽、国旗等复合序列）
+function emojiLen(text, i) {
+    if (i >= text.length) return 0;
+    var cp = text.codePointAt(i);
+    if (cp === 0x0023 || cp === 0x002A || (cp >= 0x0030 && cp <= 0x0039)) {
+        var j = i + 1;
+        if (j < text.length && text.codePointAt(j) === 0xFE0F) j++;
+        if (j < text.length && text.codePointAt(j) === 0x20E3) return j + 1 - i;
+        return 0;
+    }
+    if (!isEmoji(cp)) return 0;
+    var cl = cp > 0xFFFF ? 2 : 1;
+    var total = cl;
+    for (var j = i + cl; j < text.length;) {
+        var nc = text.codePointAt(j);
+        if (nc === 0x200D) {
+            total += 1; j += 1;
+            if (j >= text.length) break;
+            var ec = text.codePointAt(j);
+            if (!isEmoji(ec)) break;
+            var el = ec > 0xFFFF ? 2 : 1;
+            total += el; j += el;
+        } else if (nc === 0xFE0F || nc === 0xFE0E) {
+            total += 1; j += 1;
+        } else if (nc === 0x20E3) {
+            total += 1; j += 1;
+        } else if (nc >= 0x1F1E6 && nc <= 0x1F1FF && j + 1 < text.length) {
+            var nc2 = text.codePointAt(j + 1);
+            if (nc2 >= 0x1F1E6 && nc2 <= 0x1F1FF) { total += 4; j += 2; }
+            else break;
+        } else break;
+    }
+    return total;
+}
+
+// Emoji 处理：快速跳过 + 同步替换
+function processEmojiSync() {
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    var emojiNodes = [];
+    while (walker.nextNode()) {
+        // 快速预过滤：大部分文本节点不包含 emoji
+        if (hasEmoji(walker.currentNode.textContent)) {
+            emojiNodes.push(walker.currentNode);
+        }
+    }
+
+    for (var n = 0; n < emojiNodes.length; n++) {
+        var node = emojiNodes[n], text = node.textContent, frag = null;
+        var pos = 0, last = 0;
+        while (pos < text.length) {
+            var sl = emojiLen(text, pos);
+            if (sl > 0) {
+                if (!frag) frag = document.createDocumentFragment();
+                if (pos > last) frag.appendChild(document.createTextNode(text.slice(last, pos)));
+                var sp = document.createElement('span');
+                sp.className = 'emoji-render';
+                sp.textContent = text.slice(pos, pos + sl);
+                frag.appendChild(sp);
+                pos += sl; last = pos;
+            } else {
+                pos += (text.codePointAt(pos) > 0xFFFF ? 2 : 1);
+            }
+        }
+        if (frag) {
+            if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+            node.parentNode.replaceChild(frag, node);
+        }
+    }
+}
+"#
+    } else {
+        ""
+    };
+
+    // 2. window.load 回调中的 Emoji 处理调用
+    let emoji_call = if enable_emoji {
+        r#"
+    // 3. Emoji 结构化隔离（正则预过滤 + 同步替换）
+    processEmojiSync();
+    window.__mdbookPdfEmojiDone = true;
+"#
+    } else {
+        r#"
+    // 3. Emoji 处理已禁用，直接标记完成
+    window.__mdbookPdfEmojiDone = true;
+"#
+    };
+
+    // 脚本结构：函数定义在前，调用在后
+    let script = format!(r#"<script type='text/javascript'>
+// ── Emoji 函数定义（必须先于调用）──
+{}
+// ── 全局进度状态标记（供 Rust 侧轮询）──
+window.__mdbookPdfDomReady = false;
+window.__mdbookPdfPageLoaded = false;
+window.__mdbookPdfFontsReady = false;
+window.__mdbookPdfEmojiDone = false;
+window.__mdbookPdfContentReady = false;
+window.__pdfRenderLatch = window.__pdfRenderLatch || [];
+
+// ── 阶段 1：DOM 就绪 ──
+document.addEventListener('DOMContentLoaded', function () {{
+    window.__mdbookPdfDomReady = true;
+}});
+
+// ── 阶段 2：window.load（等待所有资源，包括字体，加载完成）──
+window.addEventListener('load', function () {{
+    window.__mdbookPdfPageLoaded = true;
+    window.__mdbookPdfFontsReady = true;
+
+    // 1. DOM 操作：展开 details，移除页眉/页脚
+    for (var d of document.getElementsByTagName('details')) d.open = true;
     var ph = document.getElementById('mdbook-print-header');
     var pf = document.getElementById('mdbook-print-footer');
     if (ph) ph.remove();
     if (pf) pf.remove();
 
-    // 3. 等 2 帧 — ECharts/Mermaid 等把渲染结果提交到屏幕
+    // 2. Emoji 处理（同步执行，正则预过滤极快）
+    {}
+
+    // 3. 等 2 帧 — 确保布局完成
     var frameCount = 2;
-    function frame() {
-        if (--frameCount <= 0) {
+    function frame() {{
+        if (--frameCount <= 0) {{
+            window.__mdbookPdfContentReady = true;
             var p = document.createElement('div');
             p.setAttribute('id', 'content-has-all-loaded-for-mdbook-pdf-generation');
             document.body.appendChild(p);
-        } else {
+        }} else {{
             requestAnimationFrame(frame);
-        }
-    }
+        }}
+    }}
     requestAnimationFrame(frame);
-});
+}});
 
-// MathJax 异步加载兼容：轮询等待 MathJax 就绪后注册钩子
-(function () {
-    var mjTimer = setInterval(function () {
-        try {
-            if (window.MathJax && MathJax.Hub) {
+// MathJax 异步加载兼容
+(function () {{
+    var mjTimer = setInterval(function () {{
+        try {{
+            if (window.MathJax && MathJax.Hub) {{
                 clearInterval(mjTimer);
-                MathJax.Hub.Register.StartupHook('End', function () {
+                MathJax.Hub.Register.StartupHook('End', function () {{
                     window.__pdfRenderLatch.push(Promise.resolve());
-                });
-            }
-        } catch (e) {}
-    }, 200);
-    // 60 秒后停止轮询（防止永久挂起）
-    setTimeout(function () { clearInterval(mjTimer); }, 60000);
-})();
-</script>"#;
-    insert_before(html, "</body>", script)
+                }});
+            }}
+        }} catch (e) {{}}
+    }}, 200);
+    setTimeout(function () {{ clearInterval(mjTimer); }}, 60000);
+}})();
+</script>"#, emoji_defs, emoji_call);
+
+    insert_before(html, "</body>", &script)
 }
 
 /// 修正相对链接为绝对 URL
@@ -598,8 +708,8 @@ pub fn preprocess(
     // 5. 删除阻塞型外部 CDN 资源（脚本、样式表），保留图片
     result = remove_external_resources(&result);
 
-    // 6. JS 注入（始终执行）
-    result = inject_js(&result);
+    // 6. JS 注入（根据 enable_emoji_font 配置决定是否包含 Emoji 处理）
+    result = inject_js(&result, cfg.enable_emoji_font);
 
     // 7. 替换 PDF 预览容器为静态链接（PDF 中交互式容器无法工作）
     result = replace_pdf_containers(&result);
@@ -607,11 +717,9 @@ pub fn preprocess(
     // 7b. 为 TikZ/Typst 图形注入命名锚点（方案B: 后处理页面定位）
     result = inject_tikz_anchors(&result);
 
-    // 8. Emoji 字体——注入独立 @font-face（字体名 'Emoji PDF'，
-    //    不放在 body font-family 中），配合 JS 将文档中所有
-    //    emoji 字符包裹到 .emoji-render 元素，由独立字体渲染。
-    //    正文文字全程不接触 emoji 字体，无需 unicode-range 限制。
-    //    单 @font-face 只有一次字体处理开销，printToPDF 约 10-15s。
+    // 8. Emoji 字体——仅在启用时注入 @font-face
+    //    关闭后系统字体回退，可节省 10-15s 渲染时间
+    if cfg.enable_emoji_font {
     if let Some(root) = book_root {
         let fonts_dir = root.join("theme").join("fonts");
         if fonts_dir.is_dir() {
@@ -646,6 +754,7 @@ pub fn preprocess(
             }
         }
     }
+    } // end of if cfg.enable_emoji_font
 
     result
 }
@@ -675,10 +784,28 @@ mod tests {
     #[test]
     fn test_inject_js_inserts_before_body_end() {
         let html = "<html><body><p>hello</p></body></html>";
-        let result = inject_js(html);
+        let result = inject_js(html, false);
         assert!(result.contains("__pdfRenderLatch"));
         assert!(result.contains("content-has-all-loaded-for-mdbook-pdf-generation"));
         assert!(result.contains("<script"));
+    }
+
+    #[test]
+    fn test_inject_js_with_emoji_enabled() {
+        let html = "<html><body><p>hello</p></body></html>";
+        let result = inject_js(html, true);
+        assert!(result.contains("processEmojiSync"));
+        assert!(result.contains("isEmoji"));
+        assert!(result.contains("hasEmoji"));
+        assert!(result.contains("EMOJI_RANGES"));
+    }
+
+    #[test]
+    fn test_inject_js_with_emoji_disabled() {
+        let html = "<html><body><p>hello</p></body></html>";
+        let result = inject_js(html, false);
+        assert!(!result.contains("processEmojiParallel"));
+        assert!(!result.contains("isEmoji"));
     }
 
     #[test]
