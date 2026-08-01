@@ -56,11 +56,27 @@ pub fn remove_external_resources(html: &str) -> String {
             || tag.contains("href=\"http") || tag.contains("href='http");
 
         if is_external {
-            // 脚本是同步阻塞资源，必须删除
-            // 图片和样式表是并行加载不阻塞 HTML 解析，保留以保证 PDF 内容完整
             if tag.starts_with("<script ") || tag.starts_with("<script>") {
+                // 脚本是同步阻塞资源，必须删除
                 result.push_str("<script>/* CDN removed for PDF */</script>");
+            } else if tag.starts_with("<link") && tag.contains("stylesheet") {
+                // 外部样式表：
+                // - font-awesome（cdnjs 极慢）对 PDF 打印无意义，直接删除；
+                // - katex.min.css **必须保留**（cdn.jsdelivr.net 快且 KaTeX 公式
+                //   样式依赖它；转 media="print" 会导致 printToPDF 不加载 → 公式
+                //   排版失效）；
+                // - 其余转 media="print" —— 不阻塞 window.load，打印时加载。
+                if tag.contains("font-awesome") {
+                    result.push_str("<!-- CDN font-awesome removed for PDF -->");
+                } else if tag.contains("katex") {
+                    result.push_str(tag);
+                } else if tag.contains("media=") {
+                    result.push_str(tag);
+                } else {
+                    result.push_str(&tag.replacen("<link", "<link media=\"print\"", 1));
+                }
             } else {
+                // 图片等其他资源：保留以保证 PDF 内容完整
                 result.push_str(tag);
             }
         } else {
@@ -70,6 +86,21 @@ pub fn remove_external_resources(html: &str) -> String {
     }
     result.push_str(rest);
     result
+}
+
+/// 删除内联 `<script type="module">` 中的 CDN import（如 latex.js 的
+/// `import ... from "https://cdn.jsdelivr.net/..."`）。
+///
+/// module script 的顶层 import 是同步阻塞的——浏览器在 DOMContentLoaded 之前
+/// 必须下载并执行它；CDN 慢/不可达时会让页面加载卡几十秒（PDF 渲染实测
+/// 1m+）。PDF 渲染不依赖这些 CDN 模块，直接删除以消除阻塞。
+pub fn remove_cdn_module_scripts(html: &str) -> String {
+    let re = regex::Regex::new(
+        r#"(?s)<script[^>]*type=["']module["'][^>]*>.*?from\s+["']https?://[^"']+["'].*?</script>"#,
+    )
+    .unwrap();
+    re.replace_all(html, "<script>/* CDN module removed for PDF */</script>")
+        .to_string()
 }
 
 /// 注入 JS 脚本:
@@ -708,6 +739,14 @@ pub fn preprocess(
     // 5. 删除阻塞型外部 CDN 资源（脚本、样式表），保留图片
     result = remove_external_resources(&result);
 
+    // 5b. 删除内联 module script 的 CDN import（如 latex.js，阻塞 DOMContentLoaded）
+    result = remove_cdn_module_scripts(&result);
+
+    // 5c. SVG img → 内联 <svg>（PDF 渲染专用，避免 img 引用 SVG 的慢渲染）
+    if let Some(root) = book_root {
+        result = inline_svg_images(&result, root);
+    }
+
     // 6. JS 注入（根据 enable_emoji_font 配置决定是否包含 Emoji 处理）
     result = inject_js(&result, cfg.enable_emoji_font);
 
@@ -958,4 +997,146 @@ mod tests {
         assert!(!result.contains("pdfviewer-container"));
     }
 
+    #[test]
+    fn test_rewrite_svg_ids_prefix() {
+        let svg = r##"<defs><path id="g0"/><clipPath id="c1"/></defs><use xlink:href="#g0"/><path clip-path="url(#c1)"/>"##;
+        let out = rewrite_svg_ids(svg, "abc");
+        assert!(out.contains(r##"id="abcg0""##), "defs id 未加前缀: {}", out);
+        assert!(out.contains(r##"id="abcc1""##), "clipPath id 未加前缀: {}", out);
+        assert!(out.contains(r##"xlink:href="#abcg0""##), "use 引用未加前缀: {}", out);
+        assert!(out.contains(r##"clip-path="url(#abcc1)""##), "clip-path 引用未加前缀: {}", out);
+        assert!(!out.contains(r##"#g0"##) && !out.contains(r##"#c1"##), "旧引用残留: {}", out);
+    }
+
+    #[test]
+    fn test_extract_svg_element() {
+        let svg = "<!-- Source: test.md -->\n<svg viewBox=\"0 0 1 1\"><path/></svg>\n";
+        let out = extract_svg_element(svg).unwrap();
+        assert!(out.starts_with("<svg") && out.ends_with("</svg>"), "提取失败: {}", out);
+        assert!(!out.contains("Source"), "注释未剥离: {}", out);
+        assert_eq!(extract_svg_element("no svg"), None);
+    }
+
+    #[test]
+    fn test_inject_svg_width_style() {
+        let svg = r#"<svg viewBox="0 0 1 1" xmlns="http://www.w3.org/2000/svg"><path/></svg>"#;
+        let out = inject_svg_width_style(svg);
+        assert!(out.contains("width:100%;height:auto;max-width:100%"), "宽度样式未注入: {}", out);
+        let svg2 = r#"<svg viewBox="0 0 1 1" style="color:red"><path/></svg>"#;
+        let out2 = inject_svg_width_style(svg2);
+        assert!(out2.contains("color:red"), "原 style 被破坏: {}", out2);
+        assert!(out2.contains("width:100%"), "宽度样式未注入: {}", out2);
+    }
+
+    #[test]
+    fn test_remove_external_resources_css() {
+        // katex CSS 必须保留（公式样式依赖），font-awesome 删除，其他外部 CSS 转 media="print"
+        let html = r#"<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="https://example.com/other.css">
+<script async src="https://example.com/lib.js"></script>
+<link rel="stylesheet" href="local.css">"#;
+        let out = remove_external_resources(html);
+        // katex link 原样保留（不转 media="print"）
+        assert!(out.contains(r#"<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css">"#), "katex CSS 被改动: {}", out);
+        assert!(!out.contains("font-awesome.min.css"), "font-awesome 未删除: {}", out);
+        assert!(out.contains(r#"<link media="print" rel="stylesheet" href="https://example.com/other.css">"#), "其他外部 CSS 未转 media=print: {}", out);
+        assert!(out.contains("CDN removed for PDF"), "外部 script 未删除: {}", out);
+        assert!(out.contains("href=\"local.css\""), "本地 CSS 被误删: {}", out);
+    }
+}
+
+/// 将 `<img src="...images/{name}.svg">` 内联为 `<svg>`（PDF 渲染专用）。
+///
+/// headless/无 GPU 环境下，img 引用 SVG 的渲染远慢于内联 SVG（实测 53s →
+/// 29s，18 张图）。内联后每张 SVG 的 id 加文件名前缀，避免跨 SVG 的
+/// `<use>`/`clip-path` 引用冲突（每页 defs 的 g0/c0 等重复）。
+fn inline_svg_images(html: &str, book_root: &Path) -> String {
+    let re = regex::Regex::new(r#"<img[^>]*src="[^"]*/([^"/]+\.svg)"[^>]*>"#).unwrap();
+    let mut result = String::with_capacity(html.len());
+    let mut last = 0;
+
+    for cap in re.captures_iter(html) {
+        let m = cap.get(0).unwrap();
+        result.push_str(&html[last..m.start()]);
+
+        let fname = &cap[1];
+        let src_path = book_root.join("src").join("images").join(fname);
+        if let Ok(svg) = std::fs::read_to_string(&src_path) {
+            if let Some(svg) = extract_svg_element(&svg) {
+                let prefix = fname.trim_end_matches(".svg");
+                let svg = rewrite_svg_ids(&svg, prefix);
+                let svg = inject_svg_width_style(&svg);
+                result.push_str(&format!(
+                    r#"<div style="text-align:center;margin:8px 0;">{}</div>"#,
+                    svg
+                ));
+                last = m.end();
+                continue;
+            }
+        }
+        result.push_str(&html[m.start()..m.end()]);
+        last = m.end();
+    }
+    result.push_str(&html[last..]);
+    result
+}
+
+/// 从 SVG 文件中提取 `<svg>...</svg>` 元素（去掉 XML 声明与 Source 注释）。
+fn extract_svg_element(svg: &str) -> Option<String> {
+    let start = svg.find("<svg")?;
+    let end = svg.rfind("</svg>")? + "</svg>".len();
+    Some(svg[start..end].to_string())
+}
+
+/// 把 SVG 内所有「字母+数字」id 定义与引用加上前缀，消除多 SVG 内联冲突。
+fn rewrite_svg_ids(svg: &str, prefix: &str) -> String {
+    let re_defs = regex::Regex::new(r##"\bid="([a-z])(\d+)""##).unwrap();
+    let re_refs = regex::Regex::new(r##"(url\(#|href="#)([a-z])(\d+)"##).unwrap();
+    let s1 = re_defs.replace_all(svg, |caps: &regex::Captures| {
+        format!("id=\"{}{}{}\"", prefix, &caps[1], &caps[2])
+    });
+    re_refs
+        .replace_all(&s1, |caps: &regex::Captures| {
+            format!("{}{}{}{}", &caps[1], prefix, &caps[2], &caps[3])
+        })
+        .into_owned()
+}
+
+/// 在根 `<svg>` 标签注入响应式宽度样式（合并已有 style）。
+fn inject_svg_width_style(svg: &str) -> String {
+    let style = "width:100%;height:auto;max-width:100%";
+    if let Some(open) = svg.find("<svg") {
+        let bytes = svg.as_bytes();
+        let mut end = open + 4;
+        let mut in_quote: Option<u8> = None;
+        while end < svg.len() {
+            let c = bytes[end];
+            match in_quote {
+                Some(q) => {
+                    if c == q {
+                        in_quote = None;
+                    }
+                }
+                None => {
+                    if c == b'"' || c == b'\'' {
+                        in_quote = Some(c);
+                    } else if c == b'>' {
+                        break;
+                    }
+                }
+            }
+            end += 1;
+        }
+        if end < svg.len() {
+            let tag = &svg[open..end];
+            let (new_tag, tail) = if tag.ends_with('/') {
+                (format!("{}{}", &tag[..tag.len() - 1], style), "/>")
+            } else {
+                (format!("{} {}", tag, style), "")
+            };
+            return format!("{}{}{}{}", &svg[..open], new_tag, tail, &svg[end..]);
+        }
+    }
+    svg.to_string()
 }
