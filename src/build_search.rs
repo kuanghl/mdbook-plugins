@@ -104,12 +104,22 @@ fn cjk_bigram_from_buf(buf: &[char]) -> Vec<String> {
 
 /// 从 HTML 中提取文本（去除标签）
 fn extract_text(html: &str) -> String {
-    // 去除 script/style/svg 标签及其内容
+    // 先移除 script/style（避免其中出现的伪 <text> 字符串进入索引）
     let re_script = Regex::new(r"(?is)<script[^>]*>.*?</script>").unwrap();
     let re_style = Regex::new(r"(?is)<style[^>]*>.*?</style>").unwrap();
-    let re_svg = Regex::new(r"(?is)<svg[^>]*>.*?</svg>").unwrap();
     let step1 = re_script.replace_all(html, " ");
     let step2 = re_style.replace_all(&step1, " ");
+    // 再提取内联 SVG 中 <text> 的文字（TikZ/Typst 图内文字进入搜索索引）。
+    // 内联 SVG 由本插件生成，<text> 不嵌套，正则提取安全。
+    let re_svg_text = Regex::new(r"(?is)<text\b[^>]*>(.*?)</text>").unwrap();
+    let svg_texts: String = re_svg_text
+        .captures_iter(&step2)
+        .map(|c| c[1].trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    // 去除 svg 标签及其内容
+    let re_svg = Regex::new(r"(?is)<svg[^>]*>.*?</svg>").unwrap();
     let step3 = re_svg.replace_all(&step2, " ");
     // 去除 HTML 标签
     let re_tag = Regex::new(r"<[^>]+>").unwrap();
@@ -121,8 +131,15 @@ fn extract_text(html: &str) -> String {
         .replace("&gt;", ">")
         .replace("&quot;", "\"");
     // 合并空白
-    let re_ws = Regex::new(r"\s+").unwrap();
-    re_ws.replace_all(&text, " ").trim().to_string()
+    let text = {
+        let re_ws = Regex::new(r"\s+").unwrap();
+        re_ws.replace_all(&text, " ").trim().to_string()
+    };
+    if svg_texts.is_empty() {
+        text
+    } else {
+        format!("{} {}", svg_texts, text)
+    }
 }
 
 /// 从 HTML 提取标题
@@ -137,19 +154,61 @@ fn extract_title(html: &str) -> String {
 /// 从 HTML 提取正文（mdbook-content 区域）
 fn extract_body(html: &str) -> String {
     // 优先匹配 id="mdbook-content"，再匹配 class="content"，最后匹配 <main>
-    let re1 = Regex::new(r#"(?is)<div[^>]*id="mdbook-content"[^>]*>(.*?)</div>"#).unwrap();
-    if let Some(caps) = re1.captures(html) {
-        return caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+    let re1 = Regex::new(r#"(?is)<div[^>]*id="mdbook-content"[^>]*>"#).unwrap();
+    if let Some(caps) = re1.find(html) {
+        return extract_balanced_div(&html[caps.end()..]).to_string();
     }
-    let re2 = Regex::new(r#"(?is)<div[^>]*class="content"[^>]*>(.*?)</div>"#).unwrap();
-    if let Some(caps) = re2.captures(html) {
-        return caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+    let re2 = Regex::new(r#"(?is)<div[^>]*class="content"[^>]*>"#).unwrap();
+    if let Some(caps) = re2.find(html) {
+        return extract_balanced_div(&html[caps.end()..]).to_string();
     }
-    let re3 = Regex::new(r"(?is)<main[^>]*>(.*?)</main>").unwrap();
-    if let Some(caps) = re3.captures(html) {
-        return caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
+    let re3 = Regex::new(r"(?is)<main[^>]*>").unwrap();
+    if let Some(caps) = re3.find(html) {
+        return extract_balanced(&html[caps.end()..], "main").to_string();
     }
     String::new()
+}
+
+/// 从 `<div ...>` 开标签之后的内容开始，按嵌套深度提取到配对的 `</div>`。
+///
+/// 旧实现用非贪婪正则 `(.*?)</div>`，会在正文中第一个 `</div>`（例如内联
+/// 图表容器的闭合）处提前截断，导致后续章节内容丢失。这里按 `div` 嵌套深度
+/// 配对，正确处理正文中的多层 div（内联 SVG 的 `<div data-pdf-hash>` 等）。
+fn extract_balanced_div(content: &str) -> &str {
+    extract_balanced(content, "div")
+}
+
+/// 按指定标签的嵌套深度提取内容（`content` 从开标签之后开始）
+fn extract_balanced<'a>(content: &'a str, tag: &str) -> &'a str {
+    let mut depth = 1i32;
+    let mut i = 0usize;
+    while i < content.len() {
+        let Some(rel) = content[i..].find('<') else { break };
+        let lt = i + rel;
+        let rest = &content[lt..];
+        if rest.starts_with("</") {
+            // 闭合标签：确认标签名匹配
+            let after = &rest[2..];
+            if after.starts_with(tag) && after[tag.len()..].starts_with('>') {
+                depth -= 1;
+                if depth <= 0 {
+                    return &content[..lt];
+                }
+            }
+            i = lt + 2;
+        } else if rest.starts_with(&format!("<{}", tag)) {
+            let after = &rest[1 + tag.len()..];
+            // 开标签：`<div` 后必须是空白/'>'，避免误匹配 `<divid=...>`
+            if after.starts_with('>') || after.starts_with(' ') || after.starts_with('\n') {
+                depth += 1;
+            }
+            i = lt + 1;
+        } else {
+            i = lt + 1;
+        }
+    }
+    // 未闭合（HTML 不完整），返回全部
+    content
 }
 
 /// 递归扫描 HTML 文件

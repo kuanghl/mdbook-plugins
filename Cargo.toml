@@ -57,6 +57,7 @@ sha2 = "0.10"
 hayro-svg = { version = "0.7", optional = true }
 hayro-syntax = { version = "0.7", optional = true }
 hayro-interpret = { version = "0.7", optional = true }
+kurbo = "0.13"
 
 # C 依赖 (pikchr)
 libc = "0.2"

@@ -47,7 +47,6 @@ cargo build
 
 # 构建（Release 模式）
 cargo build --release
-cp target/release/mdbook-plugins test/bin/
 
 # 测试
 cd test-mini

@@ -14,11 +14,38 @@ function createModal() {
             <span class="miv_close" onclick="miv_closeModal()">&times;</span>
             <div class="miv_modal-content">
                 <img id="miv_modalImage">
+                <div id="miv_modalSvg" style="display:none;"></div>
             </div>
         `;
         document.body.appendChild(modal);
     }
 }    
+function miv_preventDragStart(e) { e.preventDefault(); }
+function miv_bindModalEvents() {
+    if (!miv_modalImg) return;
+    miv_modalImg.addEventListener('mousedown', miv_startDrag);
+    document.addEventListener('mousemove', miv_drag);
+    document.addEventListener('mouseup', miv_endDrag);
+    miv_modalImg.addEventListener('dragstart', miv_preventDragStart);
+    miv_modalImg.addEventListener('touchstart', miv_startTouch);
+    miv_modalImg.addEventListener('touchmove', miv_moveTouch);
+    miv_modalImg.addEventListener('touchend', miv_endTouch);
+    const modalContent = document.querySelector('.miv_modal-content');
+    if (modalContent) modalContent.addEventListener('wheel', miv_zoom);
+    miv_modalImg.addEventListener('dblclick', miv_resetZoom);
+}
+function miv_unbindModalEvents() {
+    if (!miv_modalImg) return;
+    miv_modalImg.removeEventListener('mousedown', miv_startDrag);
+    miv_modalImg.removeEventListener('touchstart', miv_startTouch);
+    miv_modalImg.removeEventListener('touchmove', miv_moveTouch);
+    miv_modalImg.removeEventListener('touchend', miv_endTouch);
+    miv_modalImg.removeEventListener('dragstart', miv_preventDragStart);
+    miv_modalImg.removeEventListener('dblclick', miv_resetZoom);
+    const modalContent = document.querySelector('.miv_modal-content');
+    if (modalContent) modalContent.removeEventListener('wheel', miv_zoom);
+    miv_modalImg = null;
+}
 function miv_startDrag(e) {
     miv_isDragging = true;
     miv_startX = e.type.includes('mouse') ? e.clientX - miv_translateX : e.touches[0].clientX - miv_translateX;
@@ -130,18 +157,37 @@ function miv_openModal(imageSrc) {
         console.error('Modal elements not found');
         return;
     }    
+    // 关闭 SVG 视图，显示图片视图
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (svgWrap) { svgWrap.style.display = 'none'; svgWrap.innerHTML = ''; }
+    miv_modalImg.style.display = '';
     modal.style.display = 'block';
     miv_modalImg.src = imageSrc;    
     miv_resetZoom();        
-    miv_modalImg.addEventListener('mousedown', miv_startDrag);
-    document.addEventListener('mousemove', miv_drag);
-    document.addEventListener('mouseup', miv_endDrag);
-    miv_modalImg.addEventListener('dragstart', (e) => e.preventDefault());    
-    miv_modalImg.addEventListener('touchstart', miv_startTouch);
-    miv_modalImg.addEventListener('touchmove', miv_moveTouch);
-    miv_modalImg.addEventListener('touchend', miv_endTouch);
-    modalContent.addEventListener('wheel', miv_zoom);    
-    miv_modalImg.addEventListener('dblclick', miv_resetZoom);
+    miv_bindModalEvents();
+}
+function miv_openSvgModal(svgEl) {
+    createModal();
+    const modal = document.getElementById('miv_imageModal');
+    const imgEl = document.getElementById('miv_modalImage');
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (!modal || !svgWrap || !svgEl) {
+        console.error('Modal elements not found');
+        return;
+    }
+    // 在 modal 中克隆内联 SVG（不引用任何文件）
+    svgWrap.innerHTML = '';
+    svgWrap.appendChild(svgEl.cloneNode(true));
+    miv_modalImg = svgWrap.querySelector('svg');
+    if (!miv_modalImg) {
+        svgWrap.style.display = 'none';
+        return;
+    }
+    if (imgEl) imgEl.style.display = 'none';
+    svgWrap.style.display = 'flex';
+    modal.style.display = 'block';
+    miv_resetZoom();
+    miv_bindModalEvents();
 }
 function miv_closeModal() {
     const modal = document.getElementById('miv_imageModal');
@@ -150,18 +196,15 @@ function miv_closeModal() {
     }
     if (miv_modalImg) {
         miv_modalImg.style.transform = 'translate(0, 0) scale(1)';        
-        miv_modalImg.removeEventListener('mousedown', miv_startDrag);
-        miv_modalImg.removeEventListener('touchstart', miv_startTouch);
-        miv_modalImg.removeEventListener('touchmove', miv_moveTouch);
-        miv_modalImg.removeEventListener('touchend', miv_endTouch);
-        miv_modalImg.removeEventListener('dblclick', miv_resetZoom);
+        miv_unbindModalEvents();
     }
     document.removeEventListener('mousemove', miv_drag);
     document.removeEventListener('mouseup', miv_endDrag);
-    const modalContent = document.querySelector('.miv_modal-content');
-    if (modalContent) {
-        modalContent.removeEventListener('wheel', miv_zoom);
-    }
+    // 清理 SVG 视图并恢复图片视图
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (svgWrap) { svgWrap.style.display = 'none'; svgWrap.innerHTML = ''; }
+    const imgEl = document.getElementById('miv_modalImage');
+    if (imgEl) imgEl.style.display = '';
 }
 function handleGlobalClick(event) {
     const modal = document.getElementById('miv_imageModal');

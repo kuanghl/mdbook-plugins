@@ -260,7 +260,7 @@ fn latex_gen_html(mat_str: &str) -> String {
     result
 }
 
-/// ===== latex tikz (TikZ 图片 → tectonic PDF → hayro-svg SVG 文件) =====
+/// ===== latex tikz (TikZ 图片 → tectonic PDF → hayro-svg SVG 内联) =====
 fn tikz_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: &Path) -> String {
     let mut content = clean_codeblock(mat_str, "```latex tikz");
 
@@ -281,7 +281,16 @@ fn tikz_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: 
     match crate::tikz::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir,
         &chapter_path.to_string_lossy()) {
         Ok(img_tag) => {
-            return format!(r#"<div data-pdf-hash="{}" align="center">{}</div>"#, content_hash, img_tag);
+            // TikZ 用 <img> 引用 svg 文件：svg 作为独立文档加载，样式天然私有
+            // （不受 mdbook 主题 CSS 影响），且避免内联 SVG 的字体/样式泄漏问题。
+            // 屏幕放大到容器宽、打印保持原始尺寸防溢出。
+            return format!(
+                r#"<div data-pdf-hash="{}" align="center" class="diagram-inline">
+<style>.diagram-inline img{{width:100%;height:auto;max-width:100%}}@media print{{.diagram-inline img{{width:auto;max-width:100%}}}}</style>
+{}
+</div>"#,
+                content_hash, img_tag
+            );
         }
         Err(e) => {
             log::warn!("TikZ 渲染失败: {}", e);
@@ -314,7 +323,7 @@ fn pikchr_gen_html(mat_str: &str) -> String {
 </code></pre>"#, content)
 }
 
-/// ===== typst (Typst 图片 → typst crate → SVG + PDF 文件) =====
+/// ===== typst (Typst 图片 → typst crate → SVG 内联 + PDF 文件) =====
 fn typst_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: &Path) -> String {
     let mut content = clean_codeblock(mat_str, "```typst");
 
@@ -329,16 +338,21 @@ fn typst_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir:
         .collect::<Vec<_>>()
         .join("\n");
 
-    let rel_prefix = crate::utils::relative_svg_prefix(chapter_path);
-
     // 计算内容 hash，用于关联中间 PDF 文件（PDF 后处理页面合并）
     let content_hash = crate::typst::typst_content_hash(&content);
 
     #[cfg(feature = "pre-typst")]
-    match crate::typst::text2svg_file(&content, svg_dir, &rel_prefix, cache_dir,
+    match crate::typst::text2svg_inline(&content, svg_dir, cache_dir,
         &chapter_path.to_string_lossy()) {
-        Ok(img_tag) => {
-            return format!(r#"<div data-pdf-hash="{}" align="center">{}</div>"#, content_hash, img_tag);
+        Ok(svg) => {
+            // 内联 SVG + data-pdf-hash 容器；点击放大在 modal 中克隆 SVG
+            return format!(
+                r#"<div data-pdf-hash="{}" align="center" class="diagram-inline"
+style="cursor:zoom-in;" onclick="if(window.miv_openSvgModal){{var s=this.querySelector('svg');if(s)miv_openSvgModal(s);}}">
+{}
+</div>"#,
+                content_hash, svg
+            );
         }
         Err(e) => {
             log::warn!("Typst 渲染失败: {}", e);

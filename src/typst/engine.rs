@@ -8,15 +8,15 @@
 
 use anyhow::Result;
 use std::path::PathBuf;
-use crate::utils::print_status;
+use crate::utils::{escape_xml, print_status};
 use std::sync::LazyLock;
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime, Duration};
-use typst::layout::Abs;
+use typst::layout::{Abs, Frame, FrameItem, Transform};
 use typst::syntax::{
     package::PackageSpec, FileId, RootedPath, Source, VirtualPath, VirtualRoot,
 };
-use typst::text::{Font, FontBook};
+use typst::text::{Font, FontBook, TextItem};
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt};
 use typst::World;
@@ -354,9 +354,134 @@ pub fn typst_to_svg(source: &str) -> Result<String> {
 
     let options = SvgOptions::default();
     let gap = Abs::zero();
-    let svg = typst_svg::svg_merged(&document, &options, gap);
+    let mut svg = typst_svg::svg_merged(&document, &options, gap);
+
+    // 追加透明 <text> 层（与 svg_merged 相同的多页垂直堆叠布局），
+    // 使图内文字可选中/可搜索，视觉仍由路径轮廓层提供
+    let text_layer = typst_text_layer(&document, gap);
+    if !text_layer.is_empty() {
+        if let Some(pos) = svg.rfind("</svg>") {
+            svg.insert_str(pos, &format!("\n{}", text_layer));
+        }
+    }
 
     Ok(svg)
+}
+
+/// 生成 Typst 文档的透明文本层（`<text>` SVG 片段）。
+///
+/// 坐标系与 `typst_svg::svg_merged` 一致：所有页面按垂直堆叠排成一张 SVG，
+/// 页面原点即 SVG 原点（Y 向下），第 i 页顶部 y = 前 i-1 页高度之和 + gap。
+/// 文本层 `fill="transparent"`，视觉无影响；文字可选中/可搜索。
+fn typst_text_layer(document: &PagedDocument, gap: Abs) -> String {
+    let mut out = String::new();
+    let mut y_offset = 0.0f64; // pt，累计页偏移
+    for page in document.pages() {
+        let mut items: Vec<(Transform, &TextItem)> = Vec::new();
+        collect_text_items(&page.frame, &Transform::identity(), &mut items);
+        for (tf, ti) in &items {
+            out.push_str(&render_text_item(tf, ti, y_offset));
+        }
+        y_offset += page.frame.size().y.to_pt() + gap.to_pt();
+    }
+    out
+}
+
+/// 递归遍历 frame 树，收集所有文本项及其累积变换
+fn collect_text_items<'a>(
+    frame: &'a Frame,
+    tf: &Transform,
+    out: &mut Vec<(Transform, &'a TextItem)>,
+) {
+    for (pos, item) in frame.items() {
+        let t = tf.pre_concat(Transform::translate(pos.x, pos.y));
+        match item {
+            FrameItem::Group(g) => collect_text_items(&g.frame, &t.pre_concat(g.transform), out),
+            FrameItem::Text(ti) => out.push((t, ti)),
+            _ => {}
+        }
+    }
+}
+
+/// 把一个 TextItem 渲染为一行透明 `<text>`。
+///
+/// 每个字形用 x/y 列表精确对齐（与 typst-svg 的 glyph 定位公式一致：
+/// 字形局部坐标 Y-up，翻转成 Y-down 后再应用累积变换）。纯平移时直接输出
+/// 页面坐标；含旋转/倾斜时用 transform 矩阵 + 局部坐标。
+fn render_text_item(tf: &Transform, ti: &TextItem, y_offset: f64) -> String {
+    let size = ti.size.to_pt();
+    if size <= 0.0 || ti.glyphs.is_empty() {
+        return String::new();
+    }
+    let is_translation = tf.kx.get().abs() < 1e-6 && tf.ky.get().abs() < 1e-6;
+
+    let mut text = String::new();
+    let mut xs: Vec<f64> = Vec::with_capacity(ti.glyphs.len());
+    let mut ys: Vec<f64> = Vec::with_capacity(ti.glyphs.len());
+    let mut local_xs: Vec<f64> = Vec::with_capacity(ti.glyphs.len()); // 旋转时用局部坐标
+    let mut local_ys: Vec<f64> = Vec::with_capacity(ti.glyphs.len());
+    let mut cx = 0.0f64; // Y-up 累计 x（pt）
+    let mut cy = 0.0f64;
+
+    for g in &ti.glyphs {
+        let gx = cx + g.x_offset.at(ti.size).to_pt();
+        let gy = cy + g.y_offset.at(ti.size).to_pt();
+        let lx = gx;
+        let ly = -gy; // 翻转成 Y-down 局部坐标（相对 TextItem 起点）
+
+        if is_translation {
+            xs.push(tf.sx.get() * lx + tf.tx.to_pt());
+            ys.push(tf.sy.get() * ly + tf.ty.to_pt() + y_offset);
+        } else {
+            xs.push(tf.sx.get() * lx + tf.kx.get() * ly + tf.tx.to_pt());
+            ys.push(tf.ky.get() * lx + tf.sy.get() * ly + tf.ty.to_pt() + y_offset);
+            local_xs.push(lx);
+            local_ys.push(ly);
+        }
+
+        let range = g.range.clone();
+        text.push_str(&ti.text[range.start as usize..range.end as usize]);
+
+        cx += g.x_advance.at(ti.size).to_pt();
+        cy += g.y_advance.at(ti.size).to_pt();
+    }
+    if text.is_empty() {
+        return String::new();
+    }
+
+    let escaped = escape_xml(&text);
+    if is_translation {
+        let xs_str = fmt_list(&xs);
+        let ys_str = fmt_list(&ys);
+        format!(
+            r#"<text fill="transparent" font-size="{:.2}" x="{}" y="{}">{}</text>"#,
+            size, xs_str, ys_str, escaped
+        )
+    } else {
+        let xs_str = fmt_list(&local_xs);
+        let ys_str = fmt_list(&local_ys);
+        let matrix = format!(
+            "{} {} {} {} {} {}",
+            tf.sx.get(),
+            tf.ky.get(),
+            tf.kx.get(),
+            tf.sy.get(),
+            tf.tx.to_pt(),
+            tf.ty.to_pt() + y_offset
+        );
+        format!(
+            r#"<text fill="transparent" font-size="{:.2}" transform="matrix({})" x="{}" y="{}">{}</text>"#,
+            size, matrix, xs_str, ys_str, escaped
+        )
+    }
+}
+
+/// 格式化坐标列表（保留两位小数）
+fn fmt_list(v: &[f64]) -> String {
+    v.iter()
+        .map(|x| format!("{:.2}", x))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub fn typst_to_pdf(source: &str) -> Result<Vec<u8>> {

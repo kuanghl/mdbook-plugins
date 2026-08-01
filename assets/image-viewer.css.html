@@ -32,6 +32,21 @@
     transition: transform 0.1s ease-out;
     touch-action: none;
 }
+/* 内联 SVG（TikZ/Typst）在 modal 中克隆显示 */
+#miv_modalSvg {
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+#miv_modalSvg svg {
+    max-width: 90% !important;
+    max-height: 90% !important;
+    cursor: move;
+    touch-action: none;
+    transition: transform 0.1s ease-out;
+}
 .miv_close {
     position: fixed;
     top: 15px;

@@ -1,3 +1,4 @@
+<!-- Source: test/7.latex_pictures.md -->
 <svg viewBox="0 0 191.43 117.7" width="191.43" height="117.7" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <use xlink:href="#g0" transform="matrix(1 0 0 -1 68.26396 71.998245)" fill="#000000"/>
     <use xlink:href="#g1" transform="matrix(1 0 0 -1 75.73604 71.998245)" fill="#000000"/>
@@ -52,4 +53,5 @@
             <path d="M179.35028,61.767727 L174.13927,65.553764 L159.1769,39.480476 L179.35028,61.767727"/>
         </clipPath>
     </defs>
-</svg>
+
+<text fill="transparent" font-size="9.96" y="6.81" x="50.95 58.42">HN</text><text fill="transparent" font-size="9.96" y="18.70" x="138.84">S</text><text fill="transparent" font-size="9.96" y="27.94" x="-0.00">R</text><text fill="transparent" font-size="9.96" y="57.83" x="29.68 37.42 109.45">O N</text><text fill="transparent" font-size="9.96" y="78.96" x="58.29">O</text><text fill="transparent" font-size="9.96" y="101.70" x="176.21 183.95">OH</text><text fill="transparent" font-size="9.96" y="117.70" x="126.97">O</text></svg>

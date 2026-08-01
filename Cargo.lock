@@ -3257,6 +3257,7 @@ dependencies = [
  "hayro-syntax",
  "indexmap",
  "katex-rs",
+ "kurbo",
  "libc",
  "log",
  "lopdf",

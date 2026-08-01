@@ -1,5 +1,6 @@
 pub mod engine;
 pub mod pdf2svg;
+pub mod text_device;
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
@@ -23,22 +24,19 @@ pub fn tikz_content_hash(content: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-/// Convert TikZ code to SVG, save both intermediate PDF and final SVG to files,
-/// return SVG path (relative to html_root).
+/// 编译 TikZ → SVG（+中间 PDF），写入缓存文件，返回 (SVG 字符串, 内容 hash)。
 ///
 /// - `content`: cleaned TikZ LaTeX source
 /// - `images_dir`: absolute path to `src/images/` directory
-/// - `rel_prefix`: relative path from the HTML page to `images/` (e.g. `./images/` or `../images/`)
 /// - `cache_dir`: tectonic format cache directory (e.g. `{root}/{build_dir}/Tectonic/`)
 ///
-/// Returns the HTML `<img>` tag referencing the saved SVG.
-pub fn text2svg_file(
+/// 命中缓存（`{hash}.svg` 已存在）时直接读取，不再重新编译。
+fn compile_and_cache(
     content: &str,
     images_dir: &Path,
-    rel_prefix: &str,
     cache_dir: &Path,
     source_path: &str,
-) -> Result<String> {
+) -> Result<(String, String)> {
     let hash = tikz_content_hash(content);
     let svg_filename = format!("{}.svg", hash);
     let pdf_filename = format!("{}.pdf", hash);
@@ -60,6 +58,45 @@ pub fn text2svg_file(
         std::fs::write(&svg_filepath, &svg_with_source)
             .map_err(|e| anyhow::anyhow!("failed to write SVG file: {}", e))?;
     }
+
+    let svg = std::fs::read_to_string(&svg_filepath)
+        .map_err(|e| anyhow::anyhow!("failed to read SVG file: {}", e))?;
+    Ok((svg, hash))
+}
+
+/// Convert TikZ code to an inline SVG string (no `<img>` / file reference).
+///
+/// 编译并缓存 SVG/PDF 文件（PDF 渲染器与图片放大仍依赖文件），返回可直接
+/// 嵌入 HTML 的 `<svg>…</svg>`：已剥离 Source 注释、压缩空行、在根元素注入
+/// 响应式 + 字体隔离样式（见 [`crate::utils::svg_to_inline`]）。
+pub fn text2svg_inline(
+    content: &str,
+    images_dir: &Path,
+    cache_dir: &Path,
+    source_path: &str,
+) -> Result<String> {
+    let (svg, _hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
+    Ok(crate::utils::svg_to_inline(&svg))
+}
+
+/// Convert TikZ code to SVG, save both intermediate PDF and final SVG to files,
+/// return SVG path (relative to html_root).
+///
+/// - `content`: cleaned TikZ LaTeX source
+/// - `images_dir`: absolute path to `src/images/` directory
+/// - `rel_prefix`: relative path from the HTML page to `images/` (e.g. `./images/` or `../images/`)
+/// - `cache_dir`: tectonic format cache directory (e.g. `{root}/{build_dir}/Tectonic/`)
+///
+/// Returns the HTML `<img>` tag referencing the saved SVG.
+pub fn text2svg_file(
+    content: &str,
+    images_dir: &Path,
+    rel_prefix: &str,
+    cache_dir: &Path,
+    source_path: &str,
+) -> Result<String> {
+    let (_, hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
+    let svg_filename = format!("{}.svg", hash);
 
     Ok(format!(
         r#"<img src="{}{}" alt="TikZ diagram" class="miv_mdbook-image-viewer"

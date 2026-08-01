@@ -21,21 +21,20 @@ pub fn typst_content_hash(content: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-/// 将 Typst 代码编译为 SVG + PDF，保存到文件，返回 `<img>` 标签
+/// 编译 Typst → SVG + PDF，写入缓存文件，返回 (SVG 字符串, 内容 hash)。
 ///
 /// - `content`: 清洗后的 Typst 源码
 /// - `images_dir`: 输出目录的绝对路径（如 `{root}/src/images/`）
-/// - `rel_prefix`: 从 HTML 页面到 images 目录的相对路径（如 `./images/` 或 `../images/`）
 /// - `cache_dir`: 预留的缓存目录参数（保持与 tikz 接口一致，目前未使用）
 ///
-/// 返回 HTML `<img>` 标签引用生成的 SVG。
-pub fn text2svg_file(
+/// 命中缓存（`{hash}.svg` 已存在）时直接读取，不再重新编译。
+/// PDF 编译失败时仅警告（沿用原行为），不影响 SVG 产出。
+fn compile_and_cache(
     content: &str,
     images_dir: &Path,
-    rel_prefix: &str,
     _cache_dir: &Path,
     source_path: &str,
-) -> Result<String> {
+) -> Result<(String, String)> {
     let hash = typst_content_hash(content);
     let svg_filename = format!("{}.svg", hash);
     let pdf_filename = format!("{}.pdf", hash);
@@ -63,6 +62,44 @@ pub fn text2svg_file(
         std::fs::write(&svg_filepath, &svg_with_source)
             .map_err(|e| anyhow::anyhow!("无法写入 SVG 文件: {}", e))?;
     }
+
+    let svg = std::fs::read_to_string(&svg_filepath)
+        .map_err(|e| anyhow::anyhow!("无法读取 SVG 文件: {}", e))?;
+    Ok((svg, hash))
+}
+
+/// 将 Typst 代码编译为内联 SVG 字符串（无 `<img>` / 文件引用）。
+///
+/// 仍会写 SVG/PDF 缓存文件（PDF 渲染器与图片放大依赖），返回可直接嵌入
+/// HTML 的 `<svg>…</svg>`：已剥离 Source 注释、压缩空行、在根元素注入
+/// 响应式 + 字体隔离样式（见 [`crate::utils::svg_to_inline`]）。
+pub fn text2svg_inline(
+    content: &str,
+    images_dir: &Path,
+    cache_dir: &Path,
+    source_path: &str,
+) -> Result<String> {
+    let (svg, _hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
+    Ok(crate::utils::svg_to_inline(&svg))
+}
+
+/// 将 Typst 代码编译为 SVG + PDF，保存到文件，返回 `<img>` 标签
+///
+/// - `content`: 清洗后的 Typst 源码
+/// - `images_dir`: 输出目录的绝对路径（如 `{root}/src/images/`）
+/// - `rel_prefix`: 从 HTML 页面到 images 目录的相对路径（如 `./images/` 或 `../images/`）
+/// - `cache_dir`: 预留的缓存目录参数（保持与 tikz 接口一致，目前未使用）
+///
+/// 返回 HTML `<img>` 标签引用生成的 SVG。
+pub fn text2svg_file(
+    content: &str,
+    images_dir: &Path,
+    rel_prefix: &str,
+    cache_dir: &Path,
+    source_path: &str,
+) -> Result<String> {
+    let (_, hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
+    let svg_filename = format!("{}.svg", hash);
 
     Ok(format!(
         r#"<img src="{}{}" alt="Typst diagram" class="miv_mdbook-image-viewer"
