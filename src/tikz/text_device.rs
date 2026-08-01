@@ -61,7 +61,8 @@ impl TextCollector {
                 true
             } else {
                 standalone.push_str(&format!(
-                    r#"<text fill="transparent" font-size="{:.2}" transform="matrix({})" x="0" y="0">{}</text>"#,
+                    r#"<text {} fill="transparent" font-size="{:.2}" transform="matrix({})" x="0" y="0">{}</text>"#,
+                    crate::utils::SVG_TEXT_LAYER_STYLE,
                     ch.font_size,
                     fmt_matrix(ch.matrix),
                     crate::utils::escape_xml(&ch.text)
@@ -138,7 +139,8 @@ impl TextCollector {
                 .collect::<Vec<_>>()
                 .join(" ");
             out.push_str(&format!(
-                r#"<text fill="transparent" font-size="{:.2}" y="{:.2}" x="{}">{}</text>"#,
+                r#"<text {} fill="transparent" font-size="{:.2}" y="{:.2}" x="{}">{}</text>"#,
+                crate::utils::SVG_TEXT_LAYER_STYLE,
                 line.fs,
                 line.y,
                 xs_str,

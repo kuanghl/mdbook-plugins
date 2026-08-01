@@ -3,6 +3,7 @@
 //! 使用 `chromiumoxide` crate 连接 Chrome 实例，调用 `Page.printToPDF` 方法。
 
 use std::path::Path;
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 use std::time::Duration;
 
 #[cfg(feature = "pre-pdf-cdp-heavy")]
@@ -71,6 +72,7 @@ pub async fn render_chrome_cdp_async(
     result
 }
 
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 #[cfg(feature = "pre-pdf-cdp-heavy")]
 async fn inner_render(
     browser: &mut Browser,
@@ -162,6 +164,7 @@ async fn wait_for_content_loaded(page: &chromiumoxide::page::Page) -> Result<(),
 }
 
 /// 根据配置构建 CDP `PrintToPdfParams`
+#[cfg(feature = "pre-pdf-cdp-heavy")]
 #[cfg(feature = "pre-pdf-cdp-heavy")]
 fn build_print_to_pdf_params(cfg: &PdfOptions) -> PrintToPdfParams {
     let hf_enabled = cfg.header_footer_enabled();
@@ -471,6 +474,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "pre-pdf-cdp-heavy")]
     fn test_build_pdf_params_default() {
         let cfg = PdfOptions::default();
         let params = build_print_to_pdf_params(&cfg);
@@ -487,6 +491,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "pre-pdf-cdp-heavy")]
     fn test_build_pdf_params_landscape() {
         let mut cfg = PdfOptions::default();
         cfg.landscape = true;
@@ -495,6 +500,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "pre-pdf-cdp-heavy")]
     fn test_build_pdf_params_native_header_footer() {
         let mut cfg = PdfOptions::default();
         cfg.display_header_footer = true;

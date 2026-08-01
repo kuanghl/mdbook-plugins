@@ -16,7 +16,9 @@ const KNOWN_SHORT_NAMES: &[&str] = &[
     "image-viewer", "katex", "kroki-preprocessor", "langtabs",
     "mermaid", "pdf-preview", "pikchr", "plugins", "svgbob", "toc", "wavedrom-rs",
     // 渲染器
-    "asciidoc", "linkcheck", "office", "pdf",
+    "asciidoc", "linkcheck",
+    #[cfg(feature = "ren-office")]
+    "office", "pdf",
     // 独立工具
     "build-search",
 ];
@@ -98,8 +100,10 @@ fn run_plugin(name: &str, args: &[String]) {
     );
 
     let _is_renderer = matches!(name,
-        "mdbook-asciidoc" | "mdbook-linkcheck" | "mdbook-office" | "mdbook-pdf" | "mdbook-build-search"
+        "mdbook-asciidoc" | "mdbook-linkcheck" | "mdbook-pdf" | "mdbook-build-search"
     );
+    #[cfg(feature = "ren-office")]
+    let _is_renderer = _is_renderer || matches!(name, "mdbook-office");
 
     // 处理 `supports <renderer>` 子命令
     if _is_preprocessor && args.first().map(|s| s.as_str()) == Some("supports") {
@@ -150,6 +154,7 @@ fn run_plugin(name: &str, args: &[String]) {
         "mdbook-asciidoc" => mdbook_plugins::renderers::asciidoc::run(),
         "mdbook-linkcheck" => mdbook_plugins::renderers::linkcheck::run(),
         "mdbook-build-search" => mdbook_plugins::renderers::build_search::run(),
+        #[cfg(feature = "ren-office")]
         "mdbook-office" => mdbook_plugins::renderers::office::run(),
         "mdbook-pdf" => mdbook_plugins::renderers::pdf::run(),
         _ => {

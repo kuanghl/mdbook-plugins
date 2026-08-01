@@ -12,3 +12,4 @@ pdfjs-viewer/
 .venv/
 LaTeX.js/
 Typst/
+test/book/

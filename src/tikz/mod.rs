@@ -3,19 +3,9 @@ pub mod pdf2svg;
 pub mod text_device;
 
 use anyhow::Result;
+use regex::Regex;
 use sha2::{Digest, Sha256};
-use std::path::Path;
-
-/// Convert TikZ LaTeX source code into an SVG string.
-///
-/// Pipeline: tectonic (XeTeX) → PDF → hayro-svg → SVG
-///
-/// `cache_dir` specifies where tectonic stores the precompiled format (`.fmt`) cache.
-pub fn text2svg_simple(input: &str, cache_dir: &Path) -> Result<String> {
-    let pdf_data = engine::tex_to_pdf(input, cache_dir)?;
-    let svg = pdf2svg::pdf_to_svg(pdf_data)?;
-    Ok(svg)
-}
+use std::path::{Path, PathBuf};
 
 /// Compute SHA256 hash of TikZ content, used for cache key.
 pub fn tikz_content_hash(content: &str) -> String {
@@ -24,25 +14,28 @@ pub fn tikz_content_hash(content: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-/// 编译 TikZ → SVG（+中间 PDF），写入缓存文件，返回 (SVG 字符串, 内容 hash)。
+/// 编译 TikZ → SVG（+中间 PDF），写入缓存文件，返回 (每页 SVG 字符串列表, 内容 hash)。
 ///
 /// - `content`: cleaned TikZ LaTeX source
 /// - `images_dir`: absolute path to `src/images/` directory
 /// - `cache_dir`: tectonic format cache directory (e.g. `{root}/{build_dir}/Tectonic/`)
 ///
-/// 命中缓存（`{hash}.svg` 已存在）时直接读取，不再重新编译。
+/// 命中缓存（单页 `{hash}.svg` 或多页 `{hash}.p1.svg` 已存在）时直接读取，
+/// 不再重新编译。多页（完整 LaTeX 文档）每页一个独立 SVG 文件
+/// （`{hash}.p{i}.svg`），避免超大单文件。
 fn compile_and_cache(
     content: &str,
     images_dir: &Path,
     cache_dir: &Path,
     source_path: &str,
-) -> Result<(String, String)> {
+) -> Result<(Vec<String>, String)> {
     let hash = tikz_content_hash(content);
-    let svg_filename = format!("{}.svg", hash);
     let pdf_filename = format!("{}.pdf", hash);
-    let svg_filepath = images_dir.join(&svg_filename);
+    let pdf_filepath = images_dir.join(&pdf_filename);
+    let svg_filepath = images_dir.join(format!("{}.svg", hash));
+    let page1_filepath = images_dir.join(format!("{}.p1.svg", hash));
 
-    if !svg_filepath.exists() {
+    if !svg_filepath.exists() && !page1_filepath.exists() {
         std::fs::create_dir_all(images_dir)
             .map_err(|e| anyhow::anyhow!("failed to create images dir: {}", e))?;
 
@@ -50,33 +43,56 @@ fn compile_and_cache(
         let pdf_data = engine::tex_to_pdf(content, cache_dir)?;
 
         // Save intermediate PDF
-        std::fs::write(images_dir.join(&pdf_filename), &pdf_data)
+        std::fs::write(&pdf_filepath, &pdf_data)
             .map_err(|e| anyhow::anyhow!("failed to write PDF file: {}", e))?;
 
-        let svg = pdf2svg::pdf_to_svg(pdf_data)?;
-        let svg_with_source = format!("<!-- Source: {} -->\n{}", source_path, svg);
-        std::fs::write(&svg_filepath, &svg_with_source)
-            .map_err(|e| anyhow::anyhow!("failed to write SVG file: {}", e))?;
+        // 分页转 SVG（内部并行）
+        let svgs = pdf2svg::pdf_to_svg_pages(pdf_data)?;
+        if svgs.len() == 1 {
+            let svg_with_source = format!("<!-- Source: {} -->\n{}", source_path, svgs[0]);
+            std::fs::write(&svg_filepath, &svg_with_source)
+                .map_err(|e| anyhow::anyhow!("failed to write SVG file: {}", e))?;
+        } else {
+            for (i, svg) in svgs.iter().enumerate() {
+                let svg_with_source =
+                    format!("<!-- Source: {} (page {}) -->\n{}", source_path, i + 1, svg);
+                let path = images_dir.join(format!("{}.p{}.svg", hash, i + 1));
+                std::fs::write(&path, &svg_with_source)
+                    .map_err(|e| anyhow::anyhow!("failed to write SVG page file: {}", e))?;
+            }
+        }
     }
 
-    let svg = std::fs::read_to_string(&svg_filepath)
-        .map_err(|e| anyhow::anyhow!("failed to read SVG file: {}", e))?;
-    Ok((svg, hash))
-}
+    // 读取：单页 `{hash}.svg` 或多页 `{hash}.p{i}.svg`（按页号排序）
+    let svgs = if svg_filepath.exists() {
+        vec![std::fs::read_to_string(&svg_filepath)
+            .map_err(|e| anyhow::anyhow!("failed to read SVG file: {}", e))?]
+    } else {
+        let re = Regex::new(&format!(r"^{}\.p(\d+)\.svg$", regex::escape(&hash))).unwrap();
+        let mut pages: Vec<(usize, PathBuf)> = Vec::new();
+        for entry in std::fs::read_dir(images_dir)
+            .map_err(|e| anyhow::anyhow!("failed to read images dir: {}", e))?
+            .flatten()
+        {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if let Some(cap) = re.captures(&name) {
+                if let Ok(n) = cap[1].parse::<usize>() {
+                    pages.push((n, entry.path()));
+                }
+            }
+        }
+        pages.sort_by_key(|(n, _)| *n);
+        pages
+            .into_iter()
+            .map(|(_, p)| {
+                std::fs::read_to_string(&p).map_err(|e| {
+                    anyhow::anyhow!("failed to read SVG page file {}: {}", p.display(), e)
+                })
+            })
+            .collect::<Result<Vec<_>>>()?
+    };
 
-/// Convert TikZ code to an inline SVG string (no `<img>` / file reference).
-///
-/// 编译并缓存 SVG/PDF 文件（PDF 渲染器与图片放大仍依赖文件），返回可直接
-/// 嵌入 HTML 的 `<svg>…</svg>`：已剥离 Source 注释、压缩空行、在根元素注入
-/// 响应式 + 字体隔离样式（见 [`crate::utils::svg_to_inline`]）。
-pub fn text2svg_inline(
-    content: &str,
-    images_dir: &Path,
-    cache_dir: &Path,
-    source_path: &str,
-) -> Result<String> {
-    let (svg, _hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
-    Ok(crate::utils::svg_to_inline(&svg))
+    Ok((svgs, hash))
 }
 
 /// Convert TikZ code to SVG, save both intermediate PDF and final SVG to files,
@@ -94,41 +110,29 @@ pub fn text2svg_file(
     rel_prefix: &str,
     cache_dir: &Path,
     source_path: &str,
+    alt: &str,
 ) -> Result<String> {
-    let (_, hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
-    let svg_filename = format!("{}.svg", hash);
-
-    Ok(format!(
-        r#"<img src="{}{}" alt="TikZ diagram" class="miv_mdbook-image-viewer"
+    let (svgs, hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
+    // 单页一个 <img>；多页每页一个 <img>（垂直排列）
+    let mut out = String::new();
+    for (i, _svg) in svgs.iter().enumerate() {
+        let filename = if svgs.len() == 1 {
+            format!("{}.svg", hash)
+        } else {
+            format!("{}.p{}.svg", hash, i + 1)
+        };
+        out.push_str(&format!(
+            r#"<img src="{}{}" alt="{}" class="miv_mdbook-image-viewer"
 onclick="miv_openModal(this.src)" style="max-width:100%;cursor:zoom-in;">"#,
-        rel_prefix, svg_filename
-    ))
-}
-
-/// Compute the relative path prefix from an HTML chapter file to the `images/` directory.
-///
-/// `chapter_path` is relative to the book's `src/` directory (e.g. `test/7.latex_pictures.md`).
-/// Returns e.g. `"../images/"` or `"./images/"`.
-pub fn relative_svg_prefix(chapter_path: &Path) -> String {
-    let depth = chapter_path.parent().map(|p| p.components().count()).unwrap_or(0);
-    if depth == 0 {
-        "./images/".to_string()
-    } else {
-        let parents: Vec<&str> = std::iter::repeat("..").take(depth).collect();
-        format!("{}/images/", parents.join("/"))
+            rel_prefix, filename, alt
+        ));
     }
+    Ok(out)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_relative_prefix() {
-        assert_eq!(relative_svg_prefix(Path::new("index.md")), "./images/");
-        assert_eq!(relative_svg_prefix(Path::new("test/7.md")), "../images/");
-        assert_eq!(relative_svg_prefix(Path::new("a/b/c.md")), "../../images/");
-    }
 
     #[test]
     fn test_content_hash() {

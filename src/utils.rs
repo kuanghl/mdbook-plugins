@@ -3,6 +3,10 @@
 use std::io::IsTerminal;
 
 /// 标准的 mdbook 预处理器入口：从 stdin 读取，处理，写入 stdout
+///
+/// 统一计时并在处理完成后输出同格式进度条（全英文）：
+/// `[====] 100% - <preprocessor>: done (<elapsed>)`，用于分析各
+/// preprocessor 的性能瓶颈。
 pub fn run_preprocessor<P: mdbook_preprocessor::Preprocessor>(
     pre: &P,
 ) -> anyhow::Result<()> {
@@ -21,21 +25,21 @@ pub fn run_preprocessor<P: mdbook_preprocessor::Preprocessor>(
 
     let processed = pre.run(&ctx, book)?;
     serde_json::to_writer(std::io::stdout(), &processed)?;
+    // 总耗时由 print_progress 自动追加（累计计时），label 只写阶段名
+    print_progress(1, 1, &format!("{}: done", pre.name()));
     Ok(())
 }
 
-/// 标准的 supports_renderer 处理
-pub fn handle_supports(pre: &dyn mdbook_preprocessor::Preprocessor, renderer: &str) {
-    match pre.supports_renderer(renderer) {
-        Ok(true) => std::process::exit(0),
-        _ => std::process::exit(1),
-    }
-}
-
 /// 标准的 mdbook 渲染器入口：从 stdin 读取 RenderContext，处理
+///
+/// 统一计时并在处理完成后输出同格式进度条（全英文）：
+/// `[====] 100% - <renderer>: done (<elapsed>)`。注意 PDF 渲染器内部
+/// 已有分阶段进度条，此处的总耗时是补充信息。
 pub fn run_renderer<R: mdbook_renderer::Renderer>(renderer: &R) -> anyhow::Result<()> {
     let ctx = mdbook_renderer::RenderContext::from_json(std::io::stdin())?;
     renderer.render(&ctx)?;
+    // 总耗时由 print_progress 自动追加
+    print_progress(1, 1, &format!("{}: done", renderer.name()));
     Ok(())
 }
 
@@ -86,7 +90,22 @@ pub fn svg_to_inline(svg: &str) -> String {
 
 /// 内联 SVG 的响应式样式：屏幕放大到容器宽、打印保持原始尺寸防溢出。
 /// 注入在 svg 之前（同一 HTML 块内，pulldown-cmark / ren-pdf 均保留）。
-const DIAGRAM_SVG_CSS: &str = "<style>.diagram-inline-svg{max-width:100%;height:auto}@media screen{.diagram-inline-svg{width:100%}}@media print{.diagram-inline-svg{width:auto;max-width:100%}}</style>";
+///
+/// 末尾的 `.diagram-inline-svg text` 规则是文本层的兜底隔离：TikZ/Typst 的 SVG
+/// 视觉层是 path 轮廓，同时叠加一层透明 `<text>`（可选中/可搜索）。内联时该
+/// text 层会继承页面字体并可能被页面 CSS 覆盖 fill 而显现，与轮廓叠加成
+/// "字体重叠混乱"；`<img>` 方式加载的 SVG 是独立文档、只受 UA 默认样式影响，
+/// 不存在此问题。此规则 + 生成端注入的内联 style（`SVG_TEXT_LAYER_STYLE`）
+/// 把 text 层锁定回与独立文档一致的渲染（透明 + serif）。
+const DIAGRAM_SVG_CSS: &str = "<style>.diagram-inline-svg{max-width:100%;height:auto}@media screen{.diagram-inline-svg{width:100%}}@media print{.diagram-inline-svg{width:auto;max-width:100%}}.diagram-inline-svg text{fill:transparent!important;font-family:serif!important}</style>";
+
+/// 文本层 `<text>` 的内联样式：锁定 `fill:transparent` + `font-family:serif`，
+/// 与 `<img>` 独立文档加载时的 UA 默认渲染一致。内联 style + `!important` 的
+/// 优先级高于任何页面选择器规则（除同样 `!important` 的内联 style），确保内联
+/// SVG 的文本层字形不会以页面字体显现、与视觉层 path 轮廓叠加。
+/// 仅在文本层生成端（typst/engine.rs、tikz/text_device.rs）使用。
+pub(crate) const SVG_TEXT_LAYER_STYLE: &str =
+    "style=\"fill:transparent!important;font-family:serif!important\"";
 
 /// 剥离开头的 XML 注释（`<!-- ... -->`），返回第一个真实元素。
 fn strip_xml_comment_header(svg: &str) -> &str {
@@ -212,6 +231,10 @@ fn find_attr(tag: &str, name: &str) -> Option<(usize, char)> {
 }
 
 /// XML 转义（用于把 Unicode 文本安全嵌入 SVG/HTML）
+///
+/// 同时把 **非法 XML 字符**（如 PDF 未映射字形占位符 `U+FFFF`、控制字符）
+/// 替换为 `U+FFFD`（REPLACEMENT CHARACTER）——替换而非删除，保证字符数与
+/// 坐标列表一一对应（text 层逐字符 x/y 定位），不破坏选中/搜索对齐。
 pub(crate) fn escape_xml(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -221,10 +244,80 @@ pub(crate) fn escape_xml(s: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
-            _ => out.push(c),
+            c if is_valid_xml_char(c) => out.push(c),
+            _ => out.push('\u{FFFD}'),
         }
     }
     out
+}
+
+/// XML 1.0 允许的字符：`#x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] |
+/// [#x10000-#x10FFFF]`。`U+FFFF`（以及 `U+FFFE`）不属于合法范围。
+fn is_valid_xml_char(c: char) -> bool {
+    matches!(c as u32,
+        0x9 | 0xA | 0xD
+        | 0x20..=0xD7FF
+        | 0xE000..=0xFFFD
+        | 0x10000..=0x10FFFF)
+}
+
+
+/// 独立输出进度条到 stderr，格式: " \x1b[32m INFO\x1b[0m [====>---]  12% - label (3.2s)"
+///
+/// 在终端中 INFO 显示为绿色，与 env_logger 的 info 级别颜色一致。
+/// 输出到文件/管道时自动降级为纯文本 " INFO"。
+/// 不依赖 log::info，避免时间戳和模块名前缀。
+/// 自动记录首次调用时间，每次显示累计耗时。
+/// - `current`: 当前进度序号（从 1 开始）
+/// - `total`: 总步骤数
+/// - `label`: 英文步骤描述
+pub fn print_progress(current: u8, total: u8, label: &str) {
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    let start = *START.get_or_init(std::time::Instant::now);
+    let elapsed = start.elapsed();
+
+    let pct = (current as f64) / (total as f64);
+    let width: usize = 20;
+    let filled = (pct * width as f64).round() as usize;
+    let filled = filled.min(width);
+    let pct_int = (pct * 100.0).round() as u8;
+
+    let bar = if filled == 0 {
+        format!("[>{}]", "-".repeat(width - 1))
+    } else if filled >= width {
+        format!("[{}]", "=".repeat(width))
+    } else {
+        format!(
+            "[{}{}{}]",
+            "=".repeat(filled - 1),
+            ">",
+            "-".repeat(width - filled)
+        )
+    };
+
+    let elapsed_str = format_elapsed(elapsed);
+    let info_prefix = if std::io::stderr().is_terminal() {
+        "\x1b[32m INFO\x1b[0m"  // green
+    } else {
+        " INFO"
+    };
+    eprintln!("{} {} {:3}% - {} ({})", info_prefix, bar, pct_int, label, elapsed_str);
+}
+
+/// 格式化持续时间，如 "0.1s", "12.3s", "1m 23s", "2h 5m"
+pub(crate) fn format_elapsed(d: std::time::Duration) -> String {
+    let secs = d.as_secs_f64();
+    if secs < 60.0 {
+        format!("{:.1}s", secs)
+    } else if secs < 3600.0 {
+        let m = (secs / 60.0) as u64;
+        let s = (secs % 60.0) as u64;
+        format!("{}m {}s", m, s)
+    } else {
+        let h = (secs / 3600.0) as u64;
+        let m = ((secs % 3600.0) / 60.0) as u64;
+        format!("{}h {}m", h, m)
+    }
 }
 
 /// 独立输出状态信息到 stderr，格式: " \x1b[32m INFO\x1b[0m <message>"
@@ -303,11 +396,45 @@ mod tests {
     }
 
     #[test]
+    fn test_text_layer_isolation() {        // 文本层兜底规则必须存在：内联 SVG 的 <text> 锁定透明 + serif，
+        // 防止页面 CSS 覆盖 fill 后字形与 path 轮廓叠加成"字体重叠混乱"
+        assert!(
+            DIAGRAM_SVG_CSS.contains(".diagram-inline-svg text{fill:transparent!important;font-family:serif!important}"),
+            "缺少文本层隔离规则: {}",
+            DIAGRAM_SVG_CSS
+        );
+        // 生成端注入的内联 style：fill:transparent + font-family:serif，均 !important
+        assert_eq!(
+            SVG_TEXT_LAYER_STYLE,
+            "style=\"fill:transparent!important;font-family:serif!important\""
+        );
+    }
+
+    #[test]
     fn test_inline_attribute_value_with_gt() {
         // 属性值（data URI）中包含 '>' 不应提前终止根标签扫描
         let svg = r#"<svg viewBox="0 0 1 1"><image href="data:image/png;base64,AAA>BBB"/></svg>"#;
         let out = svg_to_inline(svg);
         assert!(out.contains(r#"<svg viewBox="0 0 1 1" style="height:auto;font-family:serif;" class="diagram-inline-svg""#), "根标签注入失败: {}", out);
         assert!(out.contains("AAA>BBB"), "data URI 内容被破坏: {}", out);
+    }
+
+    #[test]
+    fn test_escape_xml_replaces_illegal_chars() {
+        // U+FFFF（PDF 未映射字形占位符）等非法 XML 字符必须被替换（保持长度）
+        let input = format!("a{}b\u{7}c\u{FFFE}\u{FFFF}", '\u{0}');
+        let out = escape_xml(&input);
+        assert!(!out.contains('\u{FFFF}'), "U+FFFF 未被替换: {:?}", out);
+        assert!(!out.contains('\u{FFFE}'), "U+FFFE 未被替换: {:?}", out);
+        assert_eq!(out.chars().count(), input.chars().count(), "字符数必须不变（坐标对齐）");
+        // 合法字符保留且顺序不变（\u{0} 和 \u{7} 被替换为 U+FFFD）
+        assert_eq!(out.chars().collect::<Vec<_>>()[0], 'a');
+        assert!(out.contains('b') && out.contains('c'));
+        // 非法字符替换为 U+FFFD
+        assert!(out.contains('\u{FFFD}'));
+        // 常规转义不受影响
+        assert_eq!(escape_xml("<a&b>\"'"), "&lt;a&amp;b&gt;&quot;&apos;");
+        // 中文等合法 Unicode 保留
+        assert_eq!(escape_xml("你好 ∇"), "你好 ∇");
     }
 }

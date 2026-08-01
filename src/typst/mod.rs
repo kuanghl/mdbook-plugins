@@ -83,31 +83,6 @@ pub fn text2svg_inline(
     Ok(crate::utils::svg_to_inline(&svg))
 }
 
-/// 将 Typst 代码编译为 SVG + PDF，保存到文件，返回 `<img>` 标签
-///
-/// - `content`: 清洗后的 Typst 源码
-/// - `images_dir`: 输出目录的绝对路径（如 `{root}/src/images/`）
-/// - `rel_prefix`: 从 HTML 页面到 images 目录的相对路径（如 `./images/` 或 `../images/`）
-/// - `cache_dir`: 预留的缓存目录参数（保持与 tikz 接口一致，目前未使用）
-///
-/// 返回 HTML `<img>` 标签引用生成的 SVG。
-pub fn text2svg_file(
-    content: &str,
-    images_dir: &Path,
-    rel_prefix: &str,
-    cache_dir: &Path,
-    source_path: &str,
-) -> Result<String> {
-    let (_, hash) = compile_and_cache(content, images_dir, cache_dir, source_path)?;
-    let svg_filename = format!("{}.svg", hash);
-
-    Ok(format!(
-        r#"<img src="{}{}" alt="Typst diagram" class="miv_mdbook-image-viewer"
-onclick="miv_openModal(this.src)" style="max-width:100%;cursor:zoom-in;">"#,
-        rel_prefix, svg_filename
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,26 +1,37 @@
 use anyhow::Result;
 use crate::tikz::text_device;
+use rayon::prelude::*;
 
-/// Convert raw PDF bytes into an SVG string using hayro-svg.
+/// Convert each PDF page into an independent SVG string using hayro-svg.
 ///
-/// Takes ownership of `pdf_data` to avoid an extra clone.
+/// 分页输出（`Vec<String>`，每页一个独立 SVG）：
+/// - **单页**：返回 `vec![svg]`，输出结构与旧版一致（缓存文件不变）；
+/// - **多页**（完整 LaTeX 文档，如 article/report 类）：每页转为一个独立 SVG
+///   并用 rayon **并行**渲染——避免合并成一张超大单文件（XML 解析压力大、
+///   一页出错连累整图），每页是独立文档，天然没有跨页 id 冲突。
 ///
-/// 视觉层由 hayro-svg 渲染（路径轮廓）；随后做第二遍 `interpret_page` 收集
-/// 字形文本，生成透明的 `<text>` 层追加到 SVG 末尾，使图内文字可选中/可搜索。
-/// （TikZ 图以 `<img>` 引用 svg 文件时 text 层透明不可见，无视觉影响；
-/// 若将来改回内联，text 层即可直接提供文字选中/搜索能力。）
+/// 每页 SVG：视觉层由 hayro-svg 渲染（路径轮廓）；随后做第二遍
+/// `interpret_page` 收集字形文本，生成透明的 `<text>` 层追加到 SVG 末尾，
+/// 使图内文字可选中/可搜索。（`<img>` 引用时 text 层透明不可见，无视觉影响。）
 ///
 /// 注：hayro-svg 渲染 LaTeX Type1 字形时，字母内孔（如 P/o/e）无法镂空
 /// （渲染为实心），这是 hayro 库的固有行为，不影响可读性。
-pub(crate) fn pdf_to_svg(pdf_data: Vec<u8>) -> Result<String> {
+pub(crate) fn pdf_to_svg_pages(pdf_data: Vec<u8>) -> Result<Vec<String>> {
     let pdf = hayro_syntax::Pdf::new(pdf_data)
         .map_err(|e| anyhow::anyhow!("failed to parse PDF: {:?}", e))?;
 
     let pages = pdf.pages();
-    let page = pages
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("PDF has no pages"))?;
+    if pages.is_empty() {
+        anyhow::bail!("PDF has no pages");
+    }
 
+    // 并行转换每页（RenderCache 每页独立，无共享状态）
+    let svgs: Vec<Result<String>> = pages.par_iter().map(|page| render_page(page)).collect();
+    svgs.into_iter().collect()
+}
+
+/// 单页 PDF → SVG：视觉层 + 透明 text 层直接追加在 svg 末尾。
+fn render_page(page: &hayro_syntax::page::Page<'_>) -> Result<String> {
     let cache = hayro_svg::RenderCache::new();
     let interpreter_settings = hayro_interpret::InterpreterSettings::default();
     // Transparent background so TikZ diagrams blend into the HTML page

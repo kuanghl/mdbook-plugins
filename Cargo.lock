@@ -3229,17 +3229,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mdbook-markdown"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ca553aa4330b15fa2c706aef373bc714cc719513d1da73c17be3dba208b9aab"
-dependencies = [
- "pulldown-cmark",
- "regex",
- "tracing",
-]
-
-[[package]]
 name = "mdbook-plugins"
 version = "0.1.0"
 dependencies = [
@@ -3262,12 +3251,10 @@ dependencies = [
  "log",
  "lopdf",
  "mdbook-core",
- "mdbook-markdown",
  "mdbook-preprocessor",
  "mdbook-renderer",
  "office_oxide",
  "once_cell",
- "pest",
  "pulldown-cmark",
  "rayon",
  "regex",
@@ -3276,7 +3263,6 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "serde_yaml",
  "sha2 0.10.9",
  "svgbob",
  "tar",

@@ -17,7 +17,8 @@ use tokio_tungstenite::connect_async_with_config;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message;
 
-use super::pdf::{PdfOptions, print_progress};
+use super::pdf::PdfOptions;
+use crate::utils::print_progress;
 
 // ═══════════════════════════════════════════════════════════
 // 公开接口
@@ -66,17 +67,17 @@ async fn render_chrome_cdp_light_async(
     temp_html_path: &Path,
 ) -> Result<()> {
     // 写入临时 HTML 文件
-    print_progress(1, 12, "Writing temp HTML");
+    print_progress(1, 14, "Writing temp HTML");
     std::fs::write(temp_html_path, html_content)?;
 
     let timeout = Duration::from_secs(cfg.timeout);
 
     // 1. 从进程池获取 Chrome WebSocket URL（自动启动/复用）
-    print_progress(2, 12, "Starting Chrome");
+    print_progress(2, 14, "Starting Chrome");
     let ws_url = acquire_chrome_ws_url(cfg, timeout).await?;
 
     // 2. 连接 CDP（每次新建会话，WS 连接成本 ~10-50ms）
-    print_progress(3, 12, "Connecting DevTools");
+    print_progress(3, 14, "Connecting DevTools");
     let mut cdp = CdpSession::connect(&ws_url, timeout).await?;
 
     // 3. 渲染 PDF
@@ -602,7 +603,7 @@ async fn render_inner(
     timeout: Duration,
 ) -> Result<()> {
     let url = file_url(html_path)?;
-    print_progress(4, 12, "Loading page");
+    print_progress(4, 14, "Loading page");
     log::debug!("轻量 CDP: 创建页面并导航到: {}", url);
     let t0 = std::time::Instant::now();
 

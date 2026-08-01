@@ -454,8 +454,8 @@ fn render_text_item(tf: &Transform, ti: &TextItem, y_offset: f64) -> String {
         let xs_str = fmt_list(&xs);
         let ys_str = fmt_list(&ys);
         format!(
-            r#"<text fill="transparent" font-size="{:.2}" x="{}" y="{}">{}</text>"#,
-            size, xs_str, ys_str, escaped
+            r#"<text {} fill="transparent" font-size="{:.2}" x="{}" y="{}">{}</text>"#,
+            crate::utils::SVG_TEXT_LAYER_STYLE, size, xs_str, ys_str, escaped
         )
     } else {
         let xs_str = fmt_list(&local_xs);
@@ -470,8 +470,8 @@ fn render_text_item(tf: &Transform, ti: &TextItem, y_offset: f64) -> String {
             tf.ty.to_pt() + y_offset
         );
         format!(
-            r#"<text fill="transparent" font-size="{:.2}" transform="matrix({})" x="{}" y="{}">{}</text>"#,
-            size, matrix, xs_str, ys_str, escaped
+            r#"<text {} fill="transparent" font-size="{:.2}" transform="matrix({})" x="{}" y="{}">{}</text>"#,
+            crate::utils::SVG_TEXT_LAYER_STYLE, size, matrix, xs_str, ys_str, escaped
         )
     }
 }

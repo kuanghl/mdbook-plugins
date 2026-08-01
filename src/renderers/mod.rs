@@ -3,6 +3,7 @@
 pub mod asciidoc;
 pub mod build_search;
 pub mod linkcheck;
+#[cfg(feature = "ren-office")]
 pub mod office;
 pub mod pdf;
 pub mod pdf_chrome_cdp;

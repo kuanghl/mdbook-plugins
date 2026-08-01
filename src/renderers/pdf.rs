@@ -21,9 +21,6 @@ use super::pdf_chrome_cdp_light;
 use super::pdf_html_preprocess;
 use super::pdf_outline;
 
-use std::io::IsTerminal;
-use std::sync::OnceLock;
-use std::time::Instant;
 
 use regex::Regex;
 
@@ -153,7 +150,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
 
     // 10. PDF 后处理（非致命）
     if cfg.generate_document_outline {
-        print_progress(13, 14, "Adding bookmarks & metadata");
+        crate::utils::print_progress(13, 14, "Adding bookmarks & metadata");
         log::debug!("执行 PDF 后处理（书签 + 元数据）...");
         let author_str = book_authors.as_deref();
         pdf_outline::postprocess_pdf(
@@ -165,7 +162,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
         )?;
         log::debug!("PDF 后处理完成");
     } else {
-        print_progress(13, 14, "Skipping outline");
+        crate::utils::print_progress(13, 14, "Skipping outline");
     }
 
     // 11. 清理临时文件
@@ -180,7 +177,7 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
     };
     let size_str = format_file_size(file_size);
     let summary = format!("Done! {} chapters, {}, {} pages", chapter_count, size_str, page_count);
-    print_progress(14, 14, &summary);
+    crate::utils::print_progress(14, 14, &summary);
 
     Ok(())
 }
@@ -207,64 +204,6 @@ pub fn run() -> anyhow::Result<()> {
 // ═══════════════════════════════════════════════════════════════
 // 配置系统
 // ═══════════════════════════════════════════════════════════════
-
-/// 独立输出进度条到 stderr，格式: " \x1b[32m INFO\x1b[0m [====>---]  12% - label (3.2s)"
-///
-/// 在终端中 INFO 显示为绿色，与 env_logger 的 info 级别颜色一致。
-/// 输出到文件/管道时自动降级为纯文本 " INFO"。
-/// 不依赖 log::info，避免时间戳和模块名前缀。
-/// 自动记录首次调用时间，每次显示累计耗时。
-/// - `current`: 当前进度序号（从 1 开始）
-/// - `total`: 总步骤数
-/// - `label`: 英文步骤描述
-pub(crate) fn print_progress(current: u8, total: u8, label: &str) {
-    static START: OnceLock<Instant> = OnceLock::new();
-    let start = *START.get_or_init(Instant::now);
-    let elapsed = start.elapsed();
-
-    let pct = (current as f64) / (total as f64);
-    let width: usize = 20;
-    let filled = (pct * width as f64).round() as usize;
-    let filled = filled.min(width);
-    let pct_int = (pct * 100.0).round() as u8;
-
-    let bar = if filled == 0 {
-        format!("[>{}]", "-".repeat(width - 1))
-    } else if filled >= width {
-        format!("[{}]", "=".repeat(width))
-    } else {
-        format!(
-            "[{}{}{}]",
-            "=".repeat(filled - 1),
-            ">",
-            "-".repeat(width - filled)
-        )
-    };
-
-    let elapsed_str = format_elapsed(elapsed);
-    let info_prefix = if std::io::stderr().is_terminal() {
-        "\x1b[32m INFO\x1b[0m"  // green
-    } else {
-        " INFO"
-    };
-    eprintln!("{} {} {:3}% - {} ({})", info_prefix, bar, pct_int, label, elapsed_str);
-}
-
-/// 格式化持续时间，如 "0.1s", "12.3s", "1m 23s", "2h 5m"
-fn format_elapsed(d: std::time::Duration) -> String {
-    let secs = d.as_secs_f64();
-    if secs < 60.0 {
-        format!("{:.1}s", secs)
-    } else if secs < 3600.0 {
-        let m = (secs / 60.0) as u64;
-        let s = (secs % 60.0) as u64;
-        format!("{}m {}s", m, s)
-    } else {
-        let h = (secs / 3600.0) as u64;
-        let m = ((secs % 3600.0) / 60.0) as u64;
-        format!("{}h {}m", h, m)
-    }
-}
 
 /// 从 PDF 文件中提取总页数
 ///
