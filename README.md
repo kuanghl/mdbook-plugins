@@ -1,93 +1,52 @@
 # mdbook-plugins
 
-单二进制多插件支持的 [mdbook](https://github.com/rust-lang/mdBook) 插件集合。
-
-将 17 个独立插件（13 个预处理器 + 4 个渲染器）整合为**一个二进制**，通过 `command` 字段路由分发。支持**选择性构建**——通过 Cargo features 按需编译，最小配置仅几 MB，完整功能约 **64 MB**（含 tectonic TeX 引擎 + typst + chromiumoxide 等大型依赖）。
+单二进制多插件支持的 [mdbook](https://github.com/rust-lang/mdBook) 插件集合：将 **20 个独立插件**（15 个预处理器 + 5 个渲染器）整合为一个二进制，通过 `command` 字段路由分发，支持 Cargo features 选择性构建。
 
 ## 插件列表
 
-### 预处理器
+**预处理器（15）**
 
-| 插件 | 功能 | 触发语法 |
-|------|------|---------|
-| **mdbook-admonish** | Material Design 提示框（笔记/警告/危险等） | ` ```admonish <type> ` |
-| **mdbook-alerts** | GitHub 风格 Alert 语法 | `> [!NOTE]` / `> [!WARNING]` |
-| **mdbook-echarts** | 统一图表处理（ECharts / Svgbob / Bytefield / LaTeX / TikZ / Pikchr / Typst / WaveDrom） | ` ```echarts ` / ` ```bob ` / ` ```latex tikz ` / ` ```typst ` 等 |
-| **mdbook-emojicodes** | Emoji shortcode 替换 | `:smile:` → 😄 |
-| **mdbook-embedify** | 嵌入式内容（YouTube / CodePen / Giscus 等） | `{% youtube ... %}` |
-| **mdbook-image-viewer** | 图片点击放大（模态框，支持拖拽/滚轮缩放/触控） | `![alt](path)` |
-| **mdbook-katex** | LaTeX 数学公式服务端预渲染（KaTeX） | `$...$` / `$$...$$` |
-| **mdbook-kroki-preprocessor** | Kroki 远程渲染（Graphviz / PlantUML / D2 等） | ` ```kroki-<type> ` |
-| **mdbook-langtabs** | 多语言标签页 | `<!-- langtabs-start -->` |
-| **mdbook-mermaid** | Mermaid 图表占位 | ` ```mermaid ` |
-| **mdbook-pikchr** | Pikchr 图 → 内联 SVG（内置 C 库） | ` ```pikchr ` |
-| **mdbook-svgbob** | ASCII art → SVG | ` ```bob ` |
-| **mdbook-toc** | 自动生成章节目录 | `<!-- toc -->` |
-| **mdbook-wavedrom-rs** | 时序图占位 | ` ```wavedrom ` |
+- [mdbook-admonish](https://github.com/tommilligan/mdbook-admonish.git) — Material Design 提示框（笔记/警告/危险等）
+- [mdbook-alerts](https://github.com/lambdalisue/rs-mdbook-alerts.git) — GitHub 风格 Alert 语法
+- [mdbook-echarts](https://github.com/zhuangbiaowei/mdbook-echarts.git) — 统一图表处理（ECharts / Svgbob / Bytefield / LaTeX / TikZ / Pikchr / Typst / WaveDrom）
+- [mdbook-emojicodes](https://github.com/blyxyas/mdbook-emojicodes.git) — Emoji shortcode 替换
+- [mdbook-embedify](https://github.com/MR-Addict/mdbook-embedify.git) — 嵌入式内容（YouTube / CodePen / Giscus 等）
+- mdbook-image-viewer — 图片点击放大（模态框，支持拖拽/滚轮缩放/触控）
+- [mdbook-katex](https://github.com/lzanini/mdbook-katex.git) — LaTeX 数学公式服务端预渲染（KaTeX）
+- [mdbook-kroki-preprocessor](https://github.com/JoelCourtney/mdbook-kroki-preprocessor.git) — Kroki 远程渲染（Graphviz / PlantUML / D2 等）
+- [mdbook-langtabs](https://github.com/nx10/mdbook-langtabs.git) — 多语言标签页
+- [mdbook-mermaid](https://github.com/badboy/mdbook-mermaid.git) — Mermaid 图表占位
+- mdbook-pdf-preview — PDF 引用内嵌预览（📄 占位，点击 Canvas 渲染，基于 pdf.js）
+- [mdbook-pikchr](https://github.com/podsvirov/mdbook-pikchr.git) — Pikchr 图 → 内联 SVG（内置 C 库）
+- [mdbook-svgbob](https://github.com/boozook/mdbook-svgbob.git) — ASCII art → SVG
+- [mdbook-toc](https://github.com/badboy/mdbook-toc.git) — 自动生成章节目录
+- [mdbook-wavedrom-rs](https://github.com/coastalwhite/wavedrom-rs.git) — 时序图占位
 
-### 渲染器
+**渲染器（5）**
 
-| 插件 | 功能 |
-|------|------|
-| **mdbook-asciidoc** | 输出 AsciiDoc 格式 |
-| **mdbook-linkcheck** | 检查书中所有 Markdown 链接 |
-| **mdbook-office** | 输出 DOCX / XLSX / PPTX（依赖 Chrome/Chromium） |
-| **mdbook-pdf** | PDF 生成（轻量 CDP + CLI 双后端，可选重型 CDP） |
+- [mdbook-asciidoc](https://github.com/daviddrysdale/mdbook-asciidoc.git) — 输出 AsciiDoc 格式
+- mdbook-build-search — 构建中文 bigram 搜索索引
+- [mdbook-linkcheck](https://github.com/Michael-F-Bryan/mdbook-linkcheck.git) — 检查书中所有 Markdown 链接
+- mdbook-office — 输出 DOCX / XLSX / PPTX（依赖 Chrome/Chromium）
+- [mdbook-pdf](https://github.com/HollowMan6/mdbook-pdf.git) — PDF 生成（轻量 CDP + CLI 双后端）
 
-## 快速开始
+## 构建
 
-### 构建
-
-```bash
-git clone <repo-url>
-cd mdbook-plugins
-
-# debug 模式比release 构建速度更快，但体积大
-cargo build
-
-# 构建（Release 模式）
-cargo build --release
-
-# 测试
-cd test-mini
-export PATH="$PATH:$(pwd)/../target/release/"
-mdbook build
-
-cd test
-export PATH="$PATH:$(pwd)/../target/release/"
-mdbook build
-# MDBOOK_LOG=html5ever=off mdbook build    # 禁用html5ever日志
+```sh
+cargo build            # debug 模式（更快，但体积大）
+cargo build --release  # release 模式
+# 产物：target/release/mdbook-plugins
 ```
 
-构建完成后，二进制自动部署到 `test/bin/mdbook-plugins`（通过 `build.rs`）。如无 Chrome/Chromium，可用轻量方案：
+## 使用
 
-```bash
-# 1. 添加第三方 PPA 源
-sudo add-apt-repository ppa:xtradeb/apps -y
-# sudo add-apt-repository --remove ppa:xtradeb/apps
+将产物目录加入 `PATH`：
 
-# 2. 更新软件包列表
-sudo apt update
-
-# 3. 安装传统的 .deb 版 Chromium
-sudo apt install chromium
-
-# 或者
-# 下载 chrome的安装包
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-# 安装 Chrome
-sudo dpkg -i google-chrome-stable_current_amd64.deb
-
-# 移除软件包并删除配置文件
-sudo apt purge chromium
-
-# 清理不再需要的依赖包
-sudo apt autoremove
+```sh
+export PATH="$PATH:$(pwd)/target/release/"
 ```
 
-### 部署
-
-所有插件（预处理和渲染器）统一通过 `book.toml` 的 `command` 字段调用，无需符号链接：
+1. 在 `book.toml` 中通过 `command` 字段注册插件（无需符号链接）：
 
 ```toml
 [preprocessor.katex]
@@ -97,28 +56,12 @@ command = "mdbook-plugins katex"
 command = "mdbook-plugins pdf"
 ```
 
-二进制路径需在 `PATH` 中，或使用绝对路径：`command = "/path/to/mdbook-plugins pdf"`。
+二进制需在 `PATH` 中，或使用绝对路径：`command = "/path/to/mdbook-plugins pdf"`。
 
-### 运行测试
+2. 编写 `src/SUMMARY.md` 与 `.md` 文件。
+3. 执行 `mdbook build` / `mdbook serve --open`。
 
-```bash
-cd test
-
-# 首次需安装 KaTeX（用于公式预渲染，可选）
-npm install katex@0.12.0
-
-# 执行构建
-PATH="bin:$PATH" mdbook build
-```
-
-测试包含：
-- 12 个预处理器插件的 `supports` 协议测试
-- 路由正确性测试
-- 完整 mdbook 构建 + PDF 生成测试
-
-## 配置示例
-
-在 `book.toml` 中配置插件（需设置 `use-default-preprocessors = false`）：
+配置示例（需设置 `use-default-preprocessors = false`）：
 
 ```toml
 [book]
@@ -130,36 +73,18 @@ src = "src"
 [build]
 use-default-preprocessors = false
 
-[preprocessor.index]
-
-[preprocessor.links]
-
 [preprocessor.alerts]
-
-[preprocessor.image-viewer]
-
-[preprocessor.emojicodes]
-
-[preprocessor.toc]
-command = "mdbook-toc"
-renderer = ["html"]
 
 [preprocessor.katex]
 after = ["links"]
 no-css = true
 include-src = true
 
-[preprocessor.admonish]
-command = "mdbook-admonish"
-assets_version = "3.0.1"
-
-[preprocessor.mermaid]
-command = "mdbook-mermaid"
-
 [preprocessor.echarts]
 after = ["katex"]
 
-[preprocessor.pikchr]
+[preprocessor.toc]
+renderer = ["html"]
 
 [output.html]
 curly-quotes = true
@@ -168,105 +93,65 @@ additional-css = ["katex.min.css", "./theme/mdbook-admonish.css"]
 additional-js = [
     "./assets/mermaid/mermaid.min.js",
     "./assets/echarts/echarts.min.js",
-    "./assets/wavedrom/wavedrom.min.js",
-    "./assets/wavedrom/wavedrom.css.js",
-    "./assets/bytefield/bytefield-svg.js",
 ]
 ```
 
+完整示例见 `test/book.toml`。
+
 ## 选择性构建
 
-通过 Cargo features 选择需要的插件，减小体积和编译时间：
+通过 Cargo features 按需编译，减小体积：
 
-```bash
+```sh
 # 仅构建 TOC + KaTeX + Pikchr
 cargo build --release --no-default-features \
     --features "pre-toc,pre-katex,pre-pikchr"
 
-# 完整构建（默认）
+# 完整构建（默认，不含 Office）
 cargo build --release
+
+# 额外启用 Office 渲染器（DOCX / XLSX / PPTX）
+cargo build --release --features ren-office
 ```
 
-可用 features：
+| Feature | 对应插件 | 说明 |
+|---------|---------|------|
+| `pre-*` | 各预处理器 | 轻量，体积影响小 |
+| `pre-tikz` | TikZ/LaTeX 渲染（tectonic + hayro-svg） | 🔴 **极大**（~几十 MB） |
+| `pre-typst` | Typst 图表渲染（typst 引擎） | 🔴 **大** |
+| `ren-*` | 各渲染器 | 除 `ren-office` 外默认启用 |
+| `pre-pdf-cdp-heavy` | PDF 重型 CDP 后端（chromiumoxide） | 🟡 **中等**（默认轻量 CDP） |
 
-| 类别 | Feature | 对应插件 | 说明 |
-|------|---------|---------|------|
-| 预处理器 | `pre-alerts`, `pre-emojicodes`, `pre-toc`, `pre-echarts`, `pre-langtabs`, `pre-mermaid`, `pre-katex`, `pre-admonish`, `pre-svgbob`, `pre-pikchr`, `pre-kroki`, `pre-embedify`, `pre-image-viewer`, `pre-wavedrom` | 对应同名预处理器 | 轻量，体积影响小 |
-| 预处理器 | `pre-tikz` | TikZ/LaTeX 图片渲染（tectonic + hayro-svg） | 🔴 **极大**（~几十 MB） |
-| 预处理器 | `pre-typst` | Typst 图表渲染（typst 引擎） | 🔴 **大** |
-| 渲染器 | `ren-asciidoc`, `ren-linkcheck`, `ren-office`, `ren-pdf` | 对应同名渲染器 | |
-| 渲染器 | `pre-pdf-cdp-heavy` | PDF 重型 CDP 后端（chromiumoxide） | 🟡 **中等**（默认启用轻量 CDP） |
+> 不需要 TikZ/LaTeX 时关闭 `pre-tikz` 可省去 tectonic 引擎（最大体积贡献者）。
 
-> **体积优化建议**：不需要 TikZ/LaTeX 时可关闭 `pre-tikz` 省去 tectonic 引擎（最大体积贡献者）；
-> 不需要 Typst 图表时关闭 `pre-typst`；
-> PDF 渲染默认使用轻量 CDP 后端，`pre-pdf-cdp-heavy` 仅在需要 chromiumoxide 兼容性时启用。
+## 本地测试
 
-## 架构
-
-```
-mdbook → external preprocessor/renderer → command 字段 → mdbook-plugins
-                                                              │
-                                                              ├─ src/main.rs (路由分发)
-                                                              ├─ src/preprocessors/ (14 插件)
-                                                              ├─ src/renderers/ (6 插件)
-                                                              ├─ src/tikz/ (TikZ/LaTeX 编译，#[cfg] 门控)
-                                                              └─ src/typst/ (Typst 编译，#[cfg] 门控)
+```sh
+cd test
+export PATH="$PATH:$(pwd)/../target/release/"
+mdbook build
+mdbook serve --open
+# MDBOOK_LOG=html5ever=off mdbook build   # 禁用 html5ever 日志
 ```
 
-- **单二进制分发**：通过 `command = "mdbook-plugins <name>"` 统一路由到对应插件，无需符号链接
-- **PDF 双后端**：轻量 CDP（默认）+ CLI 回退；可选重型 CDP（`pre-pdf-cdp-heavy`）
-- **TikZ/LaTeX 渲染**：tectonic → PDF → hayro-svg SVG（需要 `pre-tikz` feature）
-- **Typst 渲染**：typst crate 0.15 编译 → SVG + PDF 文件（需要 `pre-typst` feature）
-- **内置 C 库**：`vendor/pikchr.c`（283 KB，Zero-Clause BSD）通过 `cc` crate 编译
-- **前端资产**：预编译 JS（ECharts / Mermaid / WaveDrom / Bytefield 等）存放在 `test/assets/`，通过 `additional-js` 引入
-- **KaTeX 渲染**：通过 Node.js 子进程调用 KaTeX（需安装 `katex` npm 包）
+- `cargo test`：各模块单元测试（KaTeX / ECharts / Mermaid / PDF / TikZ / Typst 等）
+- `mdbook build`：完整书籍构建，HTML / PDF 输出到 `test/books/`（最小验证集见 `test-mini/`）
 
-## 目录结构
+## 环境依赖
 
-```
-mdbook-plugins/
-├── Cargo.toml           # 项目配置
-├── build.rs             # 编译 pikchr C 库 + 部署二进制
-├── vendor/
-│   └── pikchr.c         # 内置 pikchr C 源码
-├── src/
-│   ├── main.rs          # 入口：argv[0] 路由分发
-│   ├── lib.rs           # 库入口
-│   ├── utils.rs         # 通用工具函数
-│   ├── preprocessors/   # 14 个预处理器
-│   ├── renderers/       # 6 个渲染器（pdf 含双后端：CDP + CLI）
-│   ├── tikz/            # TikZ/LaTeX 编译引擎（条件编译，需 pre-tikz）
-│   └── typst/           # Typst 编译引擎（条件编译，需 pre-typst）
-├── test/
-│   ├── book.toml        # 测试配置
-│   ├── bin/             # 符号链接部署目录
-│   ├── src/             # 测试 Markdown 源文件
-│   ├── assets/          # 前端 JS/CSS 资产
-│   ├── theme/           # 主题 CSS
-│   └── verify.sh        # 验证脚本
-└── docs/                # 项目文档（mdbook 格式）
-```
+- **Rust**（edition 2021）
+- **Chrome/Chromium**（可选）：用于 Office 和 PDF 渲染
 
-## 依赖
+公式渲染使用内置 `katex-rs`（纯 Rust，无需 Node.js）。
 
-- **Rust**：edition 2021，需 Rust 1.70+
-- **KaTeX**：（可选）`npm install katex@0.12.0`，用于服务端公式渲染
-- **Chrome/Chromium**：（可选）用于 Office 和 PDF 渲染。推荐轻量级安装方式：
+## 注意事项
 
-  ```bash
-  # 方案 A：chromium-browser（snap，一行命令，推荐）
-  sudo apt install chromium-browser
-
-  # 方案 B：Playwright Chromium（纯用户态，无需 root，适合 CI/CD）
-  # npx playwright install chromium
-  # CHROME="$HOME/.cache/ms-playwright/chromium-*/chrome-linux64/chrome"
-  ```
-
-- **Node.js**：（可选）用于 KaTeX 服务端渲染
+> 将 `katex.min.css` 放在书籍根目录，否则公式格式不正确。
+>
+> `mdbook` 保持 0.4.36 版本，否则格式不正确。
+>
+> Windows 上 `mdbook-katex` 使用 `x86_64-pc-windows-gnu.zip` 版本，否则 KaTeX 格式不正确。
 
 ## 许可
 
-本项目包含的 `vendor/pikchr.c` 采用 [Zero-Clause BSD license](https://opensource.org/licenses/0BSD)，
-由 D. Richard Hipp（SQLite 作者）开发。
-
-其余代码采用 MIT 许可证。
+MIT；内置的 `vendor/pikchr.c` 采用 [Zero-Clause BSD](https://opensource.org/licenses/0BSD)。

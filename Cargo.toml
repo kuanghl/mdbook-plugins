@@ -2,8 +2,25 @@
 name = "mdbook-plugins"
 version = "0.1.0"
 edition = "2021"
-description = "单二进制多插件支持的 mdbook 插件集合"
+description = "A single binary bundling 20 mdbook plugins (preprocessors and renderers), dispatched via command routing."
 authors = ["mdbook-plugins"]
+license = "MIT"
+repository = "https://github.com/kuanghl/mdbook-plugins"
+readme = "README.md"
+keywords = ["mdbook", "plugin", "preprocessor", "renderer", "documentation"]
+categories = ["development-tools", "text-processing"]
+
+# 仅打包运行所需文件（crates.io 限制 .crate ≤ 10 MiB，
+# test/、docs/ 等约 36 MB 的测试数据与文档不进入发布包）
+include = [
+    "src/**",
+    "build.rs",
+    "vendor/**",
+    "assets/**",
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+]
 
 [[bin]]
 name = "mdbook-plugins"

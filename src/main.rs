@@ -16,9 +16,9 @@ const KNOWN_SHORT_NAMES: &[&str] = &[
     "image-viewer", "katex", "kroki-preprocessor", "langtabs",
     "mermaid", "pdf-preview", "pikchr", "plugins", "svgbob", "toc", "wavedrom-rs",
     // 渲染器
-    "asciidoc", "linkcheck",
+    "asciidoc", "linkcheck", "pdf",
     #[cfg(feature = "ren-office")]
-    "office", "pdf",
+    "office",
     // 独立工具
     "build-search",
 ];
