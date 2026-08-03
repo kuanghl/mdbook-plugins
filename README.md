@@ -156,6 +156,27 @@ mdbook serve --open
 
 公式渲染使用内置 `katex-rs`（纯 Rust，无需 Node.js）。
 
+### Windows 安装说明
+
+默认构建（`all` features）包含 `pre-tikz`（tectonic TeX 引擎），其编译需要 **pkg-config 与 libpng** 系统库。
+Windows 上未安装时会报错：`The pkg-config command could not be found`（来自 `tectonic_bridge_png`）。
+
+**方案一（推荐，无需系统库）**——跳过重型 features 安装，覆盖全部常用插件（katex / echarts / mermaid / toc / pdf 等）：
+
+```powershell
+cargo install mdbook-plugins --no-default-features --features "pre-alerts,pre-emojicodes,pre-toc,pre-echarts,pre-langtabs,pre-mermaid,pre-katex,pre-admonish,pre-svgbob,pre-pikchr,pre-kroki,pre-embedify,pre-image-viewer,pre-wavedrom,pre-pdfviewer,ren-asciidoc,ren-linkcheck,ren-pdf"
+```
+
+**方案二（完整功能，含 TikZ/LaTeX）**——先安装 pkg-config 与 libpng：
+
+```powershell
+choco install pkgconfiglite
+# 或 MSYS2: pacman -S pkg-config mingw-w64-x86_64-libpng
+cargo install mdbook-plugins
+```
+
+> 注：`pre-typst` 为纯 Rust 库，无系统库依赖，需要时可随时 `--features pre-typst` 追加。
+
 ## 注意事项
 
 > 将 `katex.min.css` 放在书籍根目录，否则公式格式不正确。
