@@ -35,6 +35,14 @@ jobs:
       - name: Add target
         run: rustup target add ${{ matrix.target }}
 
+      # vcpkg 二进制缓存：首次编译 6 个 C 库约 10-30 分钟，缓存后秒级命中
+      - name: Cache vcpkg binaries
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vcpkg-cache
+          key: vcpkg-cache-${{ runner.os }}
+
       # ── 系统库依赖（tectonic → pre-tikz 需要 pkg-config/vcpkg 找到 C 库）──
 
       - name: Install C deps (Linux)
@@ -61,6 +69,8 @@ jobs:
           "TECTONIC_DEP_BACKEND=vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKGRS_TRIPLET=x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # 二进制缓存目录（与上方 actions/cache 对应），二次构建直接命中
+          "VCPKG_DEFAULT_BINARY_CACHE=${{ runner.temp }}\vcpkg-cache" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
