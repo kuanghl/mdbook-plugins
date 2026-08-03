@@ -60,7 +60,7 @@ jobs:
           vcpkg install libpng:x64-windows-static-md freetype:x64-windows-static-md fontconfig:x64-windows-static-md graphite2:x64-windows-static-md harfbuzz:x64-windows-static-md icu:x64-windows-static-md
           "TECTONIC_DEP_BACKEND=vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "VCPKGRS_TRIPLET=x86_64-pc-windows-msvc-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKGRS_TRIPLET=x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}

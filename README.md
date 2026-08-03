@@ -191,7 +191,7 @@ git clone https://github.com/microsoft/vcpkg
 # 永久设置环境变量（用户级，写入注册表；VCPKG_ROOT 请替换为实际路径）
 setx TECTONIC_DEP_BACKEND "vcpkg"
 setx VCPKG_ROOT "C:\path\to\vcpkg"
-setx VCPKGRS_TRIPLET "x86_64-pc-windows-msvc-static-md"
+setx VCPKGRS_TRIPLET "x64-windows-static-md"
 
 # setx 对当前终端不生效，请新开一个终端后执行
 cargo install mdbook-plugins
