@@ -18,7 +18,8 @@
 
 ```bash
 cd /home/kuanghl/workspace/rpp/mdbook-plugins
-cargo login <你的 API token>
+echo "你的Token" | cargo login
+# cargo login --registry 你的registry名 可以指向使用的镜像
 # 凭证保存在 ~/.cargo/credentials，token 不要泄露到仓库或文档
 ```
 
@@ -83,6 +84,10 @@ cargo publish
 ```bash
 cargo install mdbook-plugins
 mdbook-plugins --help
+mdbook-plugins --version
+
+# 卸载指令
+cargo uninstall mdbook-plugins
 ```
 
 > docs.rs 默认按 `default` features 构建文档，其中 `pre-tikz`（tectonic）、`pre-typst` 依赖较重，构建可能超时。

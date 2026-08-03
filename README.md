@@ -33,6 +33,11 @@
 ## 构建
 
 ```sh
+# 直接安装使用
+cargo install mdbook-plugins
+mdbook-plugins --help
+mdbook-plugins --version
+
 cargo build            # debug 模式（更快，但体积大）
 cargo build --release  # release 模式
 # 产物：target/release/mdbook-plugins
@@ -60,6 +65,13 @@ command = "mdbook-plugins pdf"
 
 2. 编写 `src/SUMMARY.md` 与 `.md` 文件。
 3. 执行 `mdbook build` / `mdbook serve --open`。
+
+查看帮助与版本：
+
+```sh
+mdbook-plugins --help      # 用法与当前启用的插件列表
+mdbook-plugins --version   # 版本号（或 -V）
+```
 
 配置示例（需设置 `use-default-preprocessors = false`）：
 

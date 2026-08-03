@@ -33,7 +33,9 @@ pub const PLUGIN_NAMES: &[&str] = &[
     "mdbook-wavedrom-rs",
     // 渲染器
     "mdbook-asciidoc",
+    "mdbook-build-search",
     "mdbook-linkcheck",
+    #[cfg(feature = "ren-office")]
     "mdbook-office",
     "mdbook-pdf",
 ];

@@ -28,6 +28,29 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
 
+    // CLI 帮助 / 版本（在插件路由之前处理，避免被当作插件名解析）
+    match args.get(1).map(|s| s.as_str()) {
+        Some("-h") | Some("--help") => {
+            let bin = args
+                .first()
+                .map(|p| {
+                    Path::new(p)
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .unwrap_or_else(|| "mdbook-plugins".to_string());
+            print_help(&bin);
+            return;
+        }
+        Some("-V") | Some("--version") => {
+            println!("mdbook-plugins {}", env!("CARGO_PKG_VERSION"));
+            return;
+        }
+        _ => {}
+    }
+
     // CLI 直接调用：mdbook-plugins build-search <html-dir>
     // （区别于 Renderer 模式：后者通过 stdin 接收 RenderContext，无目录参数）
     if args.len() >= 3 && args[1] == "build-search" {
@@ -51,6 +74,29 @@ fn main() {
     }
 
     run_plugin(&plugin_name, &plugin_args);
+}
+
+/// 打印 CLI 帮助信息（--help / -h）
+///
+/// `bin` 为调用名（argv[0] 的 file_stem），符号链接方式（如 mdbook-katex）时
+/// 也能正确显示调用名。
+fn print_help(bin: &str) {
+    println!("{bin} — 单二进制多插件支持的 mdbook 插件集合");
+    println!();
+    println!("用法:");
+    println!("  {bin} <plugin> [args...]    # 参数方式，如: {bin} katex");
+    println!("  mdbook-<plugin> [args...]   # 符号链接方式，如: mdbook-katex");
+    println!("  {bin} --help                # 显示本帮助");
+    println!("  {bin} --version             # 显示版本号");
+    println!();
+    println!("可用插件（随 Cargo features 编译，当前已启用）:");
+    println!("  {}", KNOWN_SHORT_NAMES.join(", "));
+    println!();
+    println!("在 book.toml 中注册（无需符号链接）:");
+    println!("  [preprocessor.<name>]");
+    println!("  command = \"{bin} <name>\"");
+    println!("  [output.<name>]");
+    println!("  command = \"{bin} <name>\"");
 }
 
 /// 解析命令行参数，返回 (插件全名, 剩余参数)
