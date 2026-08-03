@@ -43,6 +43,12 @@ jobs:
           path: ${{ runner.temp }}/vcpkg-cache
           key: vcpkg-cache-${{ runner.os }}
 
+      # 注意：GITHUB_ENV 只对后续步骤生效，必须在 vcpkg install 之前设置好二进制缓存路径
+      - name: Enable vcpkg binary cache
+        if: runner.os == 'Windows'
+        run: |
+          "VCPKG_DEFAULT_BINARY_CACHE=${{ runner.temp }}\vcpkg-cache" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       # sccache：缓存 Rust 依赖 crate 的编译产物，跨 tag 复用（依赖不变时命中）
       - name: Cache sccache
         uses: actions/cache@v4
@@ -78,8 +84,6 @@ jobs:
           "TECTONIC_DEP_BACKEND=vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKGRS_TRIPLET=x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
-          # 二进制缓存目录（与上方 actions/cache 对应），二次构建直接命中
-          "VCPKG_DEFAULT_BINARY_CACHE=${{ runner.temp }}\vcpkg-cache" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
