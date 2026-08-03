@@ -57,20 +57,24 @@ impl TypstWorld {
     }
 
     fn package_root() -> PathBuf {
+        // 1. 显式 TYPST_PACKAGES（跨平台）
         if let Ok(dir) = std::env::var("TYPST_PACKAGES") {
             let p = PathBuf::from(dir);
             if p.is_dir() || p.parent().map_or(false, |parent| parent.is_dir()) {
                 return p;
             }
         }
-        if let Ok(base) = std::env::var("XDG_DATA_HOME") {
-            let p = PathBuf::from(base).join("typst").join("packages");
-            if p.is_dir() || p.ancestors().any(|a| a.is_dir()) {
-                return p;
+        // 2. 平台默认目录（Unix: XDG/HOME；Windows: %APPDATA%）
+        #[cfg(unix)]
+        {
+            if let Ok(base) = std::env::var("XDG_DATA_HOME") {
+                let p = PathBuf::from(base).join("typst").join("packages");
+                if p.is_dir() || p.ancestors().any(|a| a.is_dir()) {
+                    return p;
+                }
             }
         }
-        let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
-        let standard = PathBuf::from(&home).join(".local/share/typst/packages");
+        let standard = Self::default_packages_dir();
         let test_file = standard.join(".write_test");
         if std::fs::create_dir_all(&standard).is_ok()
             && std::fs::write(&test_file, "").is_ok()
@@ -78,10 +82,27 @@ impl TypstWorld {
             let _ = std::fs::remove_file(&test_file);
             return standard;
         }
-        let tmp = PathBuf::from("/tmp/typst-packages");
-        log::warn!("~/.local/share/typst/packages 不可写，使用 {:?}", tmp);
+        // 3. 兜底：系统临时目录（跨平台）
+        let tmp = std::env::temp_dir().join("typst-packages");
+        log::warn!("{} 不可写，使用 {:?}", standard.display(), tmp);
         let _ = std::fs::create_dir_all(&tmp);
         tmp
+    }
+
+    /// 平台默认的 typst 包目录（Unix：~/.local/share/typst/packages）
+    #[cfg(unix)]
+    fn default_packages_dir() -> PathBuf {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
+        PathBuf::from(&home).join(".local/share/typst/packages")
+    }
+
+    /// 平台默认的 typst 包目录（Windows：%APPDATA%/typst/packages）
+    #[cfg(windows)]
+    fn default_packages_dir() -> PathBuf {
+        if let Ok(base) = std::env::var("APPDATA") {
+            return PathBuf::from(base).join("typst").join("packages");
+        }
+        std::env::temp_dir().join("typst-packages")
     }
 
     fn resolve_package(spec: &PackageSpec) -> Option<PathBuf> {

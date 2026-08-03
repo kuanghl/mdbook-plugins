@@ -318,7 +318,7 @@ fn invalidate_pool_chrome() {
     if let Some(p) = pool.take() {
         if let Some(pid) = p.child.id() {
             // 先终止进程，再丢弃资源（child handle + temp dir）
-            unsafe { libc::kill(pid as i32, libc::SIGKILL); }
+            crate::utils::kill_process(pid);
         }
         drop(p);
         log::debug!("已终止失效的 Chrome 进程");
@@ -333,11 +333,13 @@ fn invalidate_pool_chrome() {
 pub fn shutdown_pool() {
     let mut pool = CHROME_POOL.lock().unwrap();
     if let Some(p) = pool.take() {
-        // 先尝试优雅终止（SIGTERM），等待一小段时间后再强杀
+        // 先尝试优雅终止，等待一小段时间后再强杀
         if let Some(pid) = p.child.id() {
-            unsafe { libc::kill(pid as i32, libc::SIGTERM); }
+            crate::utils::terminate_process(pid);
             // 给 Chrome 一点时间优雅退出
             std::thread::sleep(std::time::Duration::from_millis(200));
+            // 强杀兜底，确保进程被回收（对已退出的 PID 调用无副作用）
+            crate::utils::kill_process(pid);
         }
         // drop child 时会尝试 wait（非阻塞）
         drop(p);

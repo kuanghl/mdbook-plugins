@@ -325,6 +325,35 @@ pub(crate) fn format_elapsed(d: std::time::Duration) -> String {
 /// 与 print_progress 风格一致，终端中 INFO 显示为绿色。
 /// 不受 RUST_LOG 级别影响，始终输出。
 /// 输出到文件/管道时自动降级为纯文本 " INFO"。
+/// 强杀进程：Unix 用 SIGKILL；Windows 用 `taskkill /F /T`（`libc::kill` 为 POSIX API，Windows 不可用）
+pub(crate) fn kill_process(pid: u32) {
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(pid as i32, libc::SIGKILL);
+    }
+    #[cfg(windows)]
+    {
+        // /T：连同子进程树一起终止（Chrome 会派生渲染子进程）
+        let _ = std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F", "/T"])
+            .output();
+    }
+}
+
+/// 优雅终止进程：Unix 用 SIGTERM；Windows 用 `taskkill`（不带 /F，先请求关闭）
+pub(crate) fn terminate_process(pid: u32) {
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(pid as i32, libc::SIGTERM);
+    }
+    #[cfg(windows)]
+    {
+        let _ = std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T"])
+            .output();
+    }
+}
+
 pub fn print_status(msg: &str) {
     let info_prefix = if std::io::stderr().is_terminal() {
         "\x1b[32m INFO\x1b[0m"
@@ -336,6 +365,20 @@ pub fn print_status(msg: &str) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[cfg(unix)]
+    fn test_kill_process_terminates_child() {
+        // spawn 一个长 sleep 子进程，kill 后应被 SIGKILL 终止
+        let mut child = std::process::Command::new("sleep")
+            .arg("60")
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        kill_process(pid);
+        let status = child.wait().unwrap();
+        assert!(!status.success(), "子进程应被强制终止");
+        assert!(status.code().is_none(), "被信号终止时无退出码");
+    }
     use super::*;
 
     #[test]

@@ -293,16 +293,17 @@ pub fn render_chrome_cli(
             _keep_user_data_dir = Some(dir);
         }
         Err(_) => {
-            let fallback = format!(
-                "/tmp/mdbook-pdf-runner/{}-{}",
+            // 系统临时目录兜底（跨平台，Windows 无 /tmp）
+            let fallback = std::env::temp_dir().join(format!(
+                "mdbook-pdf-runner-{}-{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_nanos())
                     .unwrap_or(0)
-            );
+            ));
             let _ = std::fs::create_dir_all(&fallback);
-            user_data_dir = std::path::PathBuf::from(fallback);
+            user_data_dir = fallback;
             _keep_user_data_dir = None;
         }
     }
@@ -457,10 +458,8 @@ fn wait_with_timeout(
     match rx.recv_timeout(std::time::Duration::from_secs(timeout_secs)) {
         Ok(output) => Ok(output),
         Err(mpsc::RecvTimeoutError::Timeout) => {
-            // 超时：杀掉子进程
-            unsafe {
-                libc::kill(child_pid as i32, libc::SIGKILL);
-            }
+            // 超时：杀掉子进程（跨平台：Unix SIGKILL / Windows taskkill）
+            crate::utils::kill_process(child_pid);
             Err(anyhow::anyhow!("Chrome 执行超时 ({}s)，已终止进程 (PID {})", timeout_secs, child_pid))
         }
         Err(mpsc::RecvTimeoutError::Disconnected) => {
