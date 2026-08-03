@@ -386,7 +386,16 @@ fn find_chrome() -> Option<std::path::PathBuf> {
             "chromium",
         ]
     } else {
-        vec!["chrome", "chromium", "msedge"]
+        // Windows：Edge 默认不在 PATH，直接列出标准安装路径（Windows 10/11 自带 Edge）
+        vec![
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            "chrome",
+            "chromium",
+            "msedge",
+        ]
     };
 
     for name in &candidates {

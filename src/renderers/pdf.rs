@@ -61,6 +61,16 @@ pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
     // Drop guard 确保函数退出时关闭 Chrome 子进程
     let _cleanup = ChromeCleanup;
 
+    // 预检浏览器：未找到时跳过 PDF 输出，不阻断 HTML 构建
+    // （Windows 10/11 自带 Edge，会自动探测标准安装路径）
+    if pdf_chrome_cdp_light::resolve_chrome_path(&cfg).is_none() {
+        log::warn!(
+            "未找到 Chrome/Chromium/Edge，跳过 PDF 生成（HTML 输出不受影响）。\
+             可设置环境变量 CHROME 或 book.toml 的 browser-binary-path 后重试。"
+        );
+        return Ok(());
+    }
+
     // 2. 定位 print.html
     let html_dir = ctx
         .destination

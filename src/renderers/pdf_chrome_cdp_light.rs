@@ -95,8 +95,8 @@ fn file_url(path: &Path) -> Result<String> {
     Ok(url.to_string())
 }
 
-/// 查找 Chrome 可执行文件路径
-fn resolve_chrome_path(cfg: &PdfOptions) -> Option<std::path::PathBuf> {
+/// 查找 Chrome 可执行文件路径（含 Windows 标准安装路径）
+pub(crate) fn resolve_chrome_path(cfg: &PdfOptions) -> Option<std::path::PathBuf> {
     // 环境变量 CHROME 优先
     if let Ok(path) = std::env::var("CHROME") {
         let p = std::path::PathBuf::from(&path);
@@ -126,6 +126,19 @@ fn find_chrome_in_path() -> Option<std::path::PathBuf> {
     for name in &candidates {
         if let Some(path) = search_path(name) {
             return Some(path);
+        }
+    }
+    // Windows：Edge/Chrome 默认不在 PATH，需检查标准安装路径（Windows 10/11 自带 Edge）
+    #[cfg(windows)]
+    for path in [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ] {
+        let p = std::path::PathBuf::from(path);
+        if p.is_file() {
+            return Some(p);
         }
     }
     None
