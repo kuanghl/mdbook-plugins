@@ -50,13 +50,15 @@ anyhow = "1"
 uuid = { version = "1", features = ["v4"] }
 
 # SVG 渲染 (svgbob)
-svgbob = "0.7"
+svgbob = "0.7.6"
 
 # HTTP/异步 (kroki, linkcheck)
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+# 注意：svgbob → sauron → sauron-core 将 futures 精确锁定为 0.3.30，
+# 故此处需保持宽松约束 "0.3"（不能写 "0.3.33"，否则版本解析冲突）
 futures = "0.3"
-reqwest = { version = "0.12", default-features = false, features = ["native-tls", "blocking"] }
-base64 = "0.22"
+reqwest = { version = "0.13", default-features = false, features = ["native-tls", "blocking"] }
+base64 = "0.23"
 flate2 = "1"
 tar = "0.4"
 
@@ -65,9 +67,9 @@ katex-rs = "0.2.4"
 rayon = "1"
 
 # TeX → PDF 编译（tectonic 引擎）
-tectonic = { version = "0.16", optional = true }
+tectonic = { version = "0.17", optional = true }
 
-sha2 = "0.10"
+sha2 = "0.11"
 
 # PDF → SVG 转换（hayro-svg）
 hayro-svg = { version = "0.7", optional = true }
@@ -97,13 +99,13 @@ chromiumoxide = { version = "0.9.1", optional = true }
 chromiumoxide_cdp = { version = "0.9.1", optional = true }
 
 # 轻量 CDP 客户端（替代 chromiumoxide）
-tokio-tungstenite = "0.24"
+tokio-tungstenite = "0.30"
 
 # HTML DOM 解析（PDF HTML 预处理）
-scraper = "0.22"
+scraper = "0.27"
 
 # PDF 后处理（大纲/书签 + 元数据）
-lopdf = "0.34"
+lopdf = "0.44"
 indexmap = "2"
 tempfile = "3"
 emojis = "0.9.0"

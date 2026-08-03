@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 pub fn tikz_content_hash(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
-    format!("{:x}", hasher.finalize())
+    // sha2 0.11 的 finalize() 返回 hybrid-array（无 LowerHex），逐字节转十六进制
+    hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 /// 编译 TikZ → SVG（+中间 PDF），写入缓存文件，返回 (每页 SVG 字符串列表, 内容 hash)。

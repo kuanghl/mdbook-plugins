@@ -165,11 +165,9 @@ static CHROME_POOL: once_cell::sync::Lazy<Mutex<Option<PooledChrome>>> =
 /// 通过 Browser.getVersion 快速验证 Chrome 进程是否健康
 async fn verify_chrome_health(ws_url: &str, timeout: Duration) -> bool {
     match tokio::time::timeout(timeout, async {
-        let ws_config = WebSocketConfig {
-            max_frame_size: Some(256 * 1024 * 1024),
-            max_message_size: Some(256 * 1024 * 1024),
-            ..Default::default()
-        };
+        let mut ws_config = WebSocketConfig::default();
+        ws_config.max_frame_size = Some(256 * 1024 * 1024);
+        ws_config.max_message_size = Some(256 * 1024 * 1024);
         let (ws, _) = connect_async_with_config(ws_url, Some(ws_config), false)
             .await
             .map_err(|_| "连接失败")?;
@@ -177,7 +175,7 @@ async fn verify_chrome_health(ws_url: &str, timeout: Duration) -> bool {
 
         // 发送 Browser.getVersion（无需 session，最快验证方式）
         let req = serde_json::json!({"id": 1, "method": "Browser.getVersion"});
-        futures::SinkExt::send(&mut write, Message::Text(req.to_string()))
+        futures::SinkExt::send(&mut write, Message::Text(req.to_string().into()))
             .await
             .map_err(|_| "发送失败")?;
 
@@ -382,12 +380,10 @@ struct CdpSession {
 impl CdpSession {
     /// 连接到 Chrome DevTools
     async fn connect(ws_url: &str, timeout: Duration) -> Result<Self> {
-        let ws_config = WebSocketConfig {
-            // 默认 max_frame_size=16MB 对大型 PDF(base64) 不够，设为 256MB
-            max_frame_size: Some(256 * 1024 * 1024),
-            max_message_size: Some(256 * 1024 * 1024),
-            ..Default::default()
-        };
+        let mut ws_config = WebSocketConfig::default();
+        // 默认 max_frame_size=16MB 对大型 PDF(base64) 不够，设为 256MB
+        ws_config.max_frame_size = Some(256 * 1024 * 1024);
+        ws_config.max_message_size = Some(256 * 1024 * 1024);
         let connect_fut = connect_async_with_config(ws_url, Some(ws_config), false);
         let (ws, _) = tokio::time::timeout(timeout, connect_fut)
             .await
@@ -418,7 +414,7 @@ impl CdpSession {
         // 发送命令
         {
             let mut ws = self.write.lock().await;
-            futures::SinkExt::send(&mut *ws, Message::Text(request.to_string())).await
+            futures::SinkExt::send(&mut *ws, Message::Text(request.to_string().into())).await
                 .map_err(|e| anyhow::anyhow!("WebSocket 发送失败: {}", e))?;
         }
 
@@ -451,7 +447,7 @@ impl CdpSession {
                 }
                 Ok(Some(Ok(Message::Ping(_)))) => {
                     let mut ws = self.write.lock().await;
-                    let _ = futures::SinkExt::send(&mut *ws, Message::Pong(vec![])).await;
+                    let _ = futures::SinkExt::send(&mut *ws, Message::Pong(vec![].into())).await;
                 }
                 Ok(Some(Ok(Message::Close(_)))) => bail!("CDP WebSocket 连接已关闭"),
                 Ok(Some(Err(e))) => bail!("WebSocket 接收错误: {}", e),
@@ -488,7 +484,7 @@ impl CdpSession {
                 }
                 Ok(Some(Ok(Message::Ping(_)))) => {
                     let mut ws = self.write.lock().await;
-                    let _ = futures::SinkExt::send(&mut *ws, Message::Pong(vec![])).await;
+                    let _ = futures::SinkExt::send(&mut *ws, Message::Pong(vec![].into())).await;
                 }
                 Ok(Some(Ok(Message::Close(_)))) => bail!("CDP WebSocket 连接已关闭"),
                 Ok(Some(Err(e))) => bail!("WebSocket 接收错误: {}", e),

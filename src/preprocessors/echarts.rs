@@ -20,7 +20,7 @@ use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use svgbob::Render;
+use svgbob;
 use uuid::Uuid;
 
 pub struct ChartPreprocessor;
@@ -255,15 +255,8 @@ fn svgbob_gen_html(mat_str: &str) -> String {
         return String::new();
     }
 
-    let settings = svgbob::Settings::default();
-    let cb = svgbob::CellBuffer::from(content.as_str());
-    let (svg_node, _, _): (svgbob::Node<()>, f32, f32) = cb.get_node_with_size(&settings);
-
-    let mut source = String::new();
-    if let Err(e) = svg_node.render_with_indent(&mut source, 0, true) {
-        log::warn!("svgbob 渲染失败: {}", e);
-        return format!(r#"<pre><code class="language-bob">{}</code></pre>"#, content);
-    }
+    // svgbob 0.7.6 起移除 Render trait（render_with_indent），改用官方 to_svg_string_pretty()
+    let source = svgbob::to_svg_string_pretty(&content);
 
     let uuid = Uuid::new_v4().to_string().replace('-', "");
     let svg = source.replace("svgbob", &format!("svgbob_{}", uuid));
@@ -615,7 +608,7 @@ mod tests {
         use sha2::{Digest, Sha256};
         let mut h = Sha256::new();
         h.update(seed.as_bytes());
-        format!("{:x}", h.finalize())
+        h.finalize().iter().map(|b| format!("{:02x}", b)).collect()
     }
 
     #[test]

@@ -249,7 +249,7 @@ fn collect_name_tree(doc: &Document, obj: &Object, map: &mut IndexMap<String, Ob
                         if chunk.len() == 2 {
                             let name_bytes = chunk[0]
                                 .as_name().ok().map(|n| n.to_vec())
-                                .or_else(|| chunk[0].as_string().ok().map(|s| s.as_bytes().to_vec()));
+                                .or_else(|| chunk[0].as_str().ok().map(|s| s.to_vec()));
                             if let Some(nb) = name_bytes {
                                 let name = percent_decode_to_lossy(&nb);
                                 if let Some(pid) = dest_obj_to_page_id(doc, &chunk[1]) {

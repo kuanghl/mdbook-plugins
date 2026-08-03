@@ -471,7 +471,8 @@ fn wait_with_timeout(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    #[cfg(feature = "pre-pdf-cdp-heavy")]
+    use super::{PdfOptions, build_print_to_pdf_params};
 
     #[test]
     #[cfg(feature = "pre-pdf-cdp-heavy")]
