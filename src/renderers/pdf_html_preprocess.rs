@@ -104,8 +104,11 @@ pub fn remove_cdn_module_scripts(html: &str) -> String {
 }
 
 /// 注入 JS 脚本:
-/// - enable_emoji=true: 包含 Emoji 处理（正则预过滤 + 二分查找）
-/// - enable_emoji=false: 跳过 Emoji 处理，使用系统字体回退，节省 10-15s
+/// - enable_emoji=true: 使用 @font-face 的 COLR 矢量 emoji 字体（可嵌入 PDF，体积小）
+/// - enable_emoji=false: 跳过 Emoji 处理，系统字体回退。注意：**不节省渲染时间**
+///   （PDF 耗时主要在 window.load 等资源加载，与 emoji 无关），且彩色 emoji
+///   系统字体（如 Segoe UI Emoji）无法嵌入 PDF，会被位图化导致 PDF 体积暴涨
+///   （实测 26MB → 96MB）。建议保持默认开启。
 /// - 执行顺序：window.load → DOM操作 → Emoji处理 → 2帧RAF → 哨兵
 pub fn inject_js(html: &str, enable_emoji: bool) -> String {
     // 1. Emoji 函数定义（必须放在最前面，在调用之前）
@@ -757,7 +760,8 @@ pub fn preprocess(
     result = inject_tikz_anchors(&result);
 
     // 8. Emoji 字体——仅在启用时注入 @font-face
-    //    关闭后系统字体回退，可节省 10-15s 渲染时间
+    //    注意：关闭不会省时（耗时在 window.load 资源加载），且系统彩色 emoji
+    //    字体无法嵌入 PDF 会位图化导致体积暴涨（26MB → 96MB），建议保持默认开启
     if cfg.enable_emoji_font {
     if let Some(root) = book_root {
         let fonts_dir = root.join("theme").join("fonts");

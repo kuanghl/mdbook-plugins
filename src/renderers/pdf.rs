@@ -309,7 +309,8 @@ pub struct PdfOptions {
 
     // ── 性能优化 ──
     /// 启用 Emoji 字体处理（@font-face + TreeWalker 扫描）
-    /// 关闭后系统字体回退，可节省 10-15s 渲染时间
+    /// 关闭后系统字体回退。注意：不省时（PDF 耗时主要在资源加载），
+    /// 且彩色 emoji 系统字体无法嵌入 PDF，会被位图化导致 PDF 体积暴涨（26MB → 96MB）
     pub enable_emoji_font: bool,
 }
 
@@ -449,7 +450,7 @@ impl Default for PdfOptions {
             generate_document_outline: true,
             generate_tagged_pdf: true,
             static_site_url: String::new(),
-            enable_emoji_font: true, // 默认启用，可通过配置关闭以提升性能
+            enable_emoji_font: true, // 默认开启：COLR emoji 字体可嵌入 PDF（体积小）；关闭会位图化导致 PDF 体积暴涨
         }
     }
 }

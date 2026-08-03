@@ -204,6 +204,10 @@ cargo install mdbook-plugins
 > `mdbook` 保持 0.4.36 版本，否则格式不正确。
 >
 > Windows 上 `mdbook-katex` 使用 `x86_64-pc-windows-gnu.zip` 版本，否则 KaTeX 格式不正确。
+>
+> PDF 渲染耗时主要在资源加载（等待全部图片/样式），与 emoji 处理无关；Windows 下可将构建目录加入
+> **Windows Defender 排除项** 缓解实时扫描 IO 开销。`enable-emoji-font` 请保持默认开启：
+> 关闭不会省时，且彩色 emoji 系统字体无法嵌入 PDF、会被位图化导致 PDF 体积暴涨（实测 26MB → 96MB）。
 
 ## 许可
 
