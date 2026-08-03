@@ -34,6 +34,7 @@
     - [检查发布元数据](./cargo-publish.md#检查发布元数据)
     - [本地验证](./cargo-publish.md#本地验证发布前)
     - [正式发布](./cargo-publish.md#正式发布)
+    - [发布预编译二进制](./cargo-publish.md#发布预编译二进制github-tag-触发)
     - [发布后验证](./cargo-publish.md#发布后验证)
     - [更新版本](./cargo-publish.md#更新版本并再次发布)
     - [撤回版本（yank）](./cargo-publish.md#撤回版本yank)

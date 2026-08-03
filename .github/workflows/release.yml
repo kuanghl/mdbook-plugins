@@ -1,0 +1,89 @@
+name: Release
+
+# 打 tag（v*）时触发：在 3 个平台编译全功能版（含 tectonic/typst）并上传预编译二进制
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
+      # ── 系统库依赖（tectonic → pre-tikz 需要 pkg-config/vcpkg 找到 C 库）──
+
+      - name: Install C deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config libpng-dev libfreetype6-dev libfontconfig1-dev \
+            libgraphite2-dev libharfbuzz-dev libicu-dev
+
+      - name: Install C deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkg-config libpng freetype fontconfig graphite2 harfbuzz icu4c
+          # icu4c 是 keg-only，需手动把 pkg-config 路径加上
+          echo "PKG_CONFIG_PATH=$(brew --prefix icu4c)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+      - name: Install C deps (Windows, vcpkg)
+        if: runner.os == 'Windows'
+        run: |
+          # GitHub windows runner 预装 vcpkg（C:\vcpkg，已在 PATH）；
+          # 统一 :x64-windows-static-md（静态链接），产物为单个 exe、无 dll 依赖
+          vcpkg install libpng:x64-windows-static-md freetype:x64-windows-static-md fontconfig:x64-windows-static-md graphite2:x64-windows-static-md harfbuzz:x64-windows-static-md icu:x64-windows-static-md
+          "TECTONIC_DEP_BACKEND=vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKGRS_TRIPLET=x86_64-pc-windows-msvc-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # ── 打包（命名需兼容 cargo-binstall：<name>-<target>.<ext>）──
+
+      - name: Package (Windows, 单 exe)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item target/${{ matrix.target }}/release/mdbook-plugins.exe dist/
+          Compress-Archive -Path dist\* -DestinationPath mdbook-plugins-${{ matrix.target }}.zip -Force
+
+      - name: Package (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          tar -C target/${{ matrix.target }}/release -czf mdbook-plugins-${{ matrix.target }}.tar.gz mdbook-plugins
+
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mdbook-plugins-*.tar.gz
+            mdbook-plugins-*.zip
+          generate_release_notes: true

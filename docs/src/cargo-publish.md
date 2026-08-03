@@ -75,6 +75,75 @@ cargo publish
 
 上传成功后终端会输出版本信息。版本一旦发布**不可撤回**，需要撤回时使用 yank（见下文）。
 
+## 发布预编译二进制（GitHub tag 触发）
+
+除 crates.io 源码包外，项目通过 GitHub Actions 自动构建各平台**预编译二进制**（免编译安装）。
+工作流 `.github/workflows/release.yml` 在推送 `v*` tag 时触发，在 Windows / Linux / macOS 三平台编译全功能版（含 TikZ/Typst）并上传到 [GitHub Releases](https://github.com/kuanghl/mdbook-plugins/releases)。
+
+### 1. 准备（仅首次）
+
+确保工作流文件已提交到仓库：
+
+```bash
+git add .github/workflows/release.yml
+git commit -m "ci: 添加预编译二进制发布工作流"
+git push
+```
+
+### 2. 发布新版本（完整流程）
+
+```bash
+# ① 更新版本号（patch，需 cargo-edit：cargo install cargo-edit）
+cargo set-version --bump patch
+# 或手动修改 Cargo.toml 的 version 字段
+
+# ② 提交并推送代码
+git add Cargo.toml Cargo.lock
+git commit -m "release: v0.1.4"
+git push
+
+# ③ 发布到 crates.io（源码安装）
+cargo publish
+
+# ④ 打 tag 并推送，触发 CI 自动构建预编译二进制
+git tag v0.1.4
+git push origin v0.1.4
+```
+
+> 建议 tag 名（`v0.1.4`）与 `Cargo.toml` 的 version（`0.1.4`）保持一致，便于对照。
+
+### 3. 等待与验证
+
+1. GitHub → **Actions** 页签查看 Release 工作流（3 平台并行；全功能版含 tectonic/typst，编译较慢，约 30–60 分钟）。
+2. 完成后在 **Releases** 页签看到 3 个产物：
+
+   | 平台 | 产物 |
+   |------|------|
+   | Windows | `mdbook-plugins-x86_64-pc-windows-msvc.zip`（单 exe，静态链接无 dll） |
+   | Linux | `mdbook-plugins-x86_64-unknown-linux-gnu.tar.gz` |
+   | macOS | `mdbook-plugins-aarch64-apple-darwin.tar.gz` |
+
+3. 免编译安装验证：
+
+```powershell
+cargo install cargo-binstall
+cargo binstall mdbook-plugins
+mdbook-plugins --version
+```
+
+### 注意事项
+
+- Windows 版为 vcpkg 静态链接单 exe，仅依赖系统 MSVC 运行时（Windows 10/11 一般自带）。
+- macOS 产物为 **arm64**（Apple Silicon）；Intel Mac 用户请源码编译。
+- 某平台 CI 失败时，修复 workflow 后需**删除并重新推送同名 tag** 才能重新触发：
+
+```bash
+git tag -d v0.1.4
+git push origin :refs/tags/v0.1.4
+git tag v0.1.4
+git push origin v0.1.4
+```
+
 ## 发布后验证
 
 1. **crates.io 页面**：https://crates.io/crates/mdbook-plugins
@@ -105,8 +174,14 @@ features = ["pre-toc", "pre-katex", "pre-pikchr", "ren-pdf"]
 cargo set-version --bump patch
 # 或手动修改 Cargo.toml 的 version 字段
 
-# 重新发布
+# 重新发布到 crates.io
 cargo publish
+
+# 打新 tag 并推送，同步触发预编译二进制构建（见「发布预编译二进制」）
+git commit -am "release: v0.1.5"
+git push
+git tag v0.1.5
+git push origin v0.1.5
 ```
 
 ## 撤回版本（yank）

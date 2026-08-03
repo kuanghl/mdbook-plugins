@@ -30,14 +30,35 @@
 - mdbook-office — 输出 DOCX / XLSX / PPTX（依赖 Chrome/Chromium）
 - [mdbook-pdf](https://github.com/HollowMan6/mdbook-pdf.git) — PDF 生成（轻量 CDP + CLI 双后端）
 
-## 构建
+## 安装
+
+### 预编译二进制（推荐，免编译）
+
+打 tag（`v*`）时 GitHub Actions 自动在 **Windows / Linux / macOS** 三个平台编译全功能版（含 TikZ/Typst），上传到 [GitHub Releases](https://github.com/kuanghl/mdbook-plugins/releases)。
+
+```powershell
+# 方式一：cargo-binstall（自动匹配平台下载，零编译）
+cargo install cargo-binstall
+cargo binstall mdbook-plugins
+
+# 方式二：手动下载 Releases 中的 mdbook-plugins-<target>.zip/.tar.gz
+# （target：x86_64-pc-windows-msvc / x86_64-unknown-linux-gnu / aarch64-apple-darwin）
+# 解压后把 mdbook-plugins(.exe) 所在目录加入 PATH
+```
+
+### 源码编译
 
 ```sh
-# 直接安装使用
 cargo install mdbook-plugins
 mdbook-plugins --help
 mdbook-plugins --version
+```
 
+> Windows 源码编译需先处理 tectonic 系统库，见下方「Windows 安装说明」。
+
+## 构建
+
+```sh
 cargo build            # debug 模式（更快，但体积大）
 cargo build --release  # release 模式
 # 产物：target/release/mdbook-plugins
@@ -161,21 +182,20 @@ mdbook serve --open
 默认构建（`all` features）包含 `pre-tikz`（tectonic TeX 引擎），其编译需要 **pkg-config 与 libpng** 系统库。
 Windows 上未安装时会报错：`The pkg-config command could not be found`（来自 `tectonic_bridge_png`）。
 
-**方案一（推荐，无需系统库）**——跳过重型 features 安装，覆盖全部常用插件（katex / echarts / mermaid / toc / pdf 等）：
+```sh
+git clone https://github.com/microsoft/vcpkg
+.\vcpkg\bootstrap-vcpkg.bat
+# 统一 :x64-windows-static-md（静态链接），编译产物为单个 exe、无 vcpkg dll 依赖
+.\vcpkg\vcpkg install libpng:x64-windows-static-md freetype:x64-windows-static-md fontconfig:x64-windows-static-md graphite2:x64-windows-static-md harfbuzz:x64-windows-static-md icu:x64-windows-static-md
 
-```powershell
-cargo install mdbook-plugins --no-default-features --features "pre-alerts,pre-emojicodes,pre-toc,pre-echarts,pre-langtabs,pre-mermaid,pre-katex,pre-admonish,pre-svgbob,pre-pikchr,pre-kroki,pre-embedify,pre-image-viewer,pre-wavedrom,pre-pdfviewer,ren-asciidoc,ren-linkcheck,ren-pdf"
-```
+# 永久设置环境变量（用户级，写入注册表；VCPKG_ROOT 请替换为实际路径）
+setx TECTONIC_DEP_BACKEND "vcpkg"
+setx VCPKG_ROOT "C:\path\to\vcpkg"
+setx VCPKGRS_TRIPLET "x86_64-pc-windows-msvc-static-md"
 
-**方案二（完整功能，含 TikZ/LaTeX）**——先安装 pkg-config 与 libpng：
-
-```powershell
-choco install pkgconfiglite
-# 或 MSYS2: pacman -S pkg-config mingw-w64-x86_64-libpng
+# setx 对当前终端不生效，请新开一个终端后执行
 cargo install mdbook-plugins
 ```
-
-> 注：`pre-typst` 为纯 Rust 库，无系统库依赖，需要时可随时 `--features pre-typst` 追加。
 
 ## 注意事项
 
