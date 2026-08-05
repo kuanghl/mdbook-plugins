@@ -16,7 +16,7 @@ const KNOWN_SHORT_NAMES: &[&str] = &[
     "image-viewer", "katex", "kroki-preprocessor", "langtabs",
     "mermaid", "pdf-preview", "pikchr", "plugins", "svgbob", "toc", "wavedrom-rs",
     // 渲染器
-    "asciidoc", "linkcheck", "pdf",
+    "asciidoc", "linkcheck", "pdf", "pdf-preview-assets",
     #[cfg(feature = "ren-office")]
     "office",
     // 独立工具
@@ -147,6 +147,7 @@ fn run_plugin(name: &str, args: &[String]) {
 
     let _is_renderer = matches!(name,
         "mdbook-asciidoc" | "mdbook-linkcheck" | "mdbook-pdf" | "mdbook-build-search"
+        | "mdbook-pdf-preview-assets"
     );
     #[cfg(feature = "ren-office")]
     let _is_renderer = _is_renderer || matches!(name, "mdbook-office");
@@ -200,6 +201,7 @@ fn run_plugin(name: &str, args: &[String]) {
         "mdbook-asciidoc" => mdbook_plugins::renderers::asciidoc::run(),
         "mdbook-linkcheck" => mdbook_plugins::renderers::linkcheck::run(),
         "mdbook-build-search" => mdbook_plugins::renderers::build_search::run(),
+        "mdbook-pdf-preview-assets" => mdbook_plugins::renderers::pdf_preview_assets::run(),
         #[cfg(feature = "ren-office")]
         "mdbook-office" => mdbook_plugins::renderers::office::run(),
         "mdbook-pdf" => mdbook_plugins::renderers::pdf::run(),

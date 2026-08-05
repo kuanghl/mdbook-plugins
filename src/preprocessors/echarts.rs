@@ -83,8 +83,17 @@ impl Preprocessor for ChartPreprocessor {
         // 这里收集所有章节当前引用的 hash（data-pdf-hash + 文件名引用），
         // 删除「hash 命名模式 且 ∉ 引用集合」的生成物——缓存命中逻辑不受影响
         // （未变化的代码块 hash 相同，直接复用文件），旧文件不再累积。
-        let referenced = collect_referenced_diagram_hashes(&book);
-        cleanup_orphan_diagrams(&svg_dir, &referenced);
+        //
+        // 仅在完整 book（多章）时执行清理：单章调用（测试等场景）时清理
+        // 可能误删其他章节仍引用的文件。
+        let chapter_count = book
+            .iter()
+            .filter(|item| matches!(item, BookItem::Chapter(_)))
+            .count();
+        if chapter_count > 1 {
+            let referenced = collect_referenced_diagram_hashes(&book);
+            cleanup_orphan_diagrams(&svg_dir, &referenced);
+        }
 
         Ok(book)
     }
@@ -92,6 +101,12 @@ impl Preprocessor for ChartPreprocessor {
 
 fn process_chapter(_name: &str, content: &str, svg_dir: &Path, chapter_path: &Path, tectonic_cache_dir: &Path) -> String {
     let mut s = content.to_string();
+    // svgbob 图级缓存目录：{build_dir}/Svgbob/（未被 html renderer 清空，serve 反复重建时复用）
+    let svgbob_cache_dir = tectonic_cache_dir
+        .parent()
+        .map(|p| p.join("Svgbob"))
+        .unwrap_or_else(|| tectonic_cache_dir.to_path_buf());
+    let _ = std::fs::create_dir_all(&svgbob_cache_dir);
 
     // 按顺序处理各种代码块（先处理 pikchr/svgbob 再处理其他）
 
@@ -105,7 +120,7 @@ fn process_chapter(_name: &str, content: &str, svg_dir: &Path, chapter_path: &Pa
     // 2) ```bob
     let re = Regex::new(r"```bob((.*\n)+?)?```").unwrap();
     for mat in re.find_iter(s.clone().as_str()) {
-        let buf = svgbob_gen_html(mat.as_str());
+        let buf = svgbob_gen_html(mat.as_str(), &svgbob_cache_dir);
         s = s.replace(mat.as_str(), buf.as_str());
     }
 
@@ -249,14 +264,24 @@ fn echarts_gen_html(mat_str: &str) -> String {
 }
 
 /// ===== svgbob =====
-fn svgbob_gen_html(mat_str: &str) -> String {
+fn svgbob_gen_html(mat_str: &str, cache_dir: &Path) -> String {
     let content = clean_codeblock(mat_str, "```bob");
     if content.is_empty() {
         return String::new();
     }
 
-    // svgbob 0.7.6 起移除 Render trait（render_with_indent），改用官方 to_svg_string_pretty()
-    let source = svgbob::to_svg_string_pretty(&content);
+    // 图级内容 hash 缓存：未变化的图直接复用本地 SVG，避免 serve 反复重建时
+    // 重新渲染大图（svgbob 对数百行 ASCII 图较慢）。缓存存原始 svg（不含 uuid），
+    // 读取时再注入本次唯一 id，保证输出含唯一 svg id。
+    let hash = crate::tikz::tikz_content_hash(&content);
+    let cache_file = cache_dir.join(format!("bob-{hash}.svg"));
+    let source = if cache_file.is_file() {
+        std::fs::read_to_string(&cache_file).unwrap_or_default()
+    } else {
+        let s = svgbob::to_svg_string_pretty(&content);
+        let _ = std::fs::write(&cache_file, &s);
+        s
+    };
 
     let uuid = Uuid::new_v4().to_string().replace('-', "");
     let svg = source.replace("svgbob", &format!("svgbob_{}", uuid));

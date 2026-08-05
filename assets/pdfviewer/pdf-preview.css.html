@@ -164,6 +164,16 @@
   font-size: 14px;
 }
 
+/* ---- 原生 PDF viewer（iframe 内嵌） ---- */
+.pdfviewer-container .ppv-frame {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  min-height: 480px;
+  border: none;
+  background: var(--ppv-bg, #fff);
+}
+
 /* ---- 响应式 ---- */
 @media (max-width: 600px) {
   .ppv-placeholder { padding: 20px 16px; }

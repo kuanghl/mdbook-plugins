@@ -48,6 +48,20 @@ impl Renderer for PdfRenderer {
 
 /// 运行 PDF 渲染流程
 pub fn run_pdf(ctx: &RenderContext) -> Result<(), anyhow::Error> {
+    // 自动识别 mdbook serve：serve 会在 config 中写入
+    // `output.html.live-reload-endpoint = "__livereload"`（mdbook build 不会设置），
+    // 本地预览时跳过 PDF 生成（Chrome 渲染耗时可达 1 分钟+），HTML 预览不受影响。
+    if ctx
+        .config
+        .get::<toml::Value>("output.html.live-reload-endpoint")
+        .ok()
+        .flatten()
+        .is_some()
+    {
+        log::info!("检测到 mdbook serve：跳过 PDF 生成（HTML 预览不受影响）");
+        return Ok(());
+    }
+
     // 1. 解析配置
     let cfg: PdfOptions = ctx
         .config

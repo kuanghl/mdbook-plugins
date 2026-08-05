@@ -23,6 +23,7 @@ command = "mdbook-plugins image-viewer"
 
 [preprocessor.emojicodes]
 command = "mdbook-plugins emojicodes"
+renderers = ["html"]
 
 # devicons cdn慢卡顿
 # [preprocessor.langtabs]
@@ -34,10 +35,11 @@ command = "mdbook-plugins emojicodes"
 
 [preprocessor.toc]
 command = "mdbook-plugins toc"
-renderer = ["html"]
+renderers = ["html"]
 
 [preprocessor.katex]
 command = "mdbook-plugins katex"
+renderers = ["html"]
 after = ["links"]
 no-css = true
 include-src = true
@@ -48,14 +50,18 @@ include-src = true
 
 [preprocessor.admonish]
 command = "mdbook-plugins admonish"
+renderers = ["html"]
 assets_version = "3.0.1" # do not edit: managed by `mdbook-admonish install`
 
 [preprocessor.mermaid]
 command = "mdbook-plugins mermaid"
+renderers = ["html"]
 
-# 编译时卡顿,由于访问https://kroki.io
+# kroki 图（```kroki-xxx）：内容 hash 缓存已内置——首次请求网络，后续未变化的图
+# 直接复用本地 SVG，serve 反复重建不再卡顿
 # [preprocessor.kroki-preprocessor]
 # command = "mdbook-plugins kroki-preprocessor"
+# renderers = ["html"]
 # Example endpoint configuration
 # endpoint = "https://kroki.io"      # serve
 # endpoint = "http://localhost:8000" # local docker
@@ -68,10 +74,11 @@ after = ["katex"]
 
 [preprocessor.pdf-preview]
 command = "mdbook-plugins pdf-preview"
-renderer = ["html"]
+renderers = ["html"]
 
 [preprocessor.pikchr]
 command = "mdbook-plugins pikchr"
+renderers = ["html"]
 
 # wavedrom 由 mdbook-echarts 统一处理
 # [preprocessor.wavedrom-rs]
@@ -119,6 +126,11 @@ heading-split-level = 2
 # 中文搜索索引构建（自动在 HTML 渲染后运行，zz- 确保排在 html 之后）
 [output.zz-build-search]
 command = "mdbook-plugins build-search"
+
+# pdf 预览的 pdfjs 模式本地资源：在 html 渲染后复制 pdf.js 到输出目录（不污染 src/）。
+# 仅当 [preprocessor.pdf-preview] mode = "pdfjs" 时需要；embed 模式（默认）不需要。
+[output.pdf-preview-assets]
+command = "mdbook-plugins pdf-preview-assets"
 
 [output.html.fold]
 enable = true # false

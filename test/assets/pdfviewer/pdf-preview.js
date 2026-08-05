@@ -4,23 +4,28 @@
  * 由 mdbook-plugins pre-pdfviewer 预处理器配合使用。
  * 通过 book.toml 的 additional-js 加载。
  *
- * 功能：
- *   1. 检测 `.pdfviewer-container` 容器，自动渲染 PDF
- *   2. Canvas 直接渲染 PDF，支持翻页/缩放/关闭
- *   3. 主题跟随：自动适配 mdbook 主题（Light/Coal/Ayu/Catppuccin 等）
+ * 双渲染模式（由 preprocessor 生成容器的 data-preview-mode 决定）：
+ *   - embed（默认）：<iframe> 内嵌，浏览器原生 PDF viewer 渲染，零 JS 依赖。
+ *     适合 mdbook serve / 部署的 http 环境。
+ *   - pdfjs：pdf.js Canvas 渲染，支持翻页/缩放/关闭，主题跟随。
+ *     通过 [preprocessor.pdf-preview] mode = "pdfjs" 启用。
  *
- * pdf.js 加载策略（v3.11.174）：
- *   - 优先从 CDN 加载（Worker 正常）
- *   - CDN 加载失败时回退到本地 build/pdf.js（Worker 不可用，使用 fake worker）
+ * file:// 直接打开构建产物时，浏览器把每个 file: 当作唯一安全源，
+ * 会拦截 iframe 与 fetch 加载 PDF —— 两种模式都无法工作，给出明确提示与解法。
  */
 (function () {
   'use strict';
+
+  var VERSION = 'v5 (dual-mode: embed|pdfjs)';
+  if (window.console && console.debug) {
+    console.debug('[mdbook-pdf-preview]', VERSION);
+  }
 
   // ================================================================
   // 配置
   // ================================================================
   var CONFIG = {
-    // CDN 路径（主用，Worker 自动加载正常）
+    // CDN 路径（本地加载失败时回退）
     cdnJsPath: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.1.200/pdf.min.mjs',
     cdnWorkerPath: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.1.200/pdf.worker.min.mjs',
     // 本地 fallback 路径（通过脚本位置自动检测）
@@ -35,8 +40,10 @@
       a.href = src;
       var absSrc = a.href;
       var baseUrl = absSrc.substring(0, absSrc.lastIndexOf('/'));
-      CONFIG.localJsPath = baseUrl + '/build/pdf.min.mjs';
-      CONFIG.localWorkerPath = baseUrl + '/build/pdf.worker.min.mjs';
+      CONFIG.localJsPath = baseUrl + '/build/pdf.mjs';
+      CONFIG.localWorkerPath = baseUrl + '/build/pdf.worker.mjs';
+      // pdf.js 完整 viewer（viewer.html 同源加载，无需 CORS；UI 接近浏览器原生）
+      CONFIG.viewerPath = baseUrl + '/web/viewer.html';
       break;
     }
   }
@@ -95,6 +102,48 @@
     return c;
   }
 
+  /** 将相对路径解析为绝对 URL（相对当前页面） */
+  function resolveURL(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    return a.href;
+  }
+
+  function getFilename(url) {
+    return decodeURIComponent((url.replace(/[?#].*$/, '').split('/').pop() || url));
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  /** 检测是否为 file:// 协议 */
+  function isFileProtocol() {
+    return window.location.protocol === 'file:';
+  }
+
+  /** file:// 协议降级方案：使用浏览器原生 <embed> 渲染 PDF。
+   *  原版行为——Chrome 对 embed 的 PDF viewer 允许加载 file:// PDF
+   *  （iframe/fetch 才会被 file 唯一源策略拦截）。 */
+  function renderWithEmbed(container, pdfUrl) {
+    var c = applyTheme();
+    var absUrl = resolveURL(pdfUrl);
+    var filename = getFilename(pdfUrl);
+    var borderColor = c.canvas === '#e8e8e8' ? '#d0d0d0' : '#444';
+    container.innerHTML =
+      '<div class="ppv-embed-bar" style="background:' + c.canvas + ';color:' + c.text + ';border-bottom:1px solid ' + borderColor + ';">' +
+        '<span class="ppv-embed-icon">' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" style="fill:' + c.text + '">' +
+            '<path d="M64 464l48 0 0 48-48 0c-35.3 0-64-28.7-64-64L0 64C0 28.7 28.7 0 64 0L229.5 0c17 0 33.3 6.7 45.3 18.7l90.5 90.5c12 12 18.7 28.3 18.7 45.3L384 304l-48 0 0-144-80 0c-17.7 0-32-14.3-32-32l0-80L64 48c-8.8 0-16 7.2-16 16l0 384c0 8.8 7.2 16 16 16zM176 352l32 0c30.9 0 56 25.1 56 56s-25.1 56-56 56l-16 0 0 32c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-128c0-8.8 7.2-16 16-16zm32 80c13.3 0 24-10.7 24-24s-10.7-24-24-24l-16 0 0 48 16 0zm96-80l32 0c26.5 0 48 21.5 48 48l0 64c0 26.5-21.5 48-48 48l-32 0c-8.8 0-16-7.2-16-16l0-128c0-8.8 7.2-16 16-16zm32 128c8.8 0 16-7.2 16-16l0-64c0-8.8-7.2-16-16-16l-16 0 0 96 16 0zm80-112c0-8.8 7.2-16 16-16l48 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-32 0 0 32 32 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-32 0 0 48c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-128z"/>' +
+          '</svg>' +
+          '<span>' + escapeHtml(filename) + '</span>' +
+        '</span>' +
+      '</div>' +
+      '<embed src="' + absUrl + '" type="application/pdf" style="width:100%;height:80vh;border:none;display:block;">';
+  }
+
   /** 尝试加载 pdf.js（本地 ESM 优先 → CDN ESM 回退） */
   function loadPDFJS(callback) {
     if (pdfjsReady) { callback(); return; }
@@ -105,9 +154,10 @@
     }
 
     function showError() {
-      var containers = document.querySelectorAll('.pdfviewer-container');
+      // 只清空 pdfjs 模式的容器，避免误伤已渲染的 embed iframe
+      var containers = document.querySelectorAll('.pdfviewer-container[data-preview-mode="pdfjs"]');
       for (var i = 0; i < containers.length; i++) {
-        containers[i].innerHTML = '<div class="ppv-error">❌ PDF 库加载失败</div>';
+        containers[i].innerHTML = '<div class="ppv-error">❌ PDF 库加载失败（本地与 CDN 均不可用）</div>';
       }
     }
 
@@ -141,23 +191,14 @@
     tryNext();
   }
 
-  function getFilename(url) {
-    return decodeURIComponent((url.replace(/[?#].*$/, '').split('/').pop() || url));
-  }
-
-  function escapeHtml(s) {
-    var d = document.createElement('div');
-    d.appendChild(document.createTextNode(s));
-    return d.innerHTML;
-  }
-
   // ================================================================
-  // PDFViewer 实例
+  // PDFViewer 实例（pdfjs 模式：pdf.js Canvas 渲染）
   // ================================================================
 
   function PDFViewer(container, pdfUrl) {
     this.container = container;
     this.pdfUrl = pdfUrl;
+    this.absUrl = resolveURL(pdfUrl);   // 绝对 URL：避免相对路径在部分环境下解析失败
     this.pdf = null;
     this.pageNum = 1;
     this.canvas = null;
@@ -171,13 +212,39 @@
     var self = this;
     self.container.innerHTML = '<div class="ppv-loading">加载 PDF 中</div>';
     try {
-      var task = pdfjsLib.getDocument(self.pdfUrl);
+      // 三重兜底：绝对 URL → 原始相对路径 → 页面 URL，杜绝 getDocument 参数为空。
+      // （正常情况下 absUrl 恒非空；兜底仅防御异常环境）
+      var url = self.absUrl || self.pdfUrl || window.location.href;
+      // disableRange/disableStream：完整 GET 加载，规避部分浏览器/扩展对
+      // Range 流式请求返回 204（Unexpected server response (204)）的拦截。
+      var task = pdfjsLib.getDocument({
+        url: url,
+        disableRange: true,
+        disableStream: true,
+        disableAutoFetch: false,
+      });
+      if (window.console && console.debug) {
+        console.debug('[mdbook-pdf-preview] getDocument url =', url);
+      }
       self.pdf = await task.promise;
       self.pageCount = self.pdf.numPages;
       self._buildUI();
       await self._renderPage();
     } catch (err) {
-      self.container.innerHTML = '<div class="ppv-error">❌ ' + escapeHtml(err.message || '加载失败') + '</div>';
+      // 204（无内容响应）：多为浏览器/扩展/缓存中间层拦截。
+      // 追加 cache-buster query 重试一次（静态服务器忽略 query，但可绕过
+      // 路径匹配型拦截与响应缓存）。
+      var msg = err && err.message ? err.message : '';
+      if (msg.indexOf('(204)') !== -1 && !self._retried) {
+        self._retried = true;
+        var sep = url.indexOf('?') === -1 ? '?' : '&';
+        self.absUrl = url + sep + 't=' + Date.now();
+        if (window.console && console.warn) {
+          console.warn('[mdbook-pdf-preview] 收到 204，使用 cache-buster 重试:', self.absUrl);
+        }
+        return self.load();
+      }
+      self.container.innerHTML = '<div class="ppv-error">❌ ' + escapeHtml(msg || '加载失败') + '</div>';
     }
   };
 
@@ -265,47 +332,81 @@
   };
 
   // ================================================================
-  // 初始化
+  // embed 模式：iframe 内嵌，浏览器原生 PDF viewer
   // ================================================================
 
-  /** 检测是否为 file:// 协议（浏览器禁止 fetch/XHR 加载 PDF） */
-  function isFileProtocol() {
-    return window.location.protocol === 'file:';
+  function loadNative(container) {
+    var pdfUrl = container.getAttribute('data-pdf-src');
+    if (!pdfUrl) return;
+    var iframe = document.createElement('iframe');
+    // cache-buster query：规避浏览器扩展/安全功能对"首次 .pdf 请求"的拦截
+    // （症状：页面收到 204 + 弹窗下载）。静态服务器忽略 query，不影响加载。
+    var sep = pdfUrl.indexOf('?') === -1 ? '?' : '&';
+    iframe.src = resolveURL(pdfUrl + sep + 't=' + Date.now());
+    iframe.className = 'ppv-frame';
+    iframe.setAttribute('title', 'PDF 预览');
+    // 注意：不能加 loading="lazy" —— Chrome 对 lazy iframe 中的 PDF 会触发下载
+    // 而非内嵌显示（Chromium bug）。懒加载已由 IntersectionObserver 保证，
+    // iframe 本身不再需要 lazy 属性。
+    container.innerHTML = '';
+    container.appendChild(iframe);
   }
 
-  /** 将相对路径解析为绝对路径 */
-  function resolveURL(url) {
-    var a = document.createElement('a');
-    a.href = url;
-    return a.href;
+  // ================================================================
+  // pdf.js 完整 viewer 模式（默认）：iframe 加载同源 viewer.html，
+  // viewer 内部同源 fetch PDF（无需 CORS），UI 接近浏览器原生。
+  // ================================================================
+
+  function loadViewer(container) {
+    var pdfUrl = container.getAttribute('data-pdf-src');
+    if (!pdfUrl || !CONFIG.viewerPath) {
+      renderPdfjs(container, pdfUrl);
+      return;
+    }
+    // 探测 viewer.html 是否部署（带 cache-buster 绕过首次请求拦截）
+    var probeUrl = CONFIG.viewerPath + (CONFIG.viewerPath.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+    fetch(probeUrl, { method: 'HEAD' }).then(function (res) {
+      if (!res.ok) {
+        renderPdfjs(container, pdfUrl);
+        return;
+      }
+      var iframe = document.createElement('iframe');
+      // viewer.html?file=<绝对URL>&zoom=page-width&sidebar=1
+      //   zoom=page-width：A4 页面宽度填满 viewer 内容区（高度按页面比例），解决"纸张没填满"
+      //   sidebar=1：默认打开侧边栏（缩略图/大纲）
+      // viewer 同源 fetch PDF，无需 CORS
+      iframe.src = CONFIG.viewerPath + '?file=' + encodeURIComponent(resolveURL(pdfUrl)) +
+        '&zoom=page-width&sidebar=1&t=' + Date.now();
+      iframe.className = 'ppv-frame';
+      iframe.setAttribute('title', 'PDF 预览');
+      container.innerHTML = '';
+      container.appendChild(iframe);
+    }).catch(function () {
+      renderPdfjs(container, pdfUrl);
+    });
   }
 
-  /** file:// 协议下降级方案：使用浏览器原生 <embed> 渲染 PDF */
-  function renderWithEmbed(container, pdfUrl) {
-    var c = applyTheme();
-    var absUrl = resolveURL(pdfUrl);
-    var filename = getFilename(pdfUrl);
-    var borderColor = c.canvas === '#e8e8e8' ? '#d0d0d0' : '#444';
-    container.innerHTML =
-      '<div class="ppv-embed-bar" style="background:' + c.canvas + ';color:' + c.text + ';border-bottom:1px solid ' + borderColor + ';">' +
-        '<span class="ppv-embed-icon">' +
-          '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" style="fill:' + c.text + '">' +
-            '<path d="M64 464l48 0 0 48-48 0c-35.3 0-64-28.7-64-64L0 64C0 28.7 28.7 0 64 0L229.5 0c17 0 33.3 6.7 45.3 18.7l90.5 90.5c12 12 18.7 28.3 18.7 45.3L384 304l-48 0 0-144-80 0c-17.7 0-32-14.3-32-32l0-80L64 48c-8.8 0-16 7.2-16 16l0 384c0 8.8 7.2 16 16 16zM176 352l32 0c30.9 0 56 25.1 56 56s-25.1 56-56 56l-16 0 0 32c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-128c0-8.8 7.2-16 16-16zm32 80c13.3 0 24-10.7 24-24s-10.7-24-24-24l-16 0 0 48 16 0zm96-80l32 0c26.5 0 48 21.5 48 48l0 64c0 26.5-21.5 48-48 48l-32 0c-8.8 0-16-7.2-16-16l0-128c0-8.8 7.2-16 16-16zm32 128c8.8 0 16-7.2 16-16l0-64c0-8.8-7.2-16-16-16l-16 0 0 96 16 0zm80-112c0-8.8 7.2-16 16-16l48 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-32 0 0 32 32 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-32 0 0 48c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-128z"/>' +
-          '</svg>' +
-          '<span>' + escapeHtml(filename) + '</span>' +
-        '</span>' +
-      '</div>' +
-      '<embed src="' + absUrl + '" type="application/pdf" style="width:100%;height:80vh;border:none;display:block;">';
+  /** pdfjs Canvas 渲染（viewer 不可用时的 fallback） */
+  function renderPdfjs(container, pdfUrl) {
+    loadPDFJS(function () {
+      var v = new PDFViewer(container, pdfUrl);
+      instances.push(v);
+      v.load();
+    });
   }
+
+  // ================================================================
+  // 初始化
+  // ================================================================
 
   function init() {
     var containers = document.querySelectorAll('.pdfviewer-container');
     if (containers.length === 0) return;
-    var colors = applyTheme();
-    var isFile = isFileProtocol();
+    applyTheme();
 
-    // file:// 协议：浏览器原生渲染（立即执行）
-    if (isFile) {
+    // file:// 协议：用浏览器原生 <embed> 渲染（原版行为，Chrome 允许 embed 加载 file:// PDF）。
+    // 若个别环境 embed 被拦截，用户仍可按提示改用 http 访问。
+    if (isFileProtocol()) {
       for (var i = 0; i < containers.length; i++) {
         (function (c) {
           if (c.getAttribute('data-ppv-ready')) return;
@@ -318,18 +419,23 @@
       return;
     }
 
-    // HTTP 协议：IntersectionObserver 视口自加载
-    // 容器进入视口时才加载 pdf.js 并渲染，避免首屏加载 ~1.7MB 资源
+    // HTTP 协议：IntersectionObserver 视口自加载，按 data-preview-mode 分派
+    // 默认 viewer（pdf.js 完整 viewer）；pdfjs/embed 为显式配置的备选
     function startRender(c) {
       if (c.getAttribute('data-ppv-ready')) return;
       c.setAttribute('data-ppv-ready', 'true');
       var pdfUrl = c.getAttribute('data-pdf-src');
       if (!pdfUrl) return;
-      loadPDFJS(function () {
-        var v = new PDFViewer(c, pdfUrl);
-        instances.push(v);
-        v.load();
-      });
+      var mode = c.getAttribute('data-preview-mode') || 'viewer';
+      if (mode === 'pdfjs') {
+        renderPdfjs(c, pdfUrl);
+      } else if (mode === 'embed') {
+        // embed：iframe 内嵌，浏览器原生 PDF viewer（需服务器支持 CORS）
+        loadNative(c);
+      } else {
+        // viewer（默认）：pdf.js 完整 viewer，viewer.html 缺失时自动 fallback 到 Canvas
+        loadViewer(c);
+      }
     }
 
     if ('IntersectionObserver' in window) {
@@ -355,25 +461,15 @@
 
   function observeTheme() {
     var observer = new MutationObserver(function () {
-      var c = applyTheme();
-      // 更新 pdf.js Canvas 实例
+      applyTheme();
+      // 更新 pdf.js Canvas 实例（embed 模式 iframe 由浏览器接管，无需处理）
       for (var i = 0; i < instances.length; i++) {
         var v = instances[i];
-        if (v.canvas) v.canvas.style.background = c.bg;
+        if (v.canvas) v.canvas.style.background = getThemeColors().bg;
         var bar = v.container.querySelector('.ppv-toolbar');
         var wrap = v.container.querySelector('.ppv-canvas-wrapper');
-        if (bar) bar.style.background = c.canvas;
-        if (wrap) wrap.style.background = c.canvas;
-      }
-      // 更新 file:// embed 容器
-      var borderColor = c.canvas === '#e8e8e8' ? '#d0d0d0' : '#444';
-      var bars = document.querySelectorAll('.ppv-embed-bar');
-      for (var i = 0; i < bars.length; i++) {
-        bars[i].style.background = c.canvas;
-        bars[i].style.color = c.text;
-        bars[i].style.borderBottom = '1px solid ' + borderColor;
-        var icon = bars[i].querySelector('.ppv-embed-icon svg');
-        if (icon) icon.style.fill = c.text;
+        if (bar) bar.style.background = getThemeColors().canvas;
+        if (wrap) wrap.style.background = getThemeColors().canvas;
       }
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
