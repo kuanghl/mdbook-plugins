@@ -20,4 +20,6 @@
 - [Emoji](./test/10.emoji.md)
 - [Typst](./test/11.typst.md)
 - [PDF.js](./pdf/pdf_view.md)
+- [Windows-Wix](./others/1.windows-wix.md)
+- [Latex-Math](./others/2.latex-math.md)
   
