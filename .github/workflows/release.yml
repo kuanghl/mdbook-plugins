@@ -35,6 +35,13 @@ jobs:
       - name: Add target
         run: rustup target add ${{ matrix.target }}
 
+      # cargo 依赖缓存：注册表索引 + target 增量构建产物，跨 tag 复用
+      # （key 自动含 Cargo.lock hash、rustc 版本与 runner OS，此处追加 target 区分）
+      - name: Cache cargo registry & build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
       # vcpkg 二进制缓存：首次编译 6 个 C 库约 10-30 分钟，缓存后秒级命中
       - name: Cache vcpkg binaries
         if: runner.os == 'Windows'
