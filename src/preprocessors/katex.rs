@@ -195,7 +195,31 @@ fn render_katex(latex: &str, display_mode: bool) -> String {
     settings.output = katex::OutputFormat::Html;
     match katex::render_to_string(ctx, latex, &settings) {
         Ok(html) => {
-            let html = html.trim().to_string();
+            // katex-rs 渲染含 SVG 的公式（\overbrace、\vec、\overleftarrow 等）时，
+            // 输出 HTML 中会插入换行符。若直接替换进 markdown，pulldown-cmark
+            // 会把表格行/段落从换行处截断，产生大量
+            // "unclosed HTML tag <svg>/<span>/<data> while exiting TableCell"
+            // 和 "unexpected HTML end tag" 警告（表格结构被破坏）。
+            // 这里统一把换行压成单行（替换为空格，HTML 渲染结果等价）。
+            //
+            // 此外，KaTeX 会把 `\_`、`\ast`、裸 `*` 等渲染成字面 `_`/`*` 字符，
+            // 插入 markdown 后会被 pulldown-cmark 误判为 Emphasis/Strong 的
+            // 强调标记，产生零长度 Emphasis 并破坏 HTML 标签配对栈
+            // （"unclosed HTML tag <span>/<data> while exiting Emphasis/Paragraph"）。
+            // 裸 `\` 会转义紧跟的 `<`（如 `\backslash` 渲染成 `\</span>`），使闭合
+            // 标签变成普通文本导致栈失衡。因此把所有 markdown 特殊字符转义为数字
+            // 实体：解析时不触发任何 markdown 语法，渲染结果不变。
+            let html = html
+                .replace(['\r', '\n'], " ")
+                .replace('\\', "&#92;")
+                .replace('`', "&#96;")
+                .replace('~', "&#126;")
+                .replace('$', "&#36;")
+                .replace('|', "&#124;")
+                .replace('_', "&#95;")
+                .replace('*', "&#42;")
+                .trim()
+                .to_string();
             log::debug!("katex render 成功: {} 字符", html.len());
             html
         }
@@ -231,8 +255,14 @@ fn process_display_math(content: &str, counter: &mut u64) -> String {
             if closed && !inner.is_empty() {
                 *counter += 1;
                 let katex_html = render_katex(&inner, true);
-                // 编码换行符为 &#10;（匹配原始 mdbook-katex 行为）
-                let latex_escaped = inner.replace('"', "&quot;").replace('\n', "&#10;");
+                // value 属性完整转义：&、<、>、"、\r、\n（防止属性截断/表格行拆断）
+                let latex_escaped = inner
+                    .replace('&', "&amp;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;")
+                    .replace('"', "&quot;")
+                    .replace('\r', "")
+                    .replace('\n', "&#10;");
                 // 如果 katex_html 以 $$ 或 $ 开头（渲染失败 fallback），则去掉 <data> 包装，
                 // 让 MathJax 在浏览器端处理
                 if katex_html.starts_with('$') {
@@ -288,7 +318,14 @@ fn process_inline_math(content: &str, counter: &mut u64) -> String {
                 if closed && !inner.is_empty() {
                     *counter += 1;
                     let katex_html = render_katex(&inner, false);
-                    let latex_escaped = inner.replace('"', "&quot;").replace('\n', "&#10;");
+                    // value 属性完整转义：&、<、>、"、\r、\n（防止属性截断/表格行拆断）
+                    let latex_escaped = inner
+                        .replace('&', "&amp;")
+                        .replace('<', "&lt;")
+                        .replace('>', "&gt;")
+                        .replace('"', "&quot;")
+                        .replace('\r', "")
+                        .replace('\n', "&#10;");
                     // 如果渲染失败（fallback 以 $ 开头），直接暴露给 MathJax
                     if katex_html.starts_with('$') {
                         result.push_str(&katex_html);

@@ -123,15 +123,13 @@ impl PdfPreviewPreprocessor {
             let _text = &caps["text"];
             let pdf_path = &caps["path"];
             let filename = pdf_path.rsplit('/').next().unwrap_or(pdf_path);
+            // 单行化：多行 HTML 插入 markdown 会在列表项/段落内被 pulldown-cmark 拆断，
+            // 产生 "unclosed HTML tag <div> while exiting Item/Paragraph" 警告。
+            let pdf_path = pdf_path.replace('&', "&amp;").replace('"', "&quot;");
+            let filename = filename.replace('&', "&amp;").replace('"', "&quot;");
 
             format!(
-                r##"{before}<div class="pdfviewer-container" data-pdf-src="{pdf_path}">
-<div class="ppv-placeholder">
-<div class="ppv-icon">📄</div>
-<div class="ppv-filename">{filename}</div>
-<div class="ppv-hint">点击加载 PDF 预览</div>
-</div>
-</div>"##
+                r##"{before}<div class="pdfviewer-container" data-pdf-src="{pdf_path}"><div class="ppv-placeholder"><div class="ppv-icon">📄</div><div class="ppv-filename">{filename}</div><div class="ppv-hint">点击加载 PDF 预览</div></div></div>"##
             )
         });
         Ok(processed.to_string())
@@ -145,15 +143,13 @@ pub fn process_content(content: &str, _config: Option<&toml::Value>) -> String {
         let _text = &caps["text"];
         let pdf_path = &caps["path"];
         let filename = pdf_path.rsplit('/').next().unwrap_or(pdf_path);
+        // 单行化：多行 HTML 插入 markdown 会在列表项/段落内被 pulldown-cmark 拆断，
+        // 产生 "unclosed HTML tag <div> while exiting Item/Paragraph" 警告。
+        let pdf_path = pdf_path.replace('&', "&amp;").replace('"', "&quot;");
+        let filename = filename.replace('&', "&amp;").replace('"', "&quot;");
 
         format!(
-            r##"{before}<div class="pdfviewer-container" data-pdf-src="{pdf_path}">
-<div class="ppv-placeholder">
-<div class="ppv-icon">📄</div>
-<div class="ppv-filename">{filename}</div>
-<div class="ppv-hint">点击加载 PDF 预览</div>
-</div>
-</div>"##
+            r##"{before}<div class="pdfviewer-container" data-pdf-src="{pdf_path}"><div class="ppv-placeholder"><div class="ppv-icon">📄</div><div class="ppv-filename">{filename}</div><div class="ppv-hint">点击加载 PDF 预览</div></div></div>"##
         )
     });
     format!("{CSS_TEMPLATE}\n{processed}")

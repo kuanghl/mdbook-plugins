@@ -60,6 +60,7 @@ mdbook-plugins --version
 
 ```sh
 cargo build            # debug 模式（更快，但体积大）
+cargo clean -p mdbook-plugins && cargo build
 cargo build --release  # release 模式
 # 产物：target/release/mdbook-plugins
 ```

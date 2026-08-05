@@ -37,7 +37,12 @@ fn process_chapter(content: &str) -> String {
         // "Saw - in state TagOpen" 警告。浏览器解析 &lt; 后 mermaid.js 读取
         // textContent 得到原始字符，渲染不受影响。
         let escaped = crate::utils::escape_xml(diagram.trim());
-        format!("<div class=\"mermaid-container\" style=\"text-align: center\"><div class=\"mermaid\">\n{}</div></div>\n", escaped)
+        // 单行化：mermaid 代码块若位于列表项/段落内（如缩进代码块），多行 HTML
+        // 会被 pulldown-cmark 拆断，产生 "unclosed HTML tag <div> while exiting
+        // Item/Paragraph" 警告。把内容换行转为 &#10; 实体（浏览器 textContent
+        // 会解码回换行，mermaid 渲染不受影响），整体保持单行。
+        let escaped = escaped.replace('\n', "&#10;");
+        format!("<div class=\"mermaid-container\" style=\"text-align: center\"><div class=\"mermaid\">{}</div></div>", escaped)
     }).to_string()
 }
 
