@@ -46,7 +46,13 @@ jobs:
       # 注意：GITHUB_ENV 只对后续步骤生效，必须在 vcpkg install 之前设置好二进制缓存路径
       - name: Enable vcpkg binary cache
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
+          # actions/cache 在缓存未命中时不会创建 path 目录，而 vcpkg（2024+）要求
+          # VCPKG_DEFAULT_BINARY_CACHE 必须指向已存在的目录，否则报
+          # "Environment variable VCPKG_DEFAULT_BINARY_CACHE must be a directory"。
+          # 因此先确保目录存在再设置环境变量。
+          New-Item -ItemType Directory -Force -Path "${{ runner.temp }}\vcpkg-cache" | Out-Null
           "VCPKG_DEFAULT_BINARY_CACHE=${{ runner.temp }}\vcpkg-cache" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       # sccache：缓存 Rust 依赖 crate 的编译产物，跨 tag 复用（依赖不变时命中）
