@@ -42,8 +42,7 @@ jobs:
 
       - name: Install mdbook
         uses: peaceiris/actions-mdbook@v2
-        with:
-          mdbook-version: 'v0.5.4' # 与 Cargo.lock 的 mdbook-core 0.5.4 及本地环境一致
+        # 不指定 mdbook-version：默认安装最新版
 
       # mdbook 通过 PATH 查找 "mdbook-plugins <subcommand>" 插件
       - name: Build test book
