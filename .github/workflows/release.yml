@@ -27,9 +27,9 @@ jobs:
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     env:
-      # Windows 下禁用 sccache（因命令行长度限制），其他平台启用
-      RUSTC_WRAPPER: ${{ matrix.target == 'x86_64-pc-windows-msvc' && '' || 'sccache' }}
-      # sccache 官方推荐用法：SCCACHE_GHA_ENABLED=true 时 sccache 直连 GitHub Actions cache
+      # sccache 官方推荐用法：SCCACHE_GHA_ENABLED=true 时 sccache 直连 GitHub Actions
+      # cache 服务（sccache-action 已导出所需 token），无需手写 actions/cache step
+      RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - uses: actions/checkout@v7
@@ -41,34 +41,32 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       # cargo 依赖缓存：注册表索引 + target 增量构建产物，跨 tag 复用
+      # （key 自动含 Cargo.lock hash、rustc 版本与 runner OS，此处追加 target 区分）
       - name: Cache cargo registry & build artifacts
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
 
-      # ── vcpkg 相关（仅 Windows） ──
-      # 获取预装 vcpkg 的 commit，用于 binary cache 键
-      - name: Get vcpkg commit (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $commit = git -C C:\vcpkg rev-parse HEAD
-          echo "VCPKG_COMMIT=$commit" | Out-File -FilePath $env:GITHUB_ENV -Append
-
+      # vcpkg 依赖：用 run-vcpkg 自动配置 vcpkg 的 Binary Caching 直连 GitHub Actions
+      # cache（VCPKG_BINARY_SOURCES=clear;x-gha,readwrite，key 由 vcpkg 按包 ABI hash
+      # 管理：首次编译 6 个 C 库约 10-30 分钟，后续 runs 秒级恢复，无需手写 actions/cache）。
+      # 复用 runner 预装 vcpkg（C:\vcpkg，已在 PATH），避免每次额外 clone。
       - name: Setup vcpkg binary cache
         if: runner.os == 'Windows'
         uses: lukka/run-vcpkg@v11
         with:
+          # 安装由后续 "Install C deps (Windows)" 步骤负责，这里只配置 binary cache
           runVcpkgInstall: false
           vcpkgDirectory: 'C:\vcpkg'
           doNotUpdateVcpkg: true
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
-      # sccache：安装（Windows 虽不用，但步骤无害，保留以简化逻辑）
+      # sccache：通过 SCCACHE_GHA_ENABLED 直连 GHA cache 服务，跨 tag 复用编译产物
+      # （编译产物按内容 hash 判重，依赖不变时命中）
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.11
 
-      # ── 系统库依赖 ──
+      # ── 系统库依赖（tectonic → pre-tikz 需要 pkg-config/vcpkg 找到 C 库）──
+
       - name: Install C deps (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -81,20 +79,24 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config libpng freetype fontconfig graphite2 harfbuzz icu4c
+          # icu4c 是 keg-only，需手动把 pkg-config 路径加上
           echo "PKG_CONFIG_PATH=$(brew --prefix icu4c)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
       - name: Install C deps (Windows, vcpkg)
         if: runner.os == 'Windows'
         run: |
+          # GitHub windows runner 预装 vcpkg（C:\vcpkg，已在 PATH）；
+          # 统一 :x64-windows-static-md（静态链接），产物为单个 exe、无 dll 依赖。
+          # VCPKG_ROOT 已由 run-vcpkg 导出，无需重复设置。
           vcpkg install libpng:x64-windows-static-md freetype:x64-windows-static-md fontconfig:x64-windows-static-md graphite2:x64-windows-static-md harfbuzz:x64-windows-static-md icu:x64-windows-static-md
           "TECTONIC_DEP_BACKEND=vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKGRS_TRIPLET=x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # ── 构建（Windows 下 RUSTC_WRAPPER 为空，直接调用 rustc） ──
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
-      # ── 打包 ──
+      # ── 打包（命名需兼容 cargo-binstall：<name>-<target>.<ext>）──
+
       - name: Package (Windows, 单 exe)
         if: runner.os == 'Windows'
         shell: pwsh
