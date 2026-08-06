@@ -44,11 +44,13 @@ jobs:
         uses: peaceiris/actions-mdbook@v2
         # 不指定 mdbook-version：默认安装最新版
 
-      # mdbook 通过 PATH 查找 "mdbook-plugins <subcommand>" 插件
+      # mdbook 通过 PATH 查找 "mdbook-plugins <subcommand>" 插件。
+      # 注意：GITHUB_PATH 只对后续步骤生效，故单独一个步骤设置 PATH。
+      - name: Add mdbook-plugins to PATH
+        run: echo "${{ github.workspace }}/target/release" >> "$GITHUB_PATH"
+
       - name: Build test book
-        run: |
-          echo "${{ github.workspace }}/target/release" >> "$GITHUB_PATH"
-          mdbook build test
+        run: mdbook build test
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
