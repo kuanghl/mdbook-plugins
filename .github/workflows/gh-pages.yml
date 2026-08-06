@@ -1,0 +1,59 @@
+name: Deploy test book to GitHub Pages
+
+# 在 Linux 上用 mdbook + 本仓库插件（mdbook-plugins）构建 test 书，
+# 并部署到 gh-pages 分支（GitHub Pages）。
+# 触发：推送 master 或手动触发。
+# 部署前提：仓库 Settings → Pages → Source 选择 "Deploy from a branch"，分支选 gh-pages。
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: true
+
+permissions:
+  contents: write # peaceiris/actions-gh-pages 推送 gh-pages 分支需要
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      # 编译 mdbook-plugins。默认 features 含 pre-tikz（tectonic），
+      # 需要系统 C 库 dev 包（与 release.yml 的 Linux 依赖一致）。
+      - name: Install C deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config libpng-dev libfreetype6-dev libfontconfig1-dev \
+            libgraphite2-dev libharfbuzz-dev libicu-dev
+
+      - name: Build mdbook-plugins
+        run: cargo build --release
+
+      - name: Install mdbook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: 'v0.5.4' # 与 Cargo.lock 的 mdbook-core 0.5.4 及本地环境一致
+
+      # mdbook 通过 PATH 查找 "mdbook-plugins <subcommand>" 插件
+      - name: Build test book
+        run: |
+          echo "${{ github.workspace }}/target/release" >> "$GITHUB_PATH"
+          mdbook build test
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./test/books
+          publish_branch: gh-pages

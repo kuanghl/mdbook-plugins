@@ -1,6 +1,6 @@
 [book]
 authors = ["khl <1365342449@qq.com>"]
-title = "mdbook-demo"
+title = "mdbook-plugins"
 description = "The example book covers examples."
 language = 'zh' # "zh-Hans" # "en"
 src = "./src"
@@ -89,10 +89,10 @@ mathjax-support = true
 hash-files = false
 default-theme = "Light"
 preferred-dark-theme = "mocha"
-git-repository-url = "https://github.com/kuanghl/mdbook-demo"
+git-repository-url = "https://github.com/kuanghl/mdbook-plugins"
 git-repository-icon = "fab-github"
 no-section-label = true
-edit-url-template = "https://github.com/kuanghl/mdbook-demo/edit/master/{path}"
+edit-url-template = "https://github.com/kuanghl/mdbook-plugins/edit/master/{path}"
 additional-css = [
     "./theme/mdbook-admonish.css", 
     "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", 
