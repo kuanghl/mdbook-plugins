@@ -51,6 +51,20 @@ jobs:
       # cache（VCPKG_BINARY_SOURCES=clear;x-gha,readwrite，key 由 vcpkg 按包 ABI hash
       # 管理：首次编译 6 个 C 库约 10-30 分钟，后续 runs 秒级恢复，无需手写 actions/cache）。
       # 复用 runner 预装 vcpkg（C:\vcpkg，已在 PATH），避免每次额外 clone。
+      #
+      # run-vcpkg 需要 vcpkg 的 commit id 来配置 cache key：当 vcpkg 不是仓库子模块
+      # 时，它只会从 vcpkg.json / vcpkg-configuration.json 的 baseline 读取 commit id，
+      # 而本仓库没有这两个文件（无 vcpkg manifest），因此必须显式传入 vcpkgGitCommitId。
+      # 这里动态取 C:\vcpkg 的 HEAD：runner 镜像更新 vcpkg 时自动跟随，无需硬编码维护。
+      - name: Get vcpkg commit id
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $commitId = git -C "C:\vcpkg" rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw "Failed to get vcpkg commit id from C:\vcpkg" }
+          Write-Host "vcpkg commit id: $commitId"
+          "VCPKG_COMMIT_ID=$commitId" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Setup vcpkg binary cache
         if: runner.os == 'Windows'
         uses: lukka/run-vcpkg@v11
@@ -58,6 +72,9 @@ jobs:
           # 安装由后续 "Install C deps (Windows)" 步骤负责，这里只配置 binary cache
           runVcpkgInstall: false
           vcpkgDirectory: 'C:\vcpkg'
+          # 非子模块时必须提供 commit id，否则 run-vcpkg 会因找不到
+          # vcpkg.json/vcpkg-configuration.json 的 baseline 而报错
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotUpdateVcpkg: true
 
       # sccache：通过 SCCACHE_GHA_ENABLED 直连 GHA cache 服务，跨 tag 复用编译产物
