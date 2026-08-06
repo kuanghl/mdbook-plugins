@@ -102,8 +102,13 @@ jobs:
           "TECTONIC_DEP_BACKEND=vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKGRS_TRIPLET=x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      # ── 构建（Windows 禁用 sccache 以避免命令行长度限制） ──
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
+        env:
+          # Windows 下 sccache 转发参数时可能超出 CreateProcess 长度限制，
+          # 此处覆盖为 ''，直接调用 rustc（rustc 内部使用响应文件，可避免此问题）。
+          RUSTC_WRAPPER: ${{ runner.os == 'Windows' && '' || 'sccache' }}
 
       # ── 打包（命名需兼容 cargo-binstall：<name>-<target>.<ext>） ──
 
