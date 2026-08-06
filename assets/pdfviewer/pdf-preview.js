@@ -375,7 +375,13 @@
       //   zoom=page-width：A4 页面宽度填满 viewer 内容区（高度按页面比例），解决"纸张没填满"
       //   sidebar=1：默认打开侧边栏（缩略图/大纲）
       // viewer 同源 fetch PDF，无需 CORS
-      iframe.src = CONFIG.viewerPath + '?file=' + encodeURIComponent(resolveURL(pdfUrl)) +
+      // 注意：resolveURL 用 <a>.href 解析，浏览器会自动把中文路径百分号编码成一层，
+      // 若直接再 encodeURIComponent 会产生双重编码（%E7%BA%BF → %25E7%25BA%25BF），
+      // 某些 viewer/服务器会因此 404。先解码回原文再编码一次，保证只编码一层。
+      var _abs = resolveURL(pdfUrl);
+      var _raw;
+      try { _raw = decodeURIComponent(_abs); } catch (e) { _raw = _abs; }
+      iframe.src = CONFIG.viewerPath + '?file=' + encodeURIComponent(_raw) +
         '&zoom=page-width&sidebar=1&t=' + Date.now();
       iframe.className = 'ppv-frame';
       iframe.setAttribute('title', 'PDF 预览');
