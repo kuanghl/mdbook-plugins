@@ -26,6 +26,11 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
+    env:
+      # sccache 官方推荐用法：SCCACHE_GHA_ENABLED=true 时 sccache 直连 GitHub Actions
+      # cache 服务（sccache-action 已导出所需 token），无需手写 actions/cache step
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
     steps:
       - uses: actions/checkout@v7
 
@@ -42,32 +47,21 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      # vcpkg 二进制缓存：首次编译 6 个 C 库约 10-30 分钟，缓存后秒级命中
-      - name: Cache vcpkg binaries
+      # vcpkg 依赖：用 run-vcpkg 自动配置 vcpkg 的 Binary Caching 直连 GitHub Actions
+      # cache（VCPKG_BINARY_SOURCES=clear;x-gha,readwrite，key 由 vcpkg 按包 ABI hash
+      # 管理：首次编译 6 个 C 库约 10-30 分钟，后续 runs 秒级恢复，无需手写 actions/cache）。
+      # 复用 runner 预装 vcpkg（C:\vcpkg，已在 PATH），避免每次额外 clone。
+      - name: Setup vcpkg binary cache
         if: runner.os == 'Windows'
-        uses: actions/cache@v4
+        uses: lukka/run-vcpkg@v11
         with:
-          path: ${{ runner.temp }}/vcpkg-cache
-          key: vcpkg-cache-${{ runner.os }}
+          # 安装由后续 "Install C deps (Windows)" 步骤负责，这里只配置 binary cache
+          runVcpkgInstall: false
+          vcpkgDirectory: 'C:\vcpkg'
+          doNotUpdateVcpkg: true
 
-      # 注意：GITHUB_ENV 只对后续步骤生效，必须在 vcpkg install 之前设置好二进制缓存路径
-      - name: Enable vcpkg binary cache
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # actions/cache 在缓存未命中时不会创建 path 目录，而 vcpkg（2024+）要求
-          # VCPKG_DEFAULT_BINARY_CACHE 必须指向已存在的目录，否则报
-          # "Environment variable VCPKG_DEFAULT_BINARY_CACHE must be a directory"。
-          # 因此先确保目录存在再设置环境变量。
-          New-Item -ItemType Directory -Force -Path "${{ runner.temp }}\vcpkg-cache" | Out-Null
-          "VCPKG_DEFAULT_BINARY_CACHE=${{ runner.temp }}\vcpkg-cache" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      # sccache：缓存 Rust 依赖 crate 的编译产物，跨 tag 复用（依赖不变时命中）
-      - name: Cache sccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/sccache
-          key: sccache-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      # sccache：通过 SCCACHE_GHA_ENABLED 直连 GHA cache 服务，跨 tag 复用编译产物
+      # （编译产物按内容 hash 判重，依赖不变时命中）
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.11
 
@@ -92,10 +86,10 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           # GitHub windows runner 预装 vcpkg（C:\vcpkg，已在 PATH）；
-          # 统一 :x64-windows-static-md（静态链接），产物为单个 exe、无 dll 依赖
+          # 统一 :x64-windows-static-md（静态链接），产物为单个 exe、无 dll 依赖。
+          # VCPKG_ROOT 已由 run-vcpkg 导出，无需重复设置。
           vcpkg install libpng:x64-windows-static-md freetype:x64-windows-static-md fontconfig:x64-windows-static-md graphite2:x64-windows-static-md harfbuzz:x64-windows-static-md icu:x64-windows-static-md
           "TECTONIC_DEP_BACKEND=vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           "VCPKGRS_TRIPLET=x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build release
