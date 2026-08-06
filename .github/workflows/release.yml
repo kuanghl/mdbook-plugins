@@ -47,10 +47,18 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      # vcpkg 依赖：用 run-vcpkg 自动配置 vcpkg 的 Binary Caching 直连 GitHub Actions
-      # cache（VCPKG_BINARY_SOURCES=clear;x-gha,readwrite，key 由 vcpkg 按包 ABI hash
-      # 管理：首次编译 6 个 C 库约 10-30 分钟，后续 runs 秒级恢复，无需手写 actions/cache）。
-      # 复用 runner 预装 vcpkg（C:\vcpkg，已在 PATH），避免每次额外 clone。
+      # ── vcpkg 相关（仅 Windows） ──
+      # 由于 GitHub Windows runner 预装 vcpkg 在 C:\vcpkg，我们需要用 lukka/run-vcpkg
+      # 配置 binary cache，但该 action 需要知道 vcpkg 的 baseline commit。
+      # 此处先获取当前预装 vcpkg 的 commit，再传给 run-vcpkg，避免报错：
+      # "A Git commit id for vcpkg's baseline was not found"
+      - name: Get vcpkg commit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $commit = git -C C:\vcpkg rev-parse HEAD
+          echo "VCPKG_COMMIT=$commit" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Setup vcpkg binary cache
         if: runner.os == 'Windows'
         uses: lukka/run-vcpkg@v11
@@ -59,13 +67,15 @@ jobs:
           runVcpkgInstall: false
           vcpkgDirectory: 'C:\vcpkg'
           doNotUpdateVcpkg: true
+          # 显式传递 vcpkg 的 commit，以便 binary cache 生成正确的 key
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
       # sccache：通过 SCCACHE_GHA_ENABLED 直连 GHA cache 服务，跨 tag 复用编译产物
       # （编译产物按内容 hash 判重，依赖不变时命中）
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.11
 
-      # ── 系统库依赖（tectonic → pre-tikz 需要 pkg-config/vcpkg 找到 C 库）──
+      # ── 系统库依赖（tectonic → pre-tikz 需要 pkg-config/vcpkg 找到 C 库） ──
 
       - name: Install C deps (Linux)
         if: runner.os == 'Linux'
@@ -95,7 +105,7 @@ jobs:
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
-      # ── 打包（命名需兼容 cargo-binstall：<name>-<target>.<ext>）──
+      # ── 打包（命名需兼容 cargo-binstall：<name>-<target>.<ext>） ──
 
       - name: Package (Windows, 单 exe)
         if: runner.os == 'Windows'
