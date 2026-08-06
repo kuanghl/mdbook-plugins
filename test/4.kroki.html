@@ -242,7 +242,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <style>
-/* ===== PDF Preview Viewer — 嵌入样式 ===== */
+/* ===== PDF Preview — 嵌入样式（v6: PDFObject） ===== */
 
 .pdfviewer-container {
   margin: 16px 0;
@@ -286,97 +286,22 @@
   color: var(--ppv-muted, #888);
 }
 
-/* ---- Loading ---- */
-.ppv-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  color: var(--ppv-muted, #888);
-  font-size: 14px;
-  gap: 8px;
+/* ---- PDFObject 内嵌的 PDF viewer（embed/iframe） ---- */
+.pdfviewer-container embed,
+.pdfviewer-container iframe {
+  display: block;
+  width: 100%;
+  border: none;
+  background: var(--ppv-bg, #fff);
 }
-.ppv-loading::after {
-  content: "";
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--ppv-border, #ddd);
-  border-top-color: var(--ppv-accent, #4a90d9);
-  border-radius: 50%;
-  animation: ppv-spin 0.8s linear infinite;
-}
-@keyframes ppv-spin { to { transform: rotate(360deg); } }
 
-/* ---- Toolbar (自动隐藏) ---- */
-.pdfviewer-container .ppv-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: var(--ppv-toolbar-bg, #f0f0f0);
-  border-bottom: 1px solid var(--ppv-border, #d0d0d0);
-  font-size: 13px;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, border-width 0.3s ease;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-bottom-width: 0;
-}
-.pdfviewer-container:hover .ppv-toolbar,
-.pdfviewer-container .ppv-toolbar:hover {
-  max-height: 40px;
-  opacity: 1;
-  padding-top: 6px;
-  padding-bottom: 6px;
-  border-bottom-width: 1px;
-  overflow: visible;
-}
-.ppv-toolbar .ppv-page-info {
-  color: var(--ppv-text, #555);
-  white-space: nowrap;
-}
-.ppv-toolbar .ppv-nav {
-  display: flex;
-  gap: 2px;
-}
-.ppv-btn {
-  border: 1px solid var(--ppv-border, #ccc);
-  border-radius: 3px;
-  background: var(--ppv-btn-bg, #fff);
-  color: var(--ppv-text, #555);
-  cursor: pointer;
-  padding: 2px 10px;
-  font-size: 14px;
-  line-height: 1.4;
-  transition: background 0.1s;
-}
-.ppv-btn:hover {
-  background: var(--ppv-btn-hover, #e6e6e6);
-}
-.ppv-btn:active {
-  background: var(--ppv-btn-active, #d4d4d4);
-}
-.ppv-spacer { flex: 1; }
-.ppv-close { font-size: 16px; padding: 2px 8px; }
-
-/* ---- Embed bar (file:// 协议，自动隐藏) ---- */
+/* ---- file:// 协议模式的文件名条 ---- */
 .pdfviewer-container .ppv-embed-bar {
   padding: 6px 12px;
   font-size: 13px;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-.pdfviewer-container:hover .ppv-embed-bar {
-  max-height: 40px;
-  opacity: 1;
-  padding-top: 6px;
-  padding-bottom: 6px;
+  background: var(--ppv-canvas-bg, #f0f0f0);
+  color: var(--ppv-text, #555);
+  border-bottom: 1px solid var(--ppv-border, #d0d0d0);
 }
 .ppv-embed-bar .ppv-embed-icon {
   display: inline-flex;
@@ -384,37 +309,15 @@
   gap: 6px;
 }
 
-/* ---- Canvas (A4 纸张风格 + 自适应) ---- */
-.ppv-canvas-wrapper {
-  display: flex;
-  justify-content: center;
-  padding: 24px 12px;
-  overflow: auto;
-  background: var(--ppv-canvas-bg, #e8e8e8);
-}
-.ppv-canvas-wrapper canvas {
-  display: block;
-  align-self: flex-start;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
-  background: #fff;
-}
-
-/* ---- Error ---- */
+/* ---- 不支持提示 ---- */
 .ppv-error {
-  padding: 20px;
+  padding: 24px 20px;
   text-align: center;
   color: #c00;
   font-size: 14px;
 }
-
-/* ---- 原生 PDF viewer（iframe 内嵌） ---- */
-.pdfviewer-container .ppv-frame {
-  display: block;
-  width: 100%;
-  height: 100vh;
-  min-height: 480px;
-  border: none;
-  background: var(--ppv-bg, #fff);
+.ppv-error a {
+  color: #4a90d9;
 }
 
 /* ---- 响应式 ---- */
@@ -690,8 +593,8 @@ endmodule
 
 <h2 id="svgbob-demo"><a class="header" href="#svgbob-demo">svgbob-demo</a></h2>
 <pre class="diagram-svgbob" style="text-align: center;">
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="7520" class="svgbob_1ff0b3d06002465cb52bdff741147bfd">
-  <style>.svgbob_1ff0b3d06002465cb52bdff741147bfd line, .svgbob_1ff0b3d06002465cb52bdff741147bfd path, .svgbob_1ff0b3d06002465cb52bdff741147bfd circle, .svgbob_1ff0b3d06002465cb52bdff741147bfd rect, .svgbob_1ff0b3d06002465cb52bdff741147bfd polygon {
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="7520" class="svgbob_d563922f1d674affadb6f2ca240fa41b">
+  <style>.svgbob_d563922f1d674affadb6f2ca240fa41b line, .svgbob_d563922f1d674affadb6f2ca240fa41b path, .svgbob_d563922f1d674affadb6f2ca240fa41b circle, .svgbob_d563922f1d674affadb6f2ca240fa41b rect, .svgbob_d563922f1d674affadb6f2ca240fa41b polygon {
   stroke: black;
   stroke-width: 2;
   stroke-opacity: 1;
@@ -700,93 +603,93 @@ endmodule
   stroke-linejoin: miter;
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd text {
+.svgbob_d563922f1d674affadb6f2ca240fa41b text {
   white-space: pre;
   fill: black;
   font-family: Iosevka Fixed, monospace;
   font-size: 14px;
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd rect.backdrop {
+.svgbob_d563922f1d674affadb6f2ca240fa41b rect.backdrop {
   stroke: none;
   fill: white;
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .broken {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .broken {
   stroke-dasharray: 8;
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .filled {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .filled {
   fill: black;
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .bg_filled {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .bg_filled {
   fill: white;
   stroke-width: 1;
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .nofill {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .nofill {
   fill: white;
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .end_marked_arrow {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .end_marked_arrow {
   marker-end: url(#arrow);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .start_marked_arrow {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .start_marked_arrow {
   marker-start: url(#arrow);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .end_marked_diamond {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .end_marked_diamond {
   marker-end: url(#diamond);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .start_marked_diamond {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .start_marked_diamond {
   marker-start: url(#diamond);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .end_marked_circle {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .end_marked_circle {
   marker-end: url(#circle);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .start_marked_circle {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .start_marked_circle {
   marker-start: url(#circle);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .end_marked_open_circle {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .end_marked_open_circle {
   marker-end: url(#open_circle);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .start_marked_open_circle {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .start_marked_open_circle {
   marker-start: url(#open_circle);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .end_marked_big_open_circle {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .end_marked_big_open_circle {
   marker-end: url(#big_open_circle);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .start_marked_big_open_circle {
+.svgbob_d563922f1d674affadb6f2ca240fa41b .start_marked_big_open_circle {
   marker-start: url(#big_open_circle);
 }
 
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .r1{ 
+.svgbob_d563922f1d674affadb6f2ca240fa41b .r1{ 
     fill: papayawhip;
  }
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .r2{ 
+.svgbob_d563922f1d674affadb6f2ca240fa41b .r2{ 
     fill: crimson;
  }
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .a{ 
+.svgbob_d563922f1d674affadb6f2ca240fa41b .a{ 
     stroke-dasharray: 8;
     fill: lightblue;
  }
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .b{ 
+.svgbob_d563922f1d674affadb6f2ca240fa41b .b{ 
     stroke: blue;
  }
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .bigrect{ 
+.svgbob_d563922f1d674affadb6f2ca240fa41b .bigrect{ 
     fill: yellow;
     stroke: red;
  }
-.svgbob_1ff0b3d06002465cb52bdff741147bfd .red{ 
+.svgbob_d563922f1d674affadb6f2ca240fa41b .red{ 
     fill:red;
     stroke:blue;
  }</style>
@@ -3580,8 +3483,8 @@ endmodule
 
 <h2 id="svgbob-otherdemo"><a class="header" href="#svgbob-otherdemo">svgbob-otherdemo</a></h2>
 <pre class="diagram-svgbob" style="text-align: center;">
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="6320" class="svgbob_2e1a931171b742b4973dedff899991aa">
-  <style>.svgbob_2e1a931171b742b4973dedff899991aa line, .svgbob_2e1a931171b742b4973dedff899991aa path, .svgbob_2e1a931171b742b4973dedff899991aa circle, .svgbob_2e1a931171b742b4973dedff899991aa rect, .svgbob_2e1a931171b742b4973dedff899991aa polygon {
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="6320" class="svgbob_f9181835651f446aa263d4ebb57cc3af">
+  <style>.svgbob_f9181835651f446aa263d4ebb57cc3af line, .svgbob_f9181835651f446aa263d4ebb57cc3af path, .svgbob_f9181835651f446aa263d4ebb57cc3af circle, .svgbob_f9181835651f446aa263d4ebb57cc3af rect, .svgbob_f9181835651f446aa263d4ebb57cc3af polygon {
   stroke: black;
   stroke-width: 2;
   stroke-opacity: 1;
@@ -3590,72 +3493,72 @@ endmodule
   stroke-linejoin: miter;
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa text {
+.svgbob_f9181835651f446aa263d4ebb57cc3af text {
   white-space: pre;
   fill: black;
   font-family: Iosevka Fixed, monospace;
   font-size: 14px;
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa rect.backdrop {
+.svgbob_f9181835651f446aa263d4ebb57cc3af rect.backdrop {
   stroke: none;
   fill: white;
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .broken {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .broken {
   stroke-dasharray: 8;
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .filled {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .filled {
   fill: black;
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .bg_filled {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .bg_filled {
   fill: white;
   stroke-width: 1;
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .nofill {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .nofill {
   fill: white;
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .end_marked_arrow {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .end_marked_arrow {
   marker-end: url(#arrow);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .start_marked_arrow {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .start_marked_arrow {
   marker-start: url(#arrow);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .end_marked_diamond {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .end_marked_diamond {
   marker-end: url(#diamond);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .start_marked_diamond {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .start_marked_diamond {
   marker-start: url(#diamond);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .end_marked_circle {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .end_marked_circle {
   marker-end: url(#circle);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .start_marked_circle {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .start_marked_circle {
   marker-start: url(#circle);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .end_marked_open_circle {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .end_marked_open_circle {
   marker-end: url(#open_circle);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .start_marked_open_circle {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .start_marked_open_circle {
   marker-start: url(#open_circle);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .end_marked_big_open_circle {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .end_marked_big_open_circle {
   marker-end: url(#big_open_circle);
 }
 
-.svgbob_2e1a931171b742b4973dedff899991aa .start_marked_big_open_circle {
+.svgbob_f9181835651f446aa263d4ebb57cc3af .start_marked_big_open_circle {
   marker-start: url(#big_open_circle);
 }
 
@@ -6331,6 +6234,7 @@ if (window.MutationObserver) {
         <script src=".././assets/bytefield/bytefield-svg.js"></script>
         <script src=".././assets/wavedrom/wavedrom.min.js"></script>
         <script src=".././assets/wavedrom/wavedrom.css.js"></script>
+        <script src=".././assets/pdfviewer/pdfobject.min.js"></script>
         <script src=".././assets/pdfviewer/pdf-preview.js"></script>
 
         <!-- Bytefield 渲染 -->
