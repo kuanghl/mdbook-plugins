@@ -16,7 +16,7 @@
 - [mdbook-kroki-preprocessor](https://github.com/JoelCourtney/mdbook-kroki-preprocessor.git) — Kroki 远程渲染（Graphviz / PlantUML / D2 等）
 - [mdbook-langtabs](https://github.com/nx10/mdbook-langtabs.git) — 多语言标签页
 - [mdbook-mermaid](https://github.com/badboy/mdbook-mermaid.git) — Mermaid 图表占位
-- mdbook-pdf-preview — PDF 引用内嵌预览（📄 占位，滚动到视口后 iframe 内嵌，浏览器原生 PDF viewer 渲染，零 JS 依赖）
+- mdbook-pdf-preview — PDF 引用内嵌预览（📄 占位，滚动到视口后由 PDFObject 内嵌浏览器原生 PDF viewer，仅 5KB 依赖）
 - [mdbook-pikchr](https://github.com/podsvirov/mdbook-pikchr.git) — Pikchr 图 → 内联 SVG（内置 C 库）
 - [mdbook-svgbob](https://github.com/boozook/mdbook-svgbob.git) — ASCII art → SVG
 - [mdbook-toc](https://github.com/badboy/mdbook-toc.git) — 自动生成章节目录
@@ -75,7 +75,7 @@ export PATH="$PATH:$(pwd)/target/release/"
 > **多 renderer 提速**：mdbook 会对每个 renderer（html、搜索索引等）都跑一遍 preprocessor
 > 链。若你的书有多个 renderer，给只服务于 HTML 的 preprocessor 配置
 > `renderers = ["html"]`（**注意是复数 `renderers`**，mdbook 读取该键名），可让
-> zz-build-search / pdf-preview-assets 等 renderer 跳过这些 preprocessor，避免重复处理：
+> zz-build-search 等 renderer 跳过这些 preprocessor，避免重复处理：
 >
 > ```toml
 > [preprocessor.katex]
@@ -142,6 +142,7 @@ additional-css = ["katex.min.css", "./theme/mdbook-admonish.css"]
 additional-js = [
     "./assets/mermaid/mermaid.min.js",
     "./assets/echarts/echarts.min.js",
+    "./assets/pdfviewer/pdfobject.min.js",
     "./assets/pdfviewer/pdf-preview.js",
 ]
 ```
@@ -153,17 +154,9 @@ additional-js = [
 把 `[text](./file.pdf "web-preview")`（链接标题必须为 `web-preview`）替换为内嵌 PDF 预览。
 其余 `.pdf` 链接保持普通链接。
 
-**三种渲染模式**（`[preprocessor.pdf-preview] mode` 配置）：
-
-| 模式 | 渲染方式 | 特点 |
-|---|---|---|
-| `viewer`（默认） | **pdf.js 完整 viewer**（viewer.html 同源加载，内部同源 fetch，**无需 CORS**） | UI 完整（工具栏/缩放/侧边栏/连续滚动/搜索），体验接近浏览器原生 |
-| `pdfjs` | pdf.js Canvas（简化 UI，翻页/缩放） | 轻量，viewer 资源缺失时的 fallback |
-| `embed` | iframe 内嵌浏览器原生 PDF viewer | **需要服务器返回 CORS 头**（mdbook serve 不返回 → 会触发下载，不推荐 serve 下用） |
-
-**为什么默认 viewer**：Chrome 原生 viewer（embed）在 iframe 中由扩展页**跨源 fetch** PDF，
-要求服务器返回 CORS 头；`mdbook serve` 不返回 → 必现下载+空白。pdf.js viewer 是
-**同源页面**加载 PDF，无此问题，且 UI 完整。
+实现基于 [PDFObject](https://pdfobject.com/)（**~5KB**）：滚动到视口后把 PDF 内嵌到容器，
+由**浏览器原生 PDF viewer** 渲染（Chrome/Edge/Firefox/Safari 均支持）。浏览器不支持
+原生 PDF 时显示提示与下载链接，**不再依赖 pdf.js**。
 
 ```toml
 [preprocessor.pdf-preview]
@@ -171,45 +164,22 @@ command = "mdbook-plugins pdf-preview"
 renderer = ["html"]
 
 [output.html]
-additional-js = ["./assets/pdfviewer/pdf-preview.js"]   # 前端脚本需自备（见 test/assets/pdfviewer/）
-
-# viewer/pdfjs 模式的本地 pdf.js 资源（html 渲染后复制到输出，不污染 src/）
-[output.pdf-preview-assets]
-command = "mdbook-plugins pdf-preview-assets"
+additional-js = [
+    "./assets/pdfviewer/pdfobject.min.js",   # PDFObject 库（须在 pdf-preview.js 之前）
+    "./assets/pdfviewer/pdf-preview.js",     # 前端脚本（懒加载/主题跟随）
+]
 ```
 
-**viewer 模式需要 pdf.js 完整 viewer 资源**（放书目录 `assets/pdfviewer/`，由
-`pdf-preview-assets` 渲染器在 html 后复制到输出）：
-
-```sh
-# 从 https://github.com/mozilla/pdf.js/releases 下载 pdfjs-6.1.200-dist.zip
-mkdir -p assets/pdfviewer
-unzip pdfjs-6.1.200-dist.zip -d assets/pdfviewer   # 解出 web/ 与 build/
-# 最终结构：
-#   assets/pdfviewer/web/viewer.html        ← viewer 页面（可裁剪 locale/cmaps/wasm 等）
-#   assets/pdfviewer/build/pdf.mjs          ← viewer.html 引用 ../build/pdf.mjs
-#   assets/pdfviewer/build/pdf.worker.mjs   ← worker
-```
-
-**资源精简建议**（保持 viewer 可用的最小集，约 5MB）：
-
-- `web/` 可删除：`viewer.mjs.map`（sourcemap）、`compressed.tracemonkey-pldi-09.pdf`（测试文件）、
-  `debugger.css/mjs`、`wasm/`、`iccs/`、`locale/`（只留 `en-US` + `zh-CN` 并同步更新
-  `locale.json`）、`images/` 中的 `altText_*`/`annotation-*`/`comment-*`/`cursor-editor*`/
-  `editor-toolbar*`/`toolbarButton-editor*`（编辑器/注释图标）、`cmaps/`（只留
-  `Adobe-{GB1,CNS1,Japan1,Korea1}-*`、`Uni{GB,CNS,JIS,KS}-UTF16-*`、`90ms-RKSJ-*`、
-  `90pv-RKSJ-*` 等中文/日文/韩文常用映射；个别 PDF 使用被删 cmap 时字体可能异常，可恢复）
-- `build/` 只需 `pdf.mjs` + `pdf.worker.mjs`（pdf.js 核心，必需）
+前端资源见 `test/assets/pdfviewer/`（仅两个文件，共约 13KB），需放进书目录
+`assets/pdfviewer/` 并保持 `additional-js` 路径一致。
 
 注意：
 
-- `file://` 直接打开构建产物时：Chrome 禁止 file:// 页面的 module script（ESM 需 CORS，
-  file:// 是 null origin），pdf.js viewer 无法运行，自动降级为浏览器原生 `<embed>` 渲染
-  （同样是完整查看器，可直接查看）。
-- **希望 build 产物与 serve 完全同一套（viewer）**：用 http 访问构建产物，例如
-  `python -m http.server -d books/html` 后浏览器打开 `http://localhost:8000`，或部署到服务器。
-- 首次加载被浏览器扩展/安全功能拦截（204 + 弹窗下载）时，已自动用 cache-buster 重试。
-- `pdf-preview.js` 与 mermaid/echarts 的前端资源一样，需自行放进书目录并保持 `additional-js` 路径一致。
+- `file://` 直接打开构建产物时自动降级为浏览器原生 `<embed>` 渲染（Chrome 允许
+  embed 加载 file:// PDF，可直接查看）。
+- 首次加载被浏览器扩展/安全功能拦截（`ERR_BLOCKED_BY_CLIENT` / 弹窗下载）时，
+  已自动用 cache-buster query 重试。
+
 
 ## 选择性构建
 

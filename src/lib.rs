@@ -38,5 +38,4 @@ pub const PLUGIN_NAMES: &[&str] = &[
     #[cfg(feature = "ren-office")]
     "mdbook-office",
     "mdbook-pdf",
-    "mdbook-pdf-preview-assets",
 ];
