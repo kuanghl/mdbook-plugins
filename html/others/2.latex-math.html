@@ -1,0 +1,1193 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Latex-Math - mdbook-plugins</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="The example book covers examples.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././theme/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././theme/catppuccin.css">
+        <link rel="stylesheet" href=".././theme/catppuccin-admonish.css">
+        <link rel="stylesheet" href=".././assets/mermaid/mermaid.css">
+        <link rel="stylesheet" href=".././assets/whichlang/whichlang.css">
+        <link rel="stylesheet" href=".././assets/translate/translate.css">
+
+        <!-- KaTeX（CDN） + MathJax -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css">
+        <script>
+        window.MathJax = {
+            tex2jax: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                ignoreClass: 'tex2jax_ignore',
+                processClass: 'tex2jax_process'
+            },
+            showMathMenu: false,
+            messageStyle: 'none'
+        };
+        </script>
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- LaTeX.js（用于 ```latex tex 代码块） -->
+        <script type="module">
+        import { LaTeXJSComponent } from "https://cdn.jsdelivr.net/npm/latex.js/dist/latex.mjs"
+
+        // pulldown-cmark 小写化 HTML 属性名（baseURL → baseurl），
+        // 但 LaTeXJSComponent 用 getAttribute("baseURL") 读取（大小写敏感），
+        // 注册自定义元素前先修复所有现有元素的属性名。
+        document.querySelectorAll('latex-js').forEach(el => {
+            if (el.hasAttribute('baseurl') && !el.hasAttribute('baseURL')) {
+                el.setAttribute('baseURL', el.getAttribute('baseurl'));
+                el.removeAttribute('baseurl');
+            }
+        });
+
+        customElements.define("latex-js", LaTeXJSComponent)
+        </script>
+        <style>
+            latex-js {
+                width: 100%;
+            }
+        </style>
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "mocha";
+            window.path_to_searchindex_js = "../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body onload="WaveDrom.ProcessAll()">
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-latte">Latte</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-frappe">Frappé</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-macchiato">Macchiato</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-mocha">Mocha</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">mdbook-plugins</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                        <!-- 捐助按钮 -->
+                        <a href="#" title="Sponsor" aria-label="Sponsor" class="icon-button">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84L256 96 244 84c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z"/></svg></span>
+                        </a>
+
+                        <a href="https://github.com/kuanghl/mdbook-plugins/edit/master/./src/others/2.latex-math.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                        <a href="https://github.com/kuanghl/mdbook-plugins" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                        <!-- 翻译按钮框 -->
+                        <span id="translate" class="icon-button" title="Change language" aria-label="Change language">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></svg></span>
+                        </span>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <style>
+/* ===== PDF Preview Viewer — 嵌入样式 ===== */
+
+.pdfviewer-container {
+  margin: 16px 0;
+  border: 1px solid var(--ppv-border, #d0d0d0);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ppv-bg, #fafafa);
+  position: relative;
+}
+
+/* ---- 占位区 ---- */
+.ppv-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  cursor: pointer;
+  color: var(--ppv-text, #555);
+  user-select: none;
+  transition: background 0.15s;
+}
+.ppv-placeholder:hover {
+  background: var(--ppv-hover-bg, #f0f0f0);
+}
+.ppv-placeholder .ppv-icon {
+  font-size: 42px;
+  line-height: 1;
+}
+.ppv-placeholder .ppv-filename {
+  font-size: 14px;
+  margin-top: 6px;
+  font-weight: 500;
+  color: var(--ppv-title, #333);
+  word-break: break-all;
+  text-align: center;
+}
+.ppv-placeholder .ppv-hint {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--ppv-muted, #888);
+}
+
+/* ---- Loading ---- */
+.ppv-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--ppv-muted, #888);
+  font-size: 14px;
+  gap: 8px;
+}
+.ppv-loading::after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ppv-border, #ddd);
+  border-top-color: var(--ppv-accent, #4a90d9);
+  border-radius: 50%;
+  animation: ppv-spin 0.8s linear infinite;
+}
+@keyframes ppv-spin { to { transform: rotate(360deg); } }
+
+/* ---- Toolbar (自动隐藏) ---- */
+.pdfviewer-container .ppv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--ppv-toolbar-bg, #f0f0f0);
+  border-bottom: 1px solid var(--ppv-border, #d0d0d0);
+  font-size: 13px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, border-width 0.3s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+.pdfviewer-container:hover .ppv-toolbar,
+.pdfviewer-container .ppv-toolbar:hover {
+  max-height: 40px;
+  opacity: 1;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-bottom-width: 1px;
+  overflow: visible;
+}
+.ppv-toolbar .ppv-page-info {
+  color: var(--ppv-text, #555);
+  white-space: nowrap;
+}
+.ppv-toolbar .ppv-nav {
+  display: flex;
+  gap: 2px;
+}
+.ppv-btn {
+  border: 1px solid var(--ppv-border, #ccc);
+  border-radius: 3px;
+  background: var(--ppv-btn-bg, #fff);
+  color: var(--ppv-text, #555);
+  cursor: pointer;
+  padding: 2px 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: background 0.1s;
+}
+.ppv-btn:hover {
+  background: var(--ppv-btn-hover, #e6e6e6);
+}
+.ppv-btn:active {
+  background: var(--ppv-btn-active, #d4d4d4);
+}
+.ppv-spacer { flex: 1; }
+.ppv-close { font-size: 16px; padding: 2px 8px; }
+
+/* ---- Embed bar (file:// 协议，自动隐藏) ---- */
+.pdfviewer-container .ppv-embed-bar {
+  padding: 6px 12px;
+  font-size: 13px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.pdfviewer-container:hover .ppv-embed-bar {
+  max-height: 40px;
+  opacity: 1;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.ppv-embed-bar .ppv-embed-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- Canvas (A4 纸张风格 + 自适应) ---- */
+.ppv-canvas-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 24px 12px;
+  overflow: auto;
+  background: var(--ppv-canvas-bg, #e8e8e8);
+}
+.ppv-canvas-wrapper canvas {
+  display: block;
+  align-self: flex-start;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
+  background: #fff;
+}
+
+/* ---- Error ---- */
+.ppv-error {
+  padding: 20px;
+  text-align: center;
+  color: #c00;
+  font-size: 14px;
+}
+
+/* ---- 原生 PDF viewer（iframe 内嵌） ---- */
+.pdfviewer-container .ppv-frame {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  min-height: 480px;
+  border: none;
+  background: var(--ppv-bg, #fff);
+}
+
+/* ---- 响应式 ---- */
+@media (max-width: 600px) {
+  .ppv-placeholder { padding: 20px 16px; }
+  .ppv-placeholder .ppv-icon { font-size: 32px; }
+}
+</style>
+<style>
+.miv_mdbook-image-viewer {
+    cursor: pointer;
+}
+.miv_modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: rgba(0,0,0,0.9);
+}
+.miv_modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.miv_modal-content img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    cursor: move;
+    transition: transform 0.1s ease-out;
+    touch-action: none;
+}
+/* 内联 SVG（TikZ/Typst）在 modal 中克隆显示 */
+#miv_modalSvg {
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+#miv_modalSvg svg {
+    max-width: 90% !important;
+    max-height: 90% !important;
+    cursor: move;
+    touch-action: none;
+    transition: transform 0.1s ease-out;
+}
+.miv_close {
+    position: fixed;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    z-index: 1001;
+}
+.miv_close:hover,
+.miv_close:focus {
+    color: #bbb;
+    text-decoration: none;
+    cursor: pointer;
+}
+@media (max-width: 768px) {
+    .miv_modal-content img {
+        max-width: 100%;
+        max-height: 100%;
+    }
+}
+</style>
+<style>
+.mdbook-alerts {
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  border-left: 0.25em solid var(--mdbook-alerts-color);
+}
+
+.mdbook-alerts > *:first-child {
+  margin-top: 0;
+}
+
+.mdbook-alerts > *:last-child {
+  margin-bottom: 0;
+}
+
+.mdbook-alerts-title {
+  display: flex;
+  font-weight: 600;
+  align-items: center;
+  line-height: 1;
+  color: var(--mdbook-alerts-color);
+  text-transform: capitalize;
+}
+
+.mdbook-alerts-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.2em;
+  background-color: currentColor;
+  -webkit-mask: no-repeat center / 100%;
+  mask: no-repeat center / 100%;
+  -webkit-mask-image: var(--mdbook-alerts-icon);
+  mask-image: var(--mdbook-alerts-icon);
+}
+
+.mdbook-alerts-note {
+  --mdbook-alerts-color: rgb(9, 105, 218);
+  /* https://icon-sets.iconify.design/material-symbols/info-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 17q.425 0 .713-.288T13 16v-4q0-.425-.288-.712T12 11q-.425 0-.712.288T11 12v4q0 .425.288.713T12 17m0-8q.425 0 .713-.288T13 8q0-.425-.288-.712T12 7q-.425 0-.712.288T11 8q0 .425.288.713T12 9m0 13q-2.075 0-3.9-.788t-3.175-2.137q-1.35-1.35-2.137-3.175T2 12q0-2.075.788-3.9t2.137-3.175q1.35-1.35 3.175-2.137T12 2q2.075 0 3.9.788t3.175 2.137q1.35 1.35 2.138 3.175T22 12q0 2.075-.788 3.9t-2.137 3.175q-1.35 1.35-3.175 2.138T12 22m0-2q3.35 0 5.675-2.325T20 12q0-3.35-2.325-5.675T12 4Q8.65 4 6.325 6.325T4 12q0 3.35 2.325 5.675T12 20m0-8"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-tip {
+  --mdbook-alerts-color: rgb(26, 127, 55);
+  /* https://icon-sets.iconify.design/material-symbols/lightbulb-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 22q-.825 0-1.412-.587T10 20h4q0 .825-.587 1.413T12 22m-3-3q-.425 0-.712-.288T8 18q0-.425.288-.712T9 17h6q.425 0 .713.288T16 18q0 .425-.288.713T15 19zm-.75-3q-1.725-1.025-2.738-2.75T4.5 9.5q0-3.125 2.188-5.312T12 2q3.125 0 5.313 2.188T19.5 9.5q0 2.025-1.012 3.75T15.75 16zm.6-2h6.3q1.125-.8 1.738-1.975T17.5 9.5q0-2.3-1.6-3.9T12 4Q9.7 4 8.1 5.6T6.5 9.5q0 1.35.613 2.525T8.85 14M12 14"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-important {
+  --mdbook-alerts-color: rgb(130, 80, 223);
+  /* https://icon-sets.iconify.design/material-symbols/chat-info-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 7q.425 0 .713-.288T13 6q0-.425-.288-.712T12 5q-.425 0-.712.288T11 6q0 .425.288.713T12 7m0 8q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9q-.425 0-.712.288T11 10v4q0 .425.288.713T12 15m-6 3l-2.3 2.3q-.475.475-1.088.213T2 19.575V4q0-.825.588-1.412T4 2h16q.825 0 1.413.588T22 4v12q0 .825-.587 1.413T20 18zm-.85-2H20V4H4v13.125zM4 16V4z"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-warning {
+  --mdbook-alerts-color: rgb(154, 103, 0);
+  /* https://icon-sets.iconify.design/material-symbols/warning-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M2.725 21q-.275 0-.5-.137t-.35-.363q-.125-.225-.137-.488t.137-.512l9.25-16q.15-.25.388-.375T12 3q.25 0 .488.125t.387.375l9.25 16q.15.25.138.513t-.138.487q-.125.225-.35.363t-.5.137zm1.725-2h15.1L12 6zM12 18q.425 0 .713-.288T13 17q0-.425-.288-.712T12 16q-.425 0-.712.288T11 17q0 .425.288.713T12 18m0-3q.425 0 .713-.288T13 14v-3q0-.425-.288-.712T12 10q-.425 0-.712.288T11 11v3q0 .425.288.713T12 15m0-2.5"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-caution {
+  --mdbook-alerts-color: rgb(207, 34, 46);
+  /* https://icon-sets.iconify.design/material-symbols/brightness-alert-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 17q.425 0 .713-.288T13 16q0-.425-.288-.712T12 15q-.425 0-.712.288T11 16q0 .425.288.713T12 17m0-4q.425 0 .713-.288T13 12V8q0-.425-.288-.712T12 7q-.425 0-.712.288T11 8v4q0 .425.288.713T12 13m-3.35 7H6q-.825 0-1.412-.587T4 18v-2.65L2.075 13.4q-.275-.3-.425-.662T1.5 12q0-.375.15-.737t.425-.663L4 8.65V6q0-.825.588-1.412T6 4h2.65l1.95-1.925q.3-.275.663-.425T12 1.5q.375 0 .738.15t.662.425L15.35 4H18q.825 0 1.413.588T20 6v2.65l1.925 1.95q.275.3.425.663t.15.737q0 .375-.15.738t-.425.662L20 15.35V18q0 .825-.587 1.413T18 20h-2.65l-1.95 1.925q-.3.275-.662.425T12 22.5q-.375 0-.737-.15t-.663-.425zm.85-2l2.5 2.5l2.5-2.5H18v-3.5l2.5-2.5L18 9.5V6h-3.5L12 3.5L9.5 6H6v3.5L3.5 12L6 14.5V18zm2.5-6"%2F%3E%3C%2Fsvg%3E');
+}
+
+</style>
+<h2 id="tikz绘图"><a class="header" href="#tikz绘图">Tikz绘图</a></h2>
+<h3 id="1参考"><a class="header" href="#1参考">1.参考</a></h3>
+<ol>
+<li><a href="https://texample.net/">TeXample</a>: the figures from here often provide a solid starting point.</li>
+<li><a href="https://github.com/xiaohanyu/awesome-tikz.git">awesome-tikz</a>: A curated list of awesome TikZ documentations, libraries and resources.</li>
+</ol>
+<h2 id="latex常用数学符号整理"><a class="header" href="#latex常用数学符号整理">LaTex常用数学符号整理</a></h2>
+<h3 id="1常用公式"><a class="header" href="#1常用公式">1.常用公式</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">描述</th><th style="text-align: center">写法</th><th style="text-align: center">效果展示</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center">上下标</td><td style="text-align: center">a_0 = 3^2</td><td style="text-align: center"><data class="katex-src" value="a_0 = 3^2"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.15em;height:0.5806em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="margin-left:0em;margin-right:0.05em;top:-2.55em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">3</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="margin-right:0.05em;top:-3.063em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">上下标（多字符）</td><td style="text-align: center">A_{ij} = 2^{i+j}</td><td style="text-align: center"><data class="katex-src" value="A_{ij} = 2^{i+j}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;margin-left:0em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">ij</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8247em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8247em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mbin mtight">+</span><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span></span></span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">角度</td><td style="text-align: center">A = 90^\circ</td><td style="text-align: center"><data class="katex-src" value="A = 90^&#92;circ"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6741em;"></span><span class="mord">9</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6741em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mbin mtight">∘</span></span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">上下方水平线</td><td style="text-align: center">\overline{m+n} / \underline{m+n}</td><td style="text-align: center"><data class="katex-src" value="&#92;overline{m+n} / &#92;underline{m+n}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0667em;vertical-align:-0.2833em;"></span><span class="mord overline"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.7833em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">m</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">n</span></span></span><span style="top:-3.7033em;"><span class="pstrut" style="height:3em;"></span><span class="overline-line" style="border-bottom-width:0.04em;"></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.0833em;"><span></span></span></span></span></span><span class="mord">/</span><span class="mord underline"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.5833em;"><span style="top:-2.7567em;"><span class="pstrut" style="height:3em;"></span><span class="underline-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">m</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2833em;"><span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">上下方大括号</td><td style="text-align: center">\overbrace{m+n} / \underbrace{m+n}</td><td style="text-align: center"><data class="katex-src" value="&#92;overbrace{m+n} / &#92;underbrace{m+n}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.7313em;height:1.9627em;"></span><span class="mord mover"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2313em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">m</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">n</span></span></span><span class="svg-align" style="top:-3.6833em;"><span class="pstrut" style="height:3em;"></span><span class="stretchy" style="min-width:1.6em;height:0.548em;"><span class="brace-left" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 400000 548" width="400em" preserveaspectratio="xMinYMin slice" height="0.548em"><path d="M6 548l-6-6v-35l6-11c56-104 135.3-181.3 238-232 57.3-28.7 117 -45 179-50h399577v120H403c-43.3 7-81 15-113 26-100.7 33-179.7 91-237 174-2.7  5-6 9-10 13-.7 1-7.3 1-20 1H6z" /></svg></span><span class="brace-center" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" height="0.548em" viewbox="0 0 400000 548" width="400em" preserveaspectratio="xMidYMin slice"><path d="M200428 334 c-100.7-8.3-195.3-44-280-108-55.3-42-101.7-93-139-153l-9-14c-2.7 4-5.7 8.7-9 14 -53.3 86.7-123.7 153-211 199-66.7 36-137.3 56.3-212 62H0V214h199568c178.3-11.7  311.7-78.3 403-201 6-8 9.7-12 11-12 .7-.7 6.7-1 18-1s17.3.3 18 1c1.3 0 5 4 11  12 44.7 59.3 101.3 106.3 170 141s145.3 54.3 229 60h199572v120z" /></svg></span><span class="brace-right" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" height="0.548em" viewbox="0 0 400000 548" width="400em" preserveaspectratio="xMaxYMin slice"><path d="M400000 542l -6 6h-17c-12.7 0-19.3-.3-20-1-4-4-7.3-8.3-10-13-35.3-51.3-80.8-93.8-136.5-127.5 s-117.2-55.8-184.5-66.5c-.7 0-2-.3-4-1-18.7-2.7-76-4.3-172-5H0V214h399571l6 1 c124.7 8 235 61.7 331 161 31.3 33.3 59.7 72.7 85 118l7 13v35z" /></svg></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.0833em;"><span></span></span></span></span></span><span class="mord">/</span><span class="mord munder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.5833em;"><span class="svg-align" style="top:-2.2687em;"><span class="pstrut" style="height:3em;"></span><span class="stretchy" style="min-width:1.6em;height:0.548em;"><span class="brace-left" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 400000 548" preserveaspectratio="xMinYMin slice" width="400em" height="0.548em"><path d="M0 6l6-6h17c12.688 0 19.313.3 20 1 4 4 7.313 8.3 10 13  35.313 51.3 80.813 93.8 136.5 127.5 55.688 33.7 117.188 55.8 184.5 66.5.688  0 2 .3 4 1 18.688 2.7 76 4.3 172 5h399450v120H429l-6-1c-124.688-8-235-61.7 -331-161C60.687 138.7 32.312 99.3 7 54L0 41V6z" /></svg></span><span class="brace-center" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" height="0.548em" viewbox="0 0 400000 548" preserveaspectratio="xMidYMin slice" width="400em"><path d="M199572 214 c100.7 8.3 195.3 44 280 108 55.3 42 101.7 93 139 153l9 14c2.7-4 5.7-8.7 9-14  53.3-86.7 123.7-153 211-199 66.7-36 137.3-56.3 212-62h199568v120H200432c-178.3  11.7-311.7 78.3-403 201-6 8-9.7 12-11 12-.7.7-6.7 1-18 1s-17.3-.3-18-1c-1.3 0 -5-4-11-12-44.7-59.3-101.3-106.3-170-141s-145.3-54.3-229-60H0V214z" /></svg></span><span class="brace-right" style="height:0.548em;"><svg xmlns="http://www.w3.org/2000/svg" preserveaspectratio="xMaxYMin slice" viewbox="0 0 400000 548" width="400em" height="0.548em"><path d="M399994 0l6 6v35l-6 11c-56 104-135.3 181.3-238 232-57.3  28.7-117 45-179 50H-300V214h399897c43.3-7 81-15 113-26 100.7-33 179.7-91 237 -174 2.7-5 6-9 10-13 .7-1 7.3-1 20-1h17z" /></svg></span></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">m</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7313em;"><span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">向量</td><td style="text-align: center">\vec a</td><td style="text-align: center"><data class="katex-src" value="&#92;vec a"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.714em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.714em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.2355em;"><span class="overlay" style="width:0.471em;height:0.714em;"><svg xmlns="http://www.w3.org/2000/svg" height="0.714em" preserveaspectratio="xMinYMin" width="0.471em" style="width:0.471em" viewbox="0 0 471 714"><path d="M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5 3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11 10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63 -1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1 -7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59 H213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359 c-16-25.333-24-45-24-59z" /></svg></span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">分数</td><td style="text-align: center">\frac{1}{2}</td><td style="text-align: center"><data class="katex-src" value="&#92;frac{1}{2}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.345em;height:1.1901em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8451em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">求和</td><td style="text-align: center">\sum_{i=1}^n</td><td style="text-align: center"><data class="katex-src" value="&#92;sum_{i=1}^n"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.104em;vertical-align:-0.2997em;"></span><span class="mop"><span class="mop op-symbol small-op" style="top:0em;position:relative;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8043em;"><span style="margin-left:0em;margin-right:0.05em;top:-2.4003em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="margin-right:0.05em;top:-3.2029em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2997em;"><span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">积分</td><td style="text-align: center">\int_0^{\pi/2}</td><td style="text-align: center"><data class="katex-src" value="&#92;int_0^{&#92;pi/2}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.3558em;height:1.4387em;"></span><span class="mop"><span class="mop op-symbol small-op" style="margin-right:0.1945em;top:-0.0006em;position:relative;">∫</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.0829em;"><span style="top:-2.3442em;margin-left:-0.1945em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span><span style="margin-right:0.05em;top:-3.2579em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0359em;">π</span><span class="mord mtight">/2</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3558em;"><span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">累乘</td><td style="text-align: center">\prod_\epsilon</td><td style="text-align: center"><data class="katex-src" value="&#92;prod_&#92;epsilon"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0497em;vertical-align:-0.2997em;"></span><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:0em;">∏</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.0017em;"><span style="margin-right:0.05em;margin-left:0em;top:-2.4003em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">ϵ</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2997em;"><span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">优化</td><td style="text-align: center">\mathop{\arg\min}_{\theta}</td><td style="text-align: center"><data class="katex-src" value="&#92;mathop{&#92;arg&#92;min}_{&#92;theta}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.2441em;height:0.912em;"></span><span class="mop"><span class="mop"><span class="mop">ar<span style="margin-right:0.0139em;">g</span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mop">min</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.242em;"><span style="top:-2.4559em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0278em;">θ</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2441em;"><span></span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">上左箭头</td><td style="text-align: center">\overleftarrow{a+b}</td><td style="text-align: center"><data class="katex-src" value="&#92;overleftarrow{a+b}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.0833em;height:1.2998em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2164em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">b</span></span></span><span class="svg-align" style="top:-3.6944em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.888em;height:0.522em;"><svg xmlns="http://www.w3.org/2000/svg" height="0.522em" preserveaspectratio="xMinYMin slice" viewbox="0 0 400000 522" width="400em"><path d="M400000 241H110l3-3c68.7-52.7 113.7-120  135-202 4-14.7 6-23 6-25 0-7.3-7-11-21-11-8 0-13.2.8-15.5 2.5-2.3 1.7-4.2 5.8 -5.5 12.5-1.3 4.7-2.7 10.3-4 17-12 48.7-34.8 92-68.5 130S65.3 228.3 18 247 c-10 4-16 7.7-18 11 0 8.7 6 14.3 18 17 47.3 18.7 87.8 47 121.5 85S196 441.3 208  490c.7 2 1.3 5 2 9s1.2 6.7 1.5 8c.3 1.3 1 3.3 2 6s2.2 4.5 3.5 5.5c1.3 1 3.3  1.8 6 2.5s6 1 10 1c14 0 21-3.7 21-11 0-2-2-10.3-6-25-20-79.3-65-146.7-135-202  l-3-3h399890zM100 241v40h399900v-40z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.0833em;"><span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">上右箭头</td><td style="text-align: center">\overrightarrow{a+b}</td><td style="text-align: center"><data class="katex-src" value="&#92;overrightarrow{a+b}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.2998em;vertical-align:-0.0833em;"></span><span class="mord accent"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2164em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">b</span></span></span><span class="svg-align" style="top:-3.6944em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="height:0.522em;min-width:0.888em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" preserveaspectratio="xMaxYMin slice" viewbox="0 0 400000 522" height="0.522em"><path d="M0 241v40h399891c-47.3 35.3-84 78-110 128 -16.7 32-27.7 63.7-33 95 0 1.3-.2 2.7-.5 4-.3 1.3-.5 2.3-.5 3 0 7.3 6.7 11 20  11 8 0 13.2-.8 15.5-2.5 2.3-1.7 4.2-5.5 5.5-11.5 2-13.3 5.7-27 11-41 14.7-44.7  39-84.5 73-119.5s73.7-60.2 119-75.5c6-2 9-5.7 9-11s-3-9-9-11c-45.3-15.3-85 -40.5-119-75.5s-58.3-74.8-73-119.5c-4.7-14-8.3-27.3-11-40-1.3-6.7-3.2-10.8-5.5 -12.5-2.3-1.7-7.5-2.5-15.5-2.5-14 0-21 3.7-21 11 0 2 2 10.3 6 25 20.7 83.3 67  151.7 139 205zm0 0v40h399900v-40z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.0833em;"><span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">下左箭头</td><td style="text-align: center">\underleftarrow{a+b}</td><td style="text-align: center"><data class="katex-src" value="&#92;underleftarrow{a+b}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.2998em;vertical-align:-0.6053em;"></span><span class="mord accentunder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span class="svg-align" style="top:-2.3947em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="height:0.522em;min-width:0.888em;"><svg xmlns="http://www.w3.org/2000/svg" preserveaspectratio="xMinYMin slice" width="400em" height="0.522em" viewbox="0 0 400000 522"><path d="M400000 241H110l3-3c68.7-52.7 113.7-120  135-202 4-14.7 6-23 6-25 0-7.3-7-11-21-11-8 0-13.2.8-15.5 2.5-2.3 1.7-4.2 5.8 -5.5 12.5-1.3 4.7-2.7 10.3-4 17-12 48.7-34.8 92-68.5 130S65.3 228.3 18 247 c-10 4-16 7.7-18 11 0 8.7 6 14.3 18 17 47.3 18.7 87.8 47 121.5 85S196 441.3 208  490c.7 2 1.3 5 2 9s1.2 6.7 1.5 8c.3 1.3 1 3.3 2 6s2.2 4.5 3.5 5.5c1.3 1 3.3  1.8 6 2.5s6 1 10 1c14 0 21-3.7 21-11 0-2-2-10.3-6-25-20-79.3-65-146.7-135-202  l-3-3h399890zM100 241v40h399900v-40z" /></svg></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.6053em;"><span></span></span></span></span></span></span></span></span></data></td></tr>
+<tr><td style="text-align: center">下右箭头</td><td style="text-align: center">\underrightarrow{a+b}</td><td style="text-align: center"><data class="katex-src" value="&#92;underrightarrow{a+b}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.2998em;vertical-align:-0.6053em;"></span><span class="mord accentunder"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span class="svg-align" style="top:-2.3947em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="height:0.522em;min-width:0.888em;"><svg xmlns="http://www.w3.org/2000/svg" preserveaspectratio="xMaxYMin slice" height="0.522em" width="400em" viewbox="0 0 400000 522"><path d="M0 241v40h399891c-47.3 35.3-84 78-110 128 -16.7 32-27.7 63.7-33 95 0 1.3-.2 2.7-.5 4-.3 1.3-.5 2.3-.5 3 0 7.3 6.7 11 20  11 8 0 13.2-.8 15.5-2.5 2.3-1.7 4.2-5.5 5.5-11.5 2-13.3 5.7-27 11-41 14.7-44.7  39-84.5 73-119.5s73.7-60.2 119-75.5c6-2 9-5.7 9-11s-3-9-9-11c-45.3-15.3-85 -40.5-119-75.5s-58.3-74.8-73-119.5c-4.7-14-8.3-27.3-11-40-1.3-6.7-3.2-10.8-5.5 -12.5-2.3-1.7-7.5-2.5-15.5-2.5-14 0-21 3.7-21 11 0 2 2 10.3 6 25 20.7 83.3 67  151.7 139 205zm0 0v40h399900v-40z" /></svg></span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.6053em;"><span></span></span></span></span></span></span></span></span></data></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="2矩阵"><a class="header" href="#2矩阵">2.矩阵</a></h3>
+<pre><code>\begin{pmatrix} a&amp;b\\ c&amp;d \end{pmatrix} \quad
+\begin{bmatrix} a&amp;b\\ c&amp;d \end{bmatrix} \quad
+\begin{Bmatrix} a&amp;b\\ c&amp;d \end{Bmatrix} \quad
+\begin{vmatrix} a&amp;b\\ c&amp;d \end{vmatrix} \quad
+\begin{Vmatrix} a&amp;b\\ c&amp;d \end{Vmatrix} 
+</code></pre>
+<p><data class="katex-src" value="
+&#92;begin{pmatrix} a&amp;b&#92;&#92; c&amp;d &#92;end{pmatrix} &#92;quad
+&#92;begin{bmatrix} a&amp;b&#92;&#92; c&amp;d &#92;end{bmatrix} &#92;quad
+&#92;begin{Bmatrix} a&amp;b&#92;&#92; c&amp;d &#92;end{Bmatrix} &#92;quad
+&#92;begin{vmatrix} a&amp;b&#92;&#92; c&amp;d &#92;end{vmatrix} &#92;quad
+&#92;begin{Vmatrix} a&amp;b&#92;&#92; c&amp;d &#92;end{Vmatrix}
+"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.95em;height:2.4em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">(</span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">b</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">d</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">)</span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:1em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">[</span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">b</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">d</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">]</span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:1em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size3">{</span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">b</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">d</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size3">}</span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:1em;"></span><span class="minner"><span class="mopen"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.45em;"><span class="pstrut" style="height:4.4em;"></span><span style="height:2.400em;width:0.333em;"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 333 2400" height="2.400em" width="0.333em"><path d="M145 15 v585 v1200 v585 c2.667,10,9.667,15,21,15 c10,0,16.667,-5,20,-15 v-585 v-1200 v-585 c-2.667,-10,-9.667,-15,-21,-15 c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v1200 v585 h43z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">b</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">d</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span><span class="mclose"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.45em;"><span class="pstrut" style="height:4.4em;"></span><span style="width:0.333em;height:2.400em;"><svg xmlns="http://www.w3.org/2000/svg" width="0.333em" viewbox="0 0 333 2400" height="2.400em"><path d="M145 15 v585 v1200 v585 c2.667,10,9.667,15,21,15 c10,0,16.667,-5,20,-15 v-585 v-1200 v-585 c-2.667,-10,-9.667,-15,-21,-15 c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v1200 v585 h43z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mspace" style="margin-right:1em;"></span><span class="minner"><span class="mopen"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.45em;"><span class="pstrut" style="height:4.4em;"></span><span style="height:2.400em;width:0.556em;"><svg xmlns="http://www.w3.org/2000/svg" height="2.400em" viewbox="0 0 556 2400" width="0.556em"><path d="M145 15 v585 v1200 v585 c2.667,10,9.667,15,21,15 c10,0,16.667,-5,20,-15 v-585 v-1200 v-585 c-2.667,-10,-9.667,-15,-21,-15 c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v1200 v585 h43z M367 15 v585 v1200 v585 c2.667,10,9.667,15,21,15 c10,0,16.667,-5,20,-15 v-585 v-1200 v-585 c-2.667,-10,-9.667,-15,-21,-15 c-10,0,-16.667,5,-20,15z M410 15 H367 v585 v1200 v585 h43z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">a</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">b</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathnormal">d</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span><span class="mclose"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.45em;"><span class="pstrut" style="height:4.4em;"></span><span style="width:0.556em;height:2.400em;"><svg xmlns="http://www.w3.org/2000/svg" height="2.400em" viewbox="0 0 556 2400" width="0.556em"><path d="M145 15 v585 v1200 v585 c2.667,10,9.667,15,21,15 c10,0,16.667,-5,20,-15 v-585 v-1200 v-585 c-2.667,-10,-9.667,-15,-21,-15 c-10,0,-16.667,5,-20,15z M188 15 H145 v585 v1200 v585 h43z M367 15 v585 v1200 v585 c2.667,10,9.667,15,21,15 c10,0,16.667,-5,20,-15 v-585 v-1200 v-585 c-2.667,-10,-9.667,-15,-21,-15 c-10,0,-16.667,5,-20,15z M410 15 H367 v585 v1200 v585 h43z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span></span></span></span></span></data></p>
+<h4 id="21常规表示"><a class="header" href="#21常规表示">2.1常规表示</a></h4>
+<p>不同的列用符号 <strong>&amp;</strong> 分隔，行用 **\ \ ** 分隔。</p>
+<pre><code>A =
+  \begin{pmatrix}
+  a_{11} &amp; a_{12} &amp; a_{13} \\ 
+  0 &amp; a_{22} &amp; a_{23} \\ 
+  0 &amp; 0 &amp; a_{33}
+  \end{pmatrix}
+</code></pre>
+<p><data class="katex-src" value="
+A =
+  &#92;begin{pmatrix}
+  a_{11} &amp; a_{12} &amp; a_{13} &#92;&#92; 
+  0 &amp; a_{22} &amp; a_{23} &#92;&#92; 
+  0 &amp; 0 &amp; a_{33}
+  &#92;end{pmatrix}
+"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="vertical-align:-1.55em;height:3.6em;"></span><span class="minner"><span class="mopen"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.05em;"><span style="top:-4.05em;"><span class="pstrut" style="height:5.6em;"></span><span style="width:0.875em;height:3.600em;"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 875 3600" width="0.875em" height="3.600em"><path d="M863,9c0,-2,-2,-5,-6,-9c0,0,-17,0,-17,0c-12.7,0,-19.3,0.3,-20,1 c-5.3,5.3,-10.3,11,-15,17c-242.7,294.7,-395.3,682,-458,1162c-21.3,163.3,-33.3,349, -36,557 l0,84c0.2,6,0,26,0,60c2,159.3,10,310.7,24,454c53.3,528,210, 949.7,470,1265c4.7,6,9.7,11.7,15,17c0.7,0.7,7,1,19,1c0,0,18,0,18,0c4,-4,6,-7,6,-9 c0,-2.7,-3.3,-8.7,-10,-18c-135.3,-192.7,-235.5,-414.3,-300.5,-665c-65,-250.7,-102.5, -544.7,-112.5,-882c-2,-104,-3,-167,-3,-189 l0,-92c0,-162.7,5.7,-314,17,-454c20.7,-272,63.7,-513,129,-723c65.3, -210,155.3,-396.3,270,-559c6.7,-9.3,10,-15.3,10,-18z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.55em;"><span></span></span></span></span></span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.05em;"><span style="top:-4.21em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">11</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.01em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">0</span></span></span><span style="top:-1.81em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.55em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.05em;"><span style="top:-4.21em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="margin-left:0em;margin-right:0.05em;top:-2.55em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">12</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.01em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="margin-right:0.05em;top:-2.55em;margin-left:0em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">22</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-1.81em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.55em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.05em;"><span style="top:-4.21em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">13</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.01em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">23</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-1.81em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-right:0.05em;margin-left:0em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">33</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.55em;"><span></span></span></span></span></span></span></span><span class="mclose"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.05em;"><span style="top:-4.05em;"><span class="pstrut" style="height:5.6em;"></span><span style="height:3.600em;width:0.875em;"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 875 3600" width="0.875em" height="3.600em"><path d="M76,0c-16.7,0,-25,3,-25,9c0,2,2,6.3,6,13c21.3,28.7,42.3,60.3, 63,95c96.7,156.7,172.8,332.5,228.5,527.5c55.7,195,92.8,416.5,111.5,664.5 c11.3,139.3,17,290.7,17,454c0,28,1.7,43,3.3,45l0,9 c-3,4,-3.3,16.7,-3.3,38c0,162,-5.7,313.7,-17,455c-18.7,248,-55.8,469.3,-111.5,664 c-55.7,194.7,-131.8,370.3,-228.5,527c-20.7,34.7,-41.7,66.3,-63,95c-2,3.3,-4,7,-6,11 c0,7.3,5.7,11,17,11c0,0,11,0,11,0c9.3,0,14.3,-0.3,15,-1c5.3,-5.3,10.3,-11,15,-17 c242.7,-294.7,395.3,-681.7,458,-1161c21.3,-164.7,33.3,-350.7,36,-558 l0,-144c-2,-159.3,-10,-310.7,-24,-454c-53.3,-528,-210,-949.7, -470,-1265c-4.7,-6,-9.7,-11.7,-15,-17c-0.7,-0.7,-6.7,-1,-18,-1z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.55em;"><span></span></span></span></span></span></span></span></span></span></span></span></data></p>
+<p>矩阵中常常使用各种省略号，即 <strong>\dots</strong>，<strong>\vdots</strong>，<strong>\ddots</strong> 等。</p>
+<pre><code>A =
+\begin{bmatrix}
+a_{11} &amp; \dots &amp; a_{1n} \\ 
+ &amp; \ddots &amp; \vdots \\ 
+0 &amp;  &amp; a_{nn}
+\end{bmatrix}_{n \times n}
+</code></pre>
+<p><data class="katex-src" value="
+A =
+&#92;begin{bmatrix}
+a_{11} &amp; &#92;dots &amp; a_{1n} &#92;&#92; 
+ &amp; &#92;ddots &amp; &#92;vdots &#92;&#92; 
+0 &amp;  &amp; a_{nn}
+&#92;end{bmatrix}_{n &#92;times n}
+"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="vertical-align:-1.988em;height:4.368em;"></span><span class="minner"><span class="minner"><span class="mopen"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.35em;"><span style="top:-4.35em;"><span class="pstrut" style="height:6.2em;"></span><span style="height:4.200em;width:0.667em;"><svg xmlns="http://www.w3.org/2000/svg" height="4.200em" width="0.667em" viewbox="0 0 667 4200"><path d="M403 1759 V84 H666 V0 H319 V1759 v600 v1759 h347 v-84 H403z M403 1759 V0 H319 V1759 v600 v1759 h84z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.85em;"><span></span></span></span></span></span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.38em;"><span style="top:-5.04em;"><span class="pstrut" style="height:3.5em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">11</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.18em;"><span class="pstrut" style="height:3.5em;"></span><span class="mord"></span></span><span style="top:-1.98em;"><span class="pstrut" style="height:3.5em;"></span><span class="mord"><span class="mord">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.88em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.38em;"><span style="top:-5.04em;"><span class="pstrut" style="height:3.5em;"></span><span class="mord"><span class="minner">…</span></span></span><span style="top:-3.18em;"><span class="pstrut" style="height:3.5em;"></span><span class="mord"><span class="minner">⋱</span></span></span><span style="top:-1.98em;"><span class="pstrut" style="height:3.5em;"></span><span class="mord"></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.88em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.38em;"><span style="top:-5.2275em;"><span class="pstrut" style="height:3.6875em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="margin-right:0.05em;top:-2.55em;margin-left:0em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span><span class="mord mathnormal mtight">n</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span><span style="top:-3.3675em;"><span class="pstrut" style="height:3.6875em;"></span><span class="mord"><span class="mord"><span class="mord">⋮</span><span class="mord rule" style="border-right-width:0em;border-top-width:1.5em;bottom:0em;"></span></span></span></span><span style="top:-2.1675em;"><span class="pstrut" style="height:3.6875em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="margin-left:0em;margin-right:0.05em;top:-2.55em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">nn</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.88em;"><span></span></span></span></span></span></span></span><span class="mclose"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.35em;"><span style="top:-4.35em;"><span class="pstrut" style="height:6.2em;"></span><span style="height:4.200em;width:0.667em;"><svg xmlns="http://www.w3.org/2000/svg" height="4.200em" viewbox="0 0 667 4200" width="0.667em"><path d="M347 1759 V0 H0 V84 H263 V1759 v600 v1759 H0 v84 H347z M347 1759 V0 H263 V1759 v600 v1759 h84z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.85em;"><span></span></span></span></span></span></span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:-1.5214em;"><span style="top:-0.7703em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mbin mtight">×</span><span class="mord mathnormal mtight">n</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.988em;"><span></span></span></span></span></span></span></span></span></span></span></data></p>
+<h4 id="22分块矩阵"><a class="header" href="#22分块矩阵">2.2分块矩阵</a></h4>
+<p>分块矩阵可以理解为矩阵的嵌套。</p>
+<pre><code>\begin{pmatrix}
+  \begin{matrix}
+  1 &amp; 0\\ 
+  0 &amp; 1
+  \end{matrix}
+  &amp; \text{\Large 0}\\ 
+  \text{\Large 0} &amp;
+  \begin{matrix}
+  1 &amp; 0\\ 
+  0 &amp; -1
+  \end{matrix}
+\end{pmatrix}
+</code></pre>
+<p><data class="katex-src" value="
+&#92;begin{pmatrix}
+  &#92;begin{matrix}
+  1 &amp; 0&#92;&#92; 
+  0 &amp; 1
+  &#92;end{matrix}
+  &amp; &#92;text{&#92;Large 0}&#92;&#92; 
+  &#92;text{&#92;Large 0} &amp;
+  &#92;begin{matrix}
+  1 &amp; 0&#92;&#92; 
+  0 &amp; -1
+  &#92;end{matrix}
+&#92;end{pmatrix}
+"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-2.15em;height:4.8em;"></span><span class="minner"><span class="mopen"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.65em;"><span style="top:-4.65em;"><span class="pstrut" style="height:6.8em;"></span><span style="width:0.875em;height:4.800em;"><svg xmlns="http://www.w3.org/2000/svg" width="0.875em" height="4.800em" viewbox="0 0 875 4800"><path d="M863,9c0,-2,-2,-5,-6,-9c0,0,-17,0,-17,0c-12.7,0,-19.3,0.3,-20,1 c-5.3,5.3,-10.3,11,-15,17c-242.7,294.7,-395.3,682,-458,1162c-21.3,163.3,-33.3,349, -36,557 l0,1284c0.2,6,0,26,0,60c2,159.3,10,310.7,24,454c53.3,528,210, 949.7,470,1265c4.7,6,9.7,11.7,15,17c0.7,0.7,7,1,19,1c0,0,18,0,18,0c4,-4,6,-7,6,-9 c0,-2.7,-3.3,-8.7,-10,-18c-135.3,-192.7,-235.5,-414.3,-300.5,-665c-65,-250.7,-102.5, -544.7,-112.5,-882c-2,-104,-3,-167,-3,-189 l0,-1292c0,-162.7,5.7,-314,17,-454c20.7,-272,63.7,-513,129,-723c65.3, -210,155.3,-396.3,270,-559c6.7,-9.3,10,-15.3,10,-18z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:2.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.65em;"><span style="top:-4.65em;"><span class="pstrut" style="height:3.45em;"></span><span class="mord"><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">0</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.45em;"></span><span class="mord"><span class="mord text"><span class="mord sizing reset-size6 size8">0</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:2.15em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.65em;"><span style="top:-4.65em;"><span class="pstrut" style="height:3.45em;"></span><span class="mord"><span class="mord text"><span class="mord sizing reset-size6 size8">0</span></span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.45em;"></span><span class="mord"><span class="mord"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">1</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:0.5em;"></span><span class="arraycolsep" style="width:0.5em;"></span><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.45em;"><span style="top:-3.61em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">0</span></span></span><span style="top:-2.41em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">−</span><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.95em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:2.15em;"><span></span></span></span></span></span></span></span><span class="mclose"><span class="delimsizing mult"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:2.65em;"><span style="top:-4.65em;"><span class="pstrut" style="height:6.8em;"></span><span style="width:0.875em;height:4.800em;"><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 875 4800" height="4.800em" width="0.875em"><path d="M76,0c-16.7,0,-25,3,-25,9c0,2,2,6.3,6,13c21.3,28.7,42.3,60.3, 63,95c96.7,156.7,172.8,332.5,228.5,527.5c55.7,195,92.8,416.5,111.5,664.5 c11.3,139.3,17,290.7,17,454c0,28,1.7,43,3.3,45l0,1209 c-3,4,-3.3,16.7,-3.3,38c0,162,-5.7,313.7,-17,455c-18.7,248,-55.8,469.3,-111.5,664 c-55.7,194.7,-131.8,370.3,-228.5,527c-20.7,34.7,-41.7,66.3,-63,95c-2,3.3,-4,7,-6,11 c0,7.3,5.7,11,17,11c0,0,11,0,11,0c9.3,0,14.3,-0.3,15,-1c5.3,-5.3,10.3,-11,15,-17 c242.7,-294.7,395.3,-681.7,458,-1161c21.3,-164.7,33.3,-350.7,36,-558 l0,-1344c-2,-159.3,-10,-310.7,-24,-454c-53.3,-528,-210,-949.7, -470,-1265c-4.7,-6,-9.7,-11.7,-15,-17c-0.7,-0.7,-6.7,-1,-18,-1z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:2.15em;"><span></span></span></span></span></span></span></span></span></span></span></span></data></p>
+<h4 id="23矩阵的其他用法"><a class="header" href="#23矩阵的其他用法">2.3矩阵的其他用法</a></h4>
+<p>在行内公式中使用很小的矩阵，用的矩阵环境是 <strong>smallmatrix</strong> 环境。</p>
+<pre><code>矩阵在行内表示 $
+  \begin{smallmatrix}
+  x &amp; -y \\ 
+  y &amp; x
+  \end{smallmatrix}
+$，但是没有括号。
+</code></pre>
+<p>矩阵在行内表示 $
+\begin{smallmatrix}
+x &amp; -y \
+y &amp; x
+\end{smallmatrix}$，但是没有括号。</p>
+<p>用 <strong>\substack</strong> 命令排版列矩阵，用以处理多行内容的插入。</p>
+<pre><code>\sum_{\substack{0&lt;i&lt;n \\ 0&lt;j&lt;i}} A_{ij}
+</code></pre>
+<p><data class="katex-src" value="
+&#92;sum_{&#92;substack{0&lt;i&lt;n &#92;&#92; 0 &lt; j &lt; i}} A_{ij}
+"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-2.0014em;height:3.0514em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.05em;"><span style="margin-left:0em;top:-1.5663em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mtable"><span class="col-align-c"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.0967em;"><span style="top:-3.1372em;"><span class="pstrut" style="height:2.7em;"></span><span class="mord mtight"><span class="mord mtight">0</span><span class="mrel mtight">&lt;</span><span class="mord mathnormal mtight">i</span><span class="mrel mtight">&lt;</span><span class="mord mathnormal mtight">n</span></span></span><span style="top:-2.2977em;"><span class="pstrut" style="height:2.7em;"></span><span class="mord mtight"><span class="mord mtight">0</span><span class="mrel mtight">&lt;</span><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span><span class="mrel mtight">&lt;</span><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.5967em;"><span></span></span></span></span></span></span></span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:2.0014em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">A</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">ij</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></span></data></p>
+<p>或者是用 <strong>\subarray</strong> 指令，还必须指定对齐方式为 <strong>l（左对齐）</strong>，<strong>c（居中）</strong>，<strong>r（右对齐）</strong>。</p>
+<pre><code>\sum_{
+  \begin{subarray}{l}
+  i&lt;10 \\ 
+  j&lt;100 \\ 
+  k&lt;1000
+  \end{subarray}
+} X(i,j,k)
+</code></pre>
+<p><data class="katex-src" value="
+&#92;sum_{
+  &#92;begin{subarray}{l}
+  i&lt;10 &#92;&#92; 
+  j&lt;100 &#92;&#92; 
+  k&lt;1000
+  &#92;end{subarray}
+} X(i,j,k)
+"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:3.6636em;vertical-align:-2.6135em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.05em;"><span style="top:-1.284em;margin-left:0em;"><span class="pstrut" style="height:3.0738em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.534em;"><span style="top:-3.5744em;"><span class="pstrut" style="height:2.7em;"></span><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">&lt;</span><span class="mord mtight">10</span></span></span><span style="top:-2.7349em;"><span class="pstrut" style="height:2.7em;"></span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0572em;">j</span><span class="mrel mtight">&lt;</span><span class="mord mtight">100</span></span></span><span style="top:-1.846em;"><span class="pstrut" style="height:2.7em;"></span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em;">k</span><span class="mrel mtight">&lt;</span><span class="mord mtight">1000</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.034em;"><span></span></span></span></span></span></span></span></span></span></span><span style="top:-3.0738em;"><span class="pstrut" style="height:3.0738em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:2.6135em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0572em;">j</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.0315em;">k</span><span class="mclose">)</span></span></span></span></span></data></p>
+<h2 id="3-括号空格"><a class="header" href="#3-括号空格">3. 括号&amp;空格</a></h2>
+<h4 id="31-括号"><a class="header" href="#31-括号">3.1 括号</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center">[</td><td style="text-align: center">[ or \lbrack</td><td style="text-align: center">]</td><td style="text-align: center">] or \rbrack</td></tr>
+<tr><td style="text-align: center">{</td><td style="text-align: center">{ or \lbrace</td><td style="text-align: center">}</td><td style="text-align: center">} or \rbrace</td></tr>
+<tr><td style="text-align: center">⟨</td><td style="text-align: center">\langle</td><td style="text-align: center">⟩</td><td style="text-align: center">\rangle</td></tr>
+<tr><td style="text-align: center">⌊</td><td style="text-align: center">\lfloor</td><td style="text-align: center">⌋</td><td style="text-align: center">\rfloor</td></tr>
+<tr><td style="text-align: center">/</td><td style="text-align: center">/</td><td style="text-align: center">∖</td><td style="text-align: center">\backslash</td></tr>
+<tr><td style="text-align: center">⟮</td><td style="text-align: center">\lgroup</td><td style="text-align: center">⟯</td><td style="text-align: center">\rgroup</td></tr>
+<tr><td style="text-align: center">⏐</td><td style="text-align: center">\arrowvert</td><td style="text-align: center">∥</td><td style="text-align: center">\Arrowvert</td></tr>
+<tr><td style="text-align: center">↑</td><td style="text-align: center">\uparrow</td><td style="text-align: center">↓</td><td style="text-align: center">\downarrow</td></tr>
+<tr><td style="text-align: center">↕</td><td style="text-align: center">\updownarrow</td><td style="text-align: center">|</td><td style="text-align: center">\vert</td></tr>
+<tr><td style="text-align: center">⇑</td><td style="text-align: center">\Uparrow</td><td style="text-align: center">⇓</td><td style="text-align: center">\Downarrow</td></tr>
+<tr><td style="text-align: center">⇕</td><td style="text-align: center">\Updownarrow</td><td style="text-align: center">∥</td><td style="text-align: center">\parallel</td></tr>
+<tr><td style="text-align: center">⌈</td><td style="text-align: center">\lceil</td><td style="text-align: center">⌉</td><td style="text-align: center">\rceil</td></tr>
+<tr><td style="text-align: center">⎰</td><td style="text-align: center">\lmoustache</td><td style="text-align: center">⎱</td><td style="text-align: center">\rmoustache</td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>不同大小的括号 \Bigg ( \bigg [ \Big {\big \langle \left \vert \parallel \frac{a}{b} \parallel \right \vert \big \rangle \Big } \bigg ] \Bigg ):$([{⟨∣∣∥ab∥∣∣⟩}])$</li>
+<li>自适应大小的括号 \left( \frac{a}{b} \right)：<data class="katex-src" value="&#92;left( &#92;frac{a}{b} &#92;right)"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size1">(</span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6954em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">a</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size1">)</span></span></span></span></span></span></data></li>
+<li>单边括号 \left . \frac{a}{b} \right \rbrace:<data class="katex-src" value="&#92;left . &#92;frac{a}{b} &#92;right &#92;rbrace"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.2em;vertical-align:-0.35em;"></span><span class="minner"><span class="mopen nulldelimiter"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6954em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">a</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mclose delimcenter" style="top:0em;"><span class="delimsizing size1">}</span></span></span></span></span></span></data></li>
+<li>混合括号 \left \langle \psi \right \vert :<data class="katex-src" value="&#92;left &#92;langle &#92;psi &#92;right &#92;vert"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="vertical-align:-0.25em;height:1em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="mopen">⟨</span></span><span class="mord mathnormal" style="margin-right:0.0359em;">ψ</span><span class="mclose delimcenter" style="top:0em;"><span class="mclose">∣</span></span></span></span></span></span></data></li>
+</ul>
+<h4 id="32空格"><a class="header" href="#32空格">3.2空格</a></h4>
+<p>LaTex 在数学公式中的字符间隔是默认自动调整的，直接输入空格会被忽略掉，当我们需要自定义字母间隔时，需要手动输入空格：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">空格</th><th style="text-align: center">写法</th><th style="text-align: center">显示</th><th style="text-align: center">备注</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center">两个quad空格</td><td style="text-align: center">a \qquad b</td><td style="text-align: center"><data class="katex-src" value="a &#92;qquad b"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:2em;"></span><span class="mord mathnormal">b</span></span></span></span></data></td><td style="text-align: center">两个m的宽度</td></tr>
+<tr><td style="text-align: center">quad空格</td><td style="text-align: center">a \quad b</td><td style="text-align: center"><data class="katex-src" value="a &#92;quad b"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:1em;"></span><span class="mord mathnormal">b</span></span></span></span></data></td><td style="text-align: center">一个m的宽度</td></tr>
+<tr><td style="text-align: center">大空格</td><td style="text-align: center">a:b</td><td style="text-align: center"><data class="katex-src" value="a&#92;:b"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal">b</span></span></span></span></data></td><td style="text-align: center">1/3m的宽度</td></tr>
+<tr><td style="text-align: center">中等空格</td><td style="text-align: center">a;b</td><td style="text-align: center"><data class="katex-src" value="a&#92;;b"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathnormal">b</span></span></span></span></data></td><td style="text-align: center">2/7m的宽度</td></tr>
+<tr><td style="text-align: center">小空格</td><td style="text-align: center">a,b</td><td style="text-align: center"><data class="katex-src" value="a&#92;,b"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">a</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">b</span></span></span></span></data></td><td style="text-align: center">1/6m宽度</td></tr>
+<tr><td style="text-align: center">没有空格</td><td style="text-align: center">ab</td><td style="text-align: center"><data class="katex-src" value="ab"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord mathnormal">ab</span></span></span></span></data></td><td style="text-align: center"></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="4重音符"><a class="header" href="#4重音符">4.重音符</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center"><data class="katex-src" value="&#92;hat{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">^</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\hat{a}</td><td style="text-align: center"><data class="katex-src" value="&#92;check{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6285em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6285em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">ˇ</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\check{a}</td><td style="text-align: center"><data class="katex-src" value="&#92;tilde{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6679em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3.35em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">~</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\tilde{a}</td></tr>
+<tr><td style="text-align: center"><data class="katex-src" value="&#92;acute{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">ˊ</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\acute{a}</td><td style="text-align: center"><data class="katex-src" value="&#92;grave{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">ˋ</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\grave{a}</td><td style="text-align: center"><data class="katex-src" value="&#92;dot{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6679em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.1389em;"><span class="mord">˙</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\dot{a}</td></tr>
+<tr><td style="text-align: center"><data class="katex-src" value="&#92;ddot{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6679em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6679em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">¨</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\ddot{a}</td><td style="text-align: center"><data class="katex-src" value="&#92;breve{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.6944em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">˘</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\breve{a}</td><td style="text-align: center"><data class="katex-src" value="&#92;bar{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5678em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.5678em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.25em;"><span class="mord">ˉ</span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\bar{a}</td></tr>
+<tr><td style="text-align: center"><data class="katex-src" value="&#92;vec{a}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.714em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.714em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">a</span></span><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="accent-body" style="left:-0.2355em;"><span class="overlay" style="height:0.714em;width:0.471em;"><svg xmlns="http://www.w3.org/2000/svg" height="0.714em" preserveaspectratio="xMinYMin" viewbox="0 0 471 714" style="width:0.471em" width="0.471em"><path d="M377 20c0-5.333 1.833-10 5.5-14S391 0 397 0c4.667 0 8.667 1.667 12 5 3.333 2.667 6.667 9 10 19 6.667 24.667 20.333 43.667 41 57 7.333 4.667 11 10.667 11 18 0 6-1 10-3 12s-6.667 5-14 9c-28.667 14.667-53.667 35.667-75 63 -1.333 1.333-3.167 3.5-5.5 6.5s-4 4.833-5 5.5c-1 .667-2.5 1.333-4.5 2s-4.333 1 -7 1c-4.667 0-9.167-1.833-13.5-5.5S337 184 337 178c0-12.667 15.667-32.333 47-59 H213l-171-1c-8.667-6-13-12.333-13-19 0-4.667 4.333-11.333 13-20h359 c-16-25.333-24-45-24-59z" /></svg></span></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\vec{a}</td><td style="text-align: center"><data class="katex-src" value="&#92;widehat{A}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9233em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9233em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span class="svg-align" style="margin-left:0.2778em;top:-3.6833em;width:calc(100% - 0.2778em);"><span class="pstrut" style="height:3em;"></span><span style="height:0.24em;"><svg xmlns="http://www.w3.org/2000/svg" width="100%" height="0.24em" viewbox="0 0 1062 239" preserveaspectratio="none"><path d="M529 0h5l519 115c5 1 9 5 9 10 0 1-1 2-1 3l-4 22 c-1 5-5 9-11 9h-2L532 67 19 159h-2c-5 0-9-4-11-9l-5-22c-1-6 2-12 8-13z" /></svg></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\widehat{A}</td><td style="text-align: center"><data class="katex-src" value="&#92;widetilde{A}"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9433em;"></span><span class="mord accent"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.9433em;"><span style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord mathnormal">A</span></span><span class="svg-align" style="width:calc(100% - 0.2778em);margin-left:0.2778em;top:-3.6833em;"><span class="pstrut" style="height:3em;"></span><span style="height:0.26em;"><svg xmlns="http://www.w3.org/2000/svg" preserveaspectratio="none" viewbox="0 0 600 260" width="100%" height="0.26em"><path d="M200 55.538c-77 0-168 73.953-177 73.953-3 0-7 -2.175-9-5.437L2 97c-1-2-2-4-2-6 0-4 2-7 5-9l20-12C116 12 171 0 207 0c86 0  114 68 191 68 78 0 168-68 177-68 4 0 7 2 9 5l12 19c1 2.175 2 4.35 2 6.525 0  4.35-2 7.613-5 9.788l-19 13.05c-92 63.077-116.937 75.308-183 76.128 -68.267.847-113-73.952-191-73.952z" /></svg></span></span></span></span></span></span></span></span></span></data></td><td style="text-align: center">\widetilde{A}</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="5希腊字母"><a class="header" href="#5希腊字母">5.希腊字母</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">字母名称</th><th style="text-align: center">大写</th><th style="text-align: center">小写</th><th style="text-align: center">基本命令</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center">alpha</td><td style="text-align: center">A</td><td style="text-align: center">α</td><td style="text-align: center">\alpha</td></tr>
+<tr><td style="text-align: center">beta</td><td style="text-align: center">B</td><td style="text-align: center">β</td><td style="text-align: center">\beta</td></tr>
+<tr><td style="text-align: center">delta</td><td style="text-align: center">Δ</td><td style="text-align: center">δ</td><td style="text-align: center">\delta</td></tr>
+<tr><td style="text-align: center">epsilon</td><td style="text-align: center">E</td><td style="text-align: center">ϵ</td><td style="text-align: center">\epsilon</td></tr>
+<tr><td style="text-align: center"></td><td style="text-align: center"></td><td style="text-align: center">ε</td><td style="text-align: center">\varepsilon</td></tr>
+<tr><td style="text-align: center">zeta</td><td style="text-align: center">Z</td><td style="text-align: center">ζ</td><td style="text-align: center">\zeta</td></tr>
+<tr><td style="text-align: center">eta</td><td style="text-align: center">\Eta</td><td style="text-align: center">η</td><td style="text-align: center">\eta</td></tr>
+<tr><td style="text-align: center">gamma</td><td style="text-align: center">Γ</td><td style="text-align: center">γ</td><td style="text-align: center">\gamma</td></tr>
+<tr><td style="text-align: center">theta</td><td style="text-align: center">Θ</td><td style="text-align: center">θ</td><td style="text-align: center">\theta</td></tr>
+<tr><td style="text-align: center">sigma</td><td style="text-align: center">Σ</td><td style="text-align: center">σ</td><td style="text-align: center">\sigma</td></tr>
+<tr><td style="text-align: center">omega</td><td style="text-align: center">Ω</td><td style="text-align: center">ω</td><td style="text-align: center">\omega</td></tr>
+<tr><td style="text-align: center">lambda</td><td style="text-align: center">Λ</td><td style="text-align: center">λ</td><td style="text-align: center">\lambda</td></tr>
+<tr><td style="text-align: center">mu</td><td style="text-align: center">\Mu</td><td style="text-align: center">μ</td><td style="text-align: center">\mu</td></tr>
+<tr><td style="text-align: center">phi</td><td style="text-align: center">Φ</td><td style="text-align: center">ϕ 或 φ</td><td style="text-align: center">\phi 或 \varphi</td></tr>
+<tr><td style="text-align: center">pi</td><td style="text-align: center">Π</td><td style="text-align: center">π</td><td style="text-align: center">\pi</td></tr>
+<tr><td style="text-align: center">psi</td><td style="text-align: center">Ψ</td><td style="text-align: center">ψ</td><td style="text-align: center">\psi</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="6二元符号"><a class="header" href="#6二元符号">6.二元符号</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center">≥</td><td style="text-align: center">\geq or \ge</td><td style="text-align: center">≤</td><td style="text-align: center">\leq or \le</td><td style="text-align: center">≡</td><td style="text-align: center">\equiv</td></tr>
+<tr><td style="text-align: center">≪</td><td style="text-align: center">\ll</td><td style="text-align: center">≫</td><td style="text-align: center">\gg</td><td style="text-align: center">≐</td><td style="text-align: center">\doteq</td></tr>
+<tr><td style="text-align: center">≺</td><td style="text-align: center">\prec</td><td style="text-align: center">≻</td><td style="text-align: center">\succ</td><td style="text-align: center">∼</td><td style="text-align: center">\sim</td></tr>
+<tr><td style="text-align: center">⪯</td><td style="text-align: center">\preceq</td><td style="text-align: center">⪰</td><td style="text-align: center">\succeq</td><td style="text-align: center">≃</td><td style="text-align: center">\simeq</td></tr>
+<tr><td style="text-align: center">≈</td><td style="text-align: center">\approx</td><td style="text-align: center">⊂</td><td style="text-align: center">\subset</td><td style="text-align: center">⊃</td><td style="text-align: center">\supset</td></tr>
+<tr><td style="text-align: center">⊆</td><td style="text-align: center">\subseteq</td><td style="text-align: center">⊇</td><td style="text-align: center">\supseteq</td><td style="text-align: center">⊏</td><td style="text-align: center">\sqsubset</td></tr>
+<tr><td style="text-align: center">⊐</td><td style="text-align: center">\sqsupset</td><td style="text-align: center">⊑</td><td style="text-align: center">\sqsubseteq</td><td style="text-align: center">⊒</td><td style="text-align: center">\sqsupseteq</td></tr>
+<tr><td style="text-align: center">≅</td><td style="text-align: center">\cong</td><td style="text-align: center">⋈</td><td style="text-align: center">\Join</td><td style="text-align: center">⋈</td><td style="text-align: center">\bowtie</td></tr>
+<tr><td style="text-align: center">∝</td><td style="text-align: center">\propto</td><td style="text-align: center">∈</td><td style="text-align: center">\in</td><td style="text-align: center">∋</td><td style="text-align: center">\ni or \owns</td></tr>
+<tr><td style="text-align: center">⊢</td><td style="text-align: center">\vdash</td><td style="text-align: center">⊣</td><td style="text-align: center">\dashv</td><td style="text-align: center">⊨</td><td style="text-align: center">\models</td></tr>
+<tr><td style="text-align: center">∣</td><td style="text-align: center">\mid</td><td style="text-align: center">∥</td><td style="text-align: center">\parallel</td><td style="text-align: center">⊥</td><td style="text-align: center">\perp</td></tr>
+<tr><td style="text-align: center">⌣</td><td style="text-align: center">\smile</td><td style="text-align: center">⌢</td><td style="text-align: center">\frown</td><td style="text-align: center">≍</td><td style="text-align: center">\asymp</td></tr>
+<tr><td style="text-align: center">∉</td><td style="text-align: center">\notin</td><td style="text-align: center">≠</td><td style="text-align: center">\neq</td><td style="text-align: center">:</td><td style="text-align: center">:</td></tr>
+<tr><td style="text-align: center">×</td><td style="text-align: center">\times</td><td style="text-align: center">÷</td><td style="text-align: center">\div</td><td style="text-align: center">±</td><td style="text-align: center">\pm</td></tr>
+<tr><td style="text-align: center">∓</td><td style="text-align: center">\mp</td><td style="text-align: center">◃</td><td style="text-align: center">\triangleleft</td><td style="text-align: center">▹</td><td style="text-align: center">\triangleright</td></tr>
+<tr><td style="text-align: center">⋅</td><td style="text-align: center">\cdot</td><td style="text-align: center">∖</td><td style="text-align: center">\setminus</td><td style="text-align: center">⋆</td><td style="text-align: center">\star</td></tr>
+<tr><td style="text-align: center">∗</td><td style="text-align: center">\ast</td><td style="text-align: center">∪</td><td style="text-align: center">\cup</td><td style="text-align: center">∩</td><td style="text-align: center">\cap</td></tr>
+<tr><td style="text-align: center">⊔</td><td style="text-align: center">\sqcup</td><td style="text-align: center">⊓</td><td style="text-align: center">\sqcap</td><td style="text-align: center">∨</td><td style="text-align: center">\vee or \lor</td></tr>
+<tr><td style="text-align: center">∧</td><td style="text-align: center">\wedge or \land</td><td style="text-align: center">∘</td><td style="text-align: center">\circ</td><td style="text-align: center">∙</td><td style="text-align: center">\bullet</td></tr>
+<tr><td style="text-align: center">⊕</td><td style="text-align: center">\oplus</td><td style="text-align: center">⊖</td><td style="text-align: center">\ominus</td><td style="text-align: center">⊙</td><td style="text-align: center">\odot</td></tr>
+<tr><td style="text-align: center">⊘</td><td style="text-align: center">\oslash</td><td style="text-align: center">⊗</td><td style="text-align: center">\otimes</td><td style="text-align: center">◯</td><td style="text-align: center">\bigcirc</td></tr>
+<tr><td style="text-align: center">⋄</td><td style="text-align: center">\diamond</td><td style="text-align: center">⊎</td><td style="text-align: center">\uplus</td><td style="text-align: center">△</td><td style="text-align: center">\bigtriangleup</td></tr>
+<tr><td style="text-align: center">▽</td><td style="text-align: center">\bigtriangledown</td><td style="text-align: center">⊲</td><td style="text-align: center">\lhd</td><td style="text-align: center">⊳</td><td style="text-align: center">\rhd</td></tr>
+<tr><td style="text-align: center">⊴</td><td style="text-align: center">\unlhd</td><td style="text-align: center">⊵</td><td style="text-align: center">\unrhd</td><td style="text-align: center">⨿</td><td style="text-align: center">\amalg</td></tr>
+<tr><td style="text-align: center">≀</td><td style="text-align: center">\wr</td><td style="text-align: center">†</td><td style="text-align: center">\dagger</td><td style="text-align: center">‡</td><td style="text-align: center">\ddagger</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="7箭头"><a class="header" href="#7箭头">7.箭头</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center">←</td><td style="text-align: center">\leftarrow or \gets</td><td style="text-align: center">→</td><td style="text-align: center">\rightarrow or \to</td><td style="text-align: center">⟵</td><td style="text-align: center">\longleftarrow</td></tr>
+<tr><td style="text-align: center">⟶</td><td style="text-align: center">\longrightarrow</td><td style="text-align: center">↔</td><td style="text-align: center">\leftrightarrow</td><td style="text-align: center">⟷</td><td style="text-align: center">\longleftrightarrow</td></tr>
+<tr><td style="text-align: center">⇐</td><td style="text-align: center">\Leftarrow</td><td style="text-align: center">⟸</td><td style="text-align: center">\Longleftarrow</td><td style="text-align: center">⇒</td><td style="text-align: center">\Rightarrow</td></tr>
+<tr><td style="text-align: center">⟹</td><td style="text-align: center">\Longrightarrow</td><td style="text-align: center">⇔</td><td style="text-align: center">\Leftrightarrow</td><td style="text-align: center">⟺</td><td style="text-align: center">\Longleftrightarrow</td></tr>
+<tr><td style="text-align: center">↦</td><td style="text-align: center">\mapsto</td><td style="text-align: center">⟼</td><td style="text-align: center">\longmapsto</td><td style="text-align: center">↗</td><td style="text-align: center">\nearrow</td></tr>
+<tr><td style="text-align: center">↘</td><td style="text-align: center">\searrow</td><td style="text-align: center">↙</td><td style="text-align: center">\swarrow</td><td style="text-align: center">↖</td><td style="text-align: center">\nwarrow</td></tr>
+<tr><td style="text-align: center">↩</td><td style="text-align: center">\hookleftarrow</td><td style="text-align: center">↪</td><td style="text-align: center">\hookrightarrow</td><td style="text-align: center">⇌</td><td style="text-align: center">\rightleftharpoons</td></tr>
+<tr><td style="text-align: center">⟺</td><td style="text-align: center">\iff</td><td style="text-align: center">↼</td><td style="text-align: center">\leftharpoonup</td><td style="text-align: center">⇀</td><td style="text-align: center">\rightharpoonup</td></tr>
+<tr><td style="text-align: center">↽</td><td style="text-align: center">\leftharpoondown</td><td style="text-align: center">⇁</td><td style="text-align: center">\rightharpoondown</td><td style="text-align: center">⇝</td><td style="text-align: center">\leadsto</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="8其他符号"><a class="header" href="#8其他符号">8.其他符号</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th><th style="text-align: center">符号</th><th style="text-align: center">写法</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: center">…</td><td style="text-align: center">\dots</td><td style="text-align: center">⋯</td><td style="text-align: center">\cdots</td><td style="text-align: center">⋮</td><td style="text-align: center">\vdots</td></tr>
+<tr><td style="text-align: center">⋱</td><td style="text-align: center">\ddots</td><td style="text-align: center">ℏ</td><td style="text-align: center">\hbar</td><td style="text-align: center">ı</td><td style="text-align: center">\imath</td></tr>
+<tr><td style="text-align: center">ȷ</td><td style="text-align: center">\jmath</td><td style="text-align: center">ℓ</td><td style="text-align: center">\ell</td><td style="text-align: center">ℜ</td><td style="text-align: center">\Re</td></tr>
+<tr><td style="text-align: center">ℑ</td><td style="text-align: center">\Im</td><td style="text-align: center">ℵ</td><td style="text-align: center">\aleph</td><td style="text-align: center">℘</td><td style="text-align: center">\wp</td></tr>
+<tr><td style="text-align: center">∀</td><td style="text-align: center">\forall</td><td style="text-align: center">∃</td><td style="text-align: center">\exists</td><td style="text-align: center">℧</td><td style="text-align: center">\mho</td></tr>
+<tr><td style="text-align: center">∂</td><td style="text-align: center">\partial</td><td style="text-align: center">′</td><td style="text-align: center">\prime</td><td style="text-align: center">∅</td><td style="text-align: center">\emptyset</td></tr>
+<tr><td style="text-align: center">∞</td><td style="text-align: center">\infty</td><td style="text-align: center">∇</td><td style="text-align: center">\nabla</td><td style="text-align: center">△</td><td style="text-align: center">\triangle</td></tr>
+<tr><td style="text-align: center">□</td><td style="text-align: center">\Box</td><td style="text-align: center">◊</td><td style="text-align: center">\Diamond</td><td style="text-align: center">⊥</td><td style="text-align: center">\bot</td></tr>
+<tr><td style="text-align: center">⊤</td><td style="text-align: center">\top</td><td style="text-align: center">∠</td><td style="text-align: center">\angle</td><td style="text-align: center">√</td><td style="text-align: center">\surd</td></tr>
+<tr><td style="text-align: center">♢</td><td style="text-align: center">\diamondsuit</td><td style="text-align: center">♡</td><td style="text-align: center">\heartsuit</td><td style="text-align: center">♣</td><td style="text-align: center">\clubsuit</td></tr>
+<tr><td style="text-align: center">♠</td><td style="text-align: center">\spadesuit</td><td style="text-align: center">¬</td><td style="text-align: center">\neg or \lnot</td><td style="text-align: center">♭</td><td style="text-align: center">\flat</td></tr>
+<tr><td style="text-align: center">♮</td><td style="text-align: center">\natural</td><td style="text-align: center">♯</td><td style="text-align: center">\sharp</td><td style="text-align: center">§</td><td style="text-align: center">\S</td></tr>
+</tbody>
+</table>
+</div>
+<script>
+let miv_isDragging = false;
+let miv_startX, miv_startY, miv_translateX = 0, miv_translateY = 0, miv_scale = 1;
+let miv_lastTouchDistance = 0;
+let miv_modalImg;
+let miv_doubleTapTimer = null;
+let miv_lastTap = 0;    
+function createModal() {
+    if (!document.getElementById('miv_imageModal')) {
+        const modal = document.createElement('div');
+        modal.id = 'miv_imageModal';
+        modal.className = 'miv_modal';
+        modal.innerHTML = `
+            <span class="miv_close" onclick="miv_closeModal()">&times;</span>
+            <div class="miv_modal-content">
+                <img id="miv_modalImage">
+                <div id="miv_modalSvg" style="display:none;"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+}    
+function miv_preventDragStart(e) { e.preventDefault(); }
+function miv_bindModalEvents() {
+    if (!miv_modalImg) return;
+    miv_modalImg.addEventListener('mousedown', miv_startDrag);
+    document.addEventListener('mousemove', miv_drag);
+    document.addEventListener('mouseup', miv_endDrag);
+    miv_modalImg.addEventListener('dragstart', miv_preventDragStart);
+    miv_modalImg.addEventListener('touchstart', miv_startTouch);
+    miv_modalImg.addEventListener('touchmove', miv_moveTouch);
+    miv_modalImg.addEventListener('touchend', miv_endTouch);
+    const modalContent = document.querySelector('.miv_modal-content');
+    if (modalContent) modalContent.addEventListener('wheel', miv_zoom);
+    miv_modalImg.addEventListener('dblclick', miv_resetZoom);
+}
+function miv_unbindModalEvents() {
+    if (!miv_modalImg) return;
+    miv_modalImg.removeEventListener('mousedown', miv_startDrag);
+    miv_modalImg.removeEventListener('touchstart', miv_startTouch);
+    miv_modalImg.removeEventListener('touchmove', miv_moveTouch);
+    miv_modalImg.removeEventListener('touchend', miv_endTouch);
+    miv_modalImg.removeEventListener('dragstart', miv_preventDragStart);
+    miv_modalImg.removeEventListener('dblclick', miv_resetZoom);
+    const modalContent = document.querySelector('.miv_modal-content');
+    if (modalContent) modalContent.removeEventListener('wheel', miv_zoom);
+    miv_modalImg = null;
+}
+function miv_startDrag(e) {
+    miv_isDragging = true;
+    miv_startX = e.type.includes('mouse') ? e.clientX - miv_translateX : e.touches[0].clientX - miv_translateX;
+    miv_startY = e.type.includes('mouse') ? e.clientY - miv_translateY : e.touches[0].clientY - miv_translateY;
+    if (miv_modalImg) miv_modalImg.style.cursor = 'grabbing';
+}    
+function miv_drag(e) {
+    if (!miv_isDragging) return;
+    e.preventDefault();
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    miv_translateX = clientX - miv_startX;
+    miv_translateY = clientY - miv_startY;
+    miv_updateImageTransform();
+}    
+function miv_endDrag() {
+    miv_isDragging = false;
+    if (miv_modalImg) miv_modalImg.style.cursor = 'move';
+}    
+function miv_startTouch(e) {
+    if (e.touches.length === 2) {
+        miv_lastTouchDistance = miv_getTouchDistance(e.touches);
+    } else if (e.touches.length === 1) {
+        miv_startDrag(e);
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - miv_lastTap;
+        clearTimeout(miv_doubleTapTimer);
+        if (tapLength < 300 && tapLength > 0) {
+            e.preventDefault();
+            miv_resetZoom();
+        } else {
+            miv_doubleTapTimer = setTimeout(() => {
+                clearTimeout(miv_doubleTapTimer);
+            }, 300);
+        }
+        miv_lastTap = currentTime;
+    }
+}    
+function miv_moveTouch(e) {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+        const touchDistance = miv_getTouchDistance(e.touches);
+        const scaleDiff = touchDistance / miv_lastTouchDistance;
+        miv_scale *= scaleDiff;
+        miv_scale = Math.min(Math.max(miv_scale, 0.1), 10);
+        miv_lastTouchDistance = touchDistance;        
+        const touchCenter = miv_getTouchCenter(e.touches);
+        miv_translateX += touchCenter.x - (miv_translateX + touchCenter.x) * scaleDiff;
+        miv_translateY += touchCenter.y - (miv_translateY + touchCenter.y) * scaleDiff;        
+        miv_updateImageTransform();
+    } else if (e.touches.length === 1) {
+        miv_drag(e);
+    }
+}
+function miv_endTouch(e) {
+    if (e.touches.length === 0) {
+        miv_endDrag();
+    } else if (e.touches.length === 1) {
+        miv_startDrag(e);
+    }
+}
+function miv_getTouchDistance(touches) {
+    return Math.hypot(
+        touches[0].pageX - touches[1].pageX,
+        touches[0].pageY - touches[1].pageY
+    );
+}
+function miv_getTouchCenter(touches) {
+    return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2
+    };
+}
+function miv_zoom(e) {
+    e.preventDefault();
+    if (!miv_modalImg) return;
+    const rect = miv_modalImg.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const zoomIntensity = 0.1;
+    const wheel = e.deltaY < 0 ? 1 : -1;
+    const zoom = Math.exp(wheel * zoomIntensity);
+    const newScale = miv_scale * zoom;
+    if (newScale > 0.1 && newScale < 10) {
+        const scaleChange = newScale - miv_scale;
+        miv_translateX -= (mouseX - rect.width / 2) * scaleChange;
+        miv_translateY -= (mouseY - rect.height / 2) * scaleChange;
+        miv_scale = newScale;
+        miv_updateImageTransform();
+    }
+}
+function miv_resetZoom() {
+    miv_scale = 1;
+    miv_translateX = 0;
+    miv_translateY = 0;
+    miv_updateImageTransform();
+}
+function miv_updateImageTransform() {
+    if (miv_modalImg) {
+        miv_modalImg.style.transform = `translate(${miv_translateX}px, ${miv_translateY}px) scale(${miv_scale})`;
+    }
+}
+function miv_openModal(imageSrc) {
+    createModal();
+    const modal = document.getElementById('miv_imageModal');
+    miv_modalImg = document.getElementById('miv_modalImage');
+    const modalContent = modal.querySelector('.miv_modal-content');    
+    if (!modal || !miv_modalImg || !modalContent) {
+        console.error('Modal elements not found');
+        return;
+    }    
+    // 关闭 SVG 视图，显示图片视图
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (svgWrap) { svgWrap.style.display = 'none'; svgWrap.innerHTML = ''; }
+    miv_modalImg.style.display = '';
+    modal.style.display = 'block';
+    miv_modalImg.src = imageSrc;    
+    miv_resetZoom();        
+    miv_bindModalEvents();
+}
+function miv_openSvgModal(svgEl) {
+    createModal();
+    const modal = document.getElementById('miv_imageModal');
+    const imgEl = document.getElementById('miv_modalImage');
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (!modal || !svgWrap || !svgEl) {
+        console.error('Modal elements not found');
+        return;
+    }
+    // 在 modal 中克隆内联 SVG（不引用任何文件）
+    svgWrap.innerHTML = '';
+    svgWrap.appendChild(svgEl.cloneNode(true));
+    miv_modalImg = svgWrap.querySelector('svg');
+    if (!miv_modalImg) {
+        svgWrap.style.display = 'none';
+        return;
+    }
+    if (imgEl) imgEl.style.display = 'none';
+    svgWrap.style.display = 'flex';
+    modal.style.display = 'block';
+    miv_resetZoom();
+    miv_bindModalEvents();
+}
+function miv_closeModal() {
+    const modal = document.getElementById('miv_imageModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    if (miv_modalImg) {
+        miv_modalImg.style.transform = 'translate(0, 0) scale(1)';        
+        miv_unbindModalEvents();
+    }
+    document.removeEventListener('mousemove', miv_drag);
+    document.removeEventListener('mouseup', miv_endDrag);
+    // 清理 SVG 视图并恢复图片视图
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (svgWrap) { svgWrap.style.display = 'none'; svgWrap.innerHTML = ''; }
+    const imgEl = document.getElementById('miv_modalImage');
+    if (imgEl) imgEl.style.display = '';
+}
+function handleGlobalClick(event) {
+    const modal = document.getElementById('miv_imageModal');
+    if (modal && event.target == modal) {
+        miv_closeModal();
+    }
+}
+function initializeImageViewers() {
+    const images = document.querySelectorAll('.miv_mdbook-image-viewer');
+    images.forEach(img => {
+        img.addEventListener('click', () => miv_openModal(img.src));
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    createModal();
+    initializeImageViewers();
+    document.addEventListener('click', handleGlobalClick);
+});
+// Re-initialize image viewers when the page content changes (for mdBook)
+if (window.MutationObserver) {
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                initializeImageViewers();
+            }
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+</script>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../others/1.windows-wix.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../test/12.mdbook-cpp.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../others/1.windows-wix.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../test/12.mdbook-cpp.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+        <script src="../ace.js"></script>
+        <script src="../mode-rust.js"></script>
+        <script src="../editor.js"></script>
+        <script src="../theme-dawn.js"></script>
+        <script src="../theme-tomorrow_night.js"></script>
+
+        
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <script src="https://cdn.staticfile.net/translate.js/3.18.66/translate.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././assets/help/support.js"></script>
+        <script src=".././assets/mermaid/mermaid.min.js"></script>
+        <script src=".././assets/mermaid/mermaid-init.js"></script>
+        <script src=".././assets/whichlang/whichlang.js"></script>
+        <script src=".././assets/translate/translate_button.js"></script>
+        <script src=".././assets/echarts/echarts.min.js"></script>
+        <script src=".././assets/bytefield/bytefield-svg.js"></script>
+        <script src=".././assets/wavedrom/wavedrom.min.js"></script>
+        <script src=".././assets/wavedrom/wavedrom.css.js"></script>
+        <script src=".././assets/pdfviewer/pdf-preview.js"></script>
+
+        <!-- Bytefield 渲染 -->
+        <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.querySelectorAll('code.language-bytefield').forEach(n => {
+                n.outerHTML = bytefield.generate(n.innerText, { 'embedded': true });
+            });
+        });
+        </script>
+
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,1832 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>pybind11 demo - mdbook-plugins</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="The example book covers examples.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././theme/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././theme/catppuccin.css">
+        <link rel="stylesheet" href="../.././theme/catppuccin-admonish.css">
+        <link rel="stylesheet" href="../.././assets/mermaid/mermaid.css">
+        <link rel="stylesheet" href="../.././assets/whichlang/whichlang.css">
+        <link rel="stylesheet" href="../.././assets/translate/translate.css">
+
+        <!-- KaTeX（CDN） + MathJax -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css">
+        <script>
+        window.MathJax = {
+            tex2jax: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                ignoreClass: 'tex2jax_ignore',
+                processClass: 'tex2jax_process'
+            },
+            showMathMenu: false,
+            messageStyle: 'none'
+        };
+        </script>
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- LaTeX.js（用于 ```latex tex 代码块） -->
+        <script type="module">
+        import { LaTeXJSComponent } from "https://cdn.jsdelivr.net/npm/latex.js/dist/latex.mjs"
+
+        // pulldown-cmark 小写化 HTML 属性名（baseURL → baseurl），
+        // 但 LaTeXJSComponent 用 getAttribute("baseURL") 读取（大小写敏感），
+        // 注册自定义元素前先修复所有现有元素的属性名。
+        document.querySelectorAll('latex-js').forEach(el => {
+            if (el.hasAttribute('baseurl') && !el.hasAttribute('baseURL')) {
+                el.setAttribute('baseURL', el.getAttribute('baseurl'));
+                el.removeAttribute('baseurl');
+            }
+        });
+
+        customElements.define("latex-js", LaTeXJSComponent)
+        </script>
+        <style>
+            latex-js {
+                width: 100%;
+            }
+        </style>
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../../";
+            const default_light_theme = "light";
+            const default_dark_theme = "mocha";
+            window.path_to_searchindex_js = "../../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../../toc.js"></script>
+    </head>
+    <body onload="WaveDrom.ProcessAll()">
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-latte">Latte</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-frappe">Frappé</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-macchiato">Macchiato</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-mocha">Mocha</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">mdbook-plugins</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                        <!-- 捐助按钮 -->
+                        <a href="#" title="Sponsor" aria-label="Sponsor" class="icon-button">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84L256 96 244 84c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z"/></svg></span>
+                        </a>
+
+                        <a href="https://github.com/kuanghl/mdbook-plugins/edit/master/./src/3rd/pybind11/pybind11_demo.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                        <a href="https://github.com/kuanghl/mdbook-plugins" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                        <!-- 翻译按钮框 -->
+                        <span id="translate" class="icon-button" title="Change language" aria-label="Change language">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></svg></span>
+                        </span>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <style>
+/* ===== PDF Preview Viewer — 嵌入样式 ===== */
+
+.pdfviewer-container {
+  margin: 16px 0;
+  border: 1px solid var(--ppv-border, #d0d0d0);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ppv-bg, #fafafa);
+  position: relative;
+}
+
+/* ---- 占位区 ---- */
+.ppv-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  cursor: pointer;
+  color: var(--ppv-text, #555);
+  user-select: none;
+  transition: background 0.15s;
+}
+.ppv-placeholder:hover {
+  background: var(--ppv-hover-bg, #f0f0f0);
+}
+.ppv-placeholder .ppv-icon {
+  font-size: 42px;
+  line-height: 1;
+}
+.ppv-placeholder .ppv-filename {
+  font-size: 14px;
+  margin-top: 6px;
+  font-weight: 500;
+  color: var(--ppv-title, #333);
+  word-break: break-all;
+  text-align: center;
+}
+.ppv-placeholder .ppv-hint {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--ppv-muted, #888);
+}
+
+/* ---- Loading ---- */
+.ppv-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--ppv-muted, #888);
+  font-size: 14px;
+  gap: 8px;
+}
+.ppv-loading::after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--ppv-border, #ddd);
+  border-top-color: var(--ppv-accent, #4a90d9);
+  border-radius: 50%;
+  animation: ppv-spin 0.8s linear infinite;
+}
+@keyframes ppv-spin { to { transform: rotate(360deg); } }
+
+/* ---- Toolbar (自动隐藏) ---- */
+.pdfviewer-container .ppv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--ppv-toolbar-bg, #f0f0f0);
+  border-bottom: 1px solid var(--ppv-border, #d0d0d0);
+  font-size: 13px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, border-width 0.3s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+.pdfviewer-container:hover .ppv-toolbar,
+.pdfviewer-container .ppv-toolbar:hover {
+  max-height: 40px;
+  opacity: 1;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-bottom-width: 1px;
+  overflow: visible;
+}
+.ppv-toolbar .ppv-page-info {
+  color: var(--ppv-text, #555);
+  white-space: nowrap;
+}
+.ppv-toolbar .ppv-nav {
+  display: flex;
+  gap: 2px;
+}
+.ppv-btn {
+  border: 1px solid var(--ppv-border, #ccc);
+  border-radius: 3px;
+  background: var(--ppv-btn-bg, #fff);
+  color: var(--ppv-text, #555);
+  cursor: pointer;
+  padding: 2px 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: background 0.1s;
+}
+.ppv-btn:hover {
+  background: var(--ppv-btn-hover, #e6e6e6);
+}
+.ppv-btn:active {
+  background: var(--ppv-btn-active, #d4d4d4);
+}
+.ppv-spacer { flex: 1; }
+.ppv-close { font-size: 16px; padding: 2px 8px; }
+
+/* ---- Embed bar (file:// 协议，自动隐藏) ---- */
+.pdfviewer-container .ppv-embed-bar {
+  padding: 6px 12px;
+  font-size: 13px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.pdfviewer-container:hover .ppv-embed-bar {
+  max-height: 40px;
+  opacity: 1;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.ppv-embed-bar .ppv-embed-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- Canvas (A4 纸张风格 + 自适应) ---- */
+.ppv-canvas-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 24px 12px;
+  overflow: auto;
+  background: var(--ppv-canvas-bg, #e8e8e8);
+}
+.ppv-canvas-wrapper canvas {
+  display: block;
+  align-self: flex-start;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
+  background: #fff;
+}
+
+/* ---- Error ---- */
+.ppv-error {
+  padding: 20px;
+  text-align: center;
+  color: #c00;
+  font-size: 14px;
+}
+
+/* ---- 原生 PDF viewer（iframe 内嵌） ---- */
+.pdfviewer-container .ppv-frame {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  min-height: 480px;
+  border: none;
+  background: var(--ppv-bg, #fff);
+}
+
+/* ---- 响应式 ---- */
+@media (max-width: 600px) {
+  .ppv-placeholder { padding: 20px 16px; }
+  .ppv-placeholder .ppv-icon { font-size: 32px; }
+}
+</style>
+<style>
+.miv_mdbook-image-viewer {
+    cursor: pointer;
+}
+.miv_modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: rgba(0,0,0,0.9);
+}
+.miv_modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.miv_modal-content img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    cursor: move;
+    transition: transform 0.1s ease-out;
+    touch-action: none;
+}
+/* 内联 SVG（TikZ/Typst）在 modal 中克隆显示 */
+#miv_modalSvg {
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+#miv_modalSvg svg {
+    max-width: 90% !important;
+    max-height: 90% !important;
+    cursor: move;
+    touch-action: none;
+    transition: transform 0.1s ease-out;
+}
+.miv_close {
+    position: fixed;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    z-index: 1001;
+}
+.miv_close:hover,
+.miv_close:focus {
+    color: #bbb;
+    text-decoration: none;
+    cursor: pointer;
+}
+@media (max-width: 768px) {
+    .miv_modal-content img {
+        max-width: 100%;
+        max-height: 100%;
+    }
+}
+</style>
+<style>
+.mdbook-alerts {
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  border-left: 0.25em solid var(--mdbook-alerts-color);
+}
+
+.mdbook-alerts > *:first-child {
+  margin-top: 0;
+}
+
+.mdbook-alerts > *:last-child {
+  margin-bottom: 0;
+}
+
+.mdbook-alerts-title {
+  display: flex;
+  font-weight: 600;
+  align-items: center;
+  line-height: 1;
+  color: var(--mdbook-alerts-color);
+  text-transform: capitalize;
+}
+
+.mdbook-alerts-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.2em;
+  background-color: currentColor;
+  -webkit-mask: no-repeat center / 100%;
+  mask: no-repeat center / 100%;
+  -webkit-mask-image: var(--mdbook-alerts-icon);
+  mask-image: var(--mdbook-alerts-icon);
+}
+
+.mdbook-alerts-note {
+  --mdbook-alerts-color: rgb(9, 105, 218);
+  /* https://icon-sets.iconify.design/material-symbols/info-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 17q.425 0 .713-.288T13 16v-4q0-.425-.288-.712T12 11q-.425 0-.712.288T11 12v4q0 .425.288.713T12 17m0-8q.425 0 .713-.288T13 8q0-.425-.288-.712T12 7q-.425 0-.712.288T11 8q0 .425.288.713T12 9m0 13q-2.075 0-3.9-.788t-3.175-2.137q-1.35-1.35-2.137-3.175T2 12q0-2.075.788-3.9t2.137-3.175q1.35-1.35 3.175-2.137T12 2q2.075 0 3.9.788t3.175 2.137q1.35 1.35 2.138 3.175T22 12q0 2.075-.788 3.9t-2.137 3.175q-1.35 1.35-3.175 2.138T12 22m0-2q3.35 0 5.675-2.325T20 12q0-3.35-2.325-5.675T12 4Q8.65 4 6.325 6.325T4 12q0 3.35 2.325 5.675T12 20m0-8"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-tip {
+  --mdbook-alerts-color: rgb(26, 127, 55);
+  /* https://icon-sets.iconify.design/material-symbols/lightbulb-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 22q-.825 0-1.412-.587T10 20h4q0 .825-.587 1.413T12 22m-3-3q-.425 0-.712-.288T8 18q0-.425.288-.712T9 17h6q.425 0 .713.288T16 18q0 .425-.288.713T15 19zm-.75-3q-1.725-1.025-2.738-2.75T4.5 9.5q0-3.125 2.188-5.312T12 2q3.125 0 5.313 2.188T19.5 9.5q0 2.025-1.012 3.75T15.75 16zm.6-2h6.3q1.125-.8 1.738-1.975T17.5 9.5q0-2.3-1.6-3.9T12 4Q9.7 4 8.1 5.6T6.5 9.5q0 1.35.613 2.525T8.85 14M12 14"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-important {
+  --mdbook-alerts-color: rgb(130, 80, 223);
+  /* https://icon-sets.iconify.design/material-symbols/chat-info-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 7q.425 0 .713-.288T13 6q0-.425-.288-.712T12 5q-.425 0-.712.288T11 6q0 .425.288.713T12 7m0 8q.425 0 .713-.288T13 14v-4q0-.425-.288-.712T12 9q-.425 0-.712.288T11 10v4q0 .425.288.713T12 15m-6 3l-2.3 2.3q-.475.475-1.088.213T2 19.575V4q0-.825.588-1.412T4 2h16q.825 0 1.413.588T22 4v12q0 .825-.587 1.413T20 18zm-.85-2H20V4H4v13.125zM4 16V4z"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-warning {
+  --mdbook-alerts-color: rgb(154, 103, 0);
+  /* https://icon-sets.iconify.design/material-symbols/warning-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M2.725 21q-.275 0-.5-.137t-.35-.363q-.125-.225-.137-.488t.137-.512l9.25-16q.15-.25.388-.375T12 3q.25 0 .488.125t.387.375l9.25 16q.15.25.138.513t-.138.487q-.125.225-.35.363t-.5.137zm1.725-2h15.1L12 6zM12 18q.425 0 .713-.288T13 17q0-.425-.288-.712T12 16q-.425 0-.712.288T11 17q0 .425.288.713T12 18m0-3q.425 0 .713-.288T13 14v-3q0-.425-.288-.712T12 10q-.425 0-.712.288T11 11v3q0 .425.288.713T12 15m0-2.5"%2F%3E%3C%2Fsvg%3E');
+}
+
+.mdbook-alerts-caution {
+  --mdbook-alerts-color: rgb(207, 34, 46);
+  /* https://icon-sets.iconify.design/material-symbols/brightness-alert-outline-rounded/ */
+  --mdbook-alerts-icon: url('data:image/svg+xml,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" width="24" height="24" viewBox="0 0 24 24"%3E%3Cpath fill="currentColor" d="M12 17q.425 0 .713-.288T13 16q0-.425-.288-.712T12 15q-.425 0-.712.288T11 16q0 .425.288.713T12 17m0-4q.425 0 .713-.288T13 12V8q0-.425-.288-.712T12 7q-.425 0-.712.288T11 8v4q0 .425.288.713T12 13m-3.35 7H6q-.825 0-1.412-.587T4 18v-2.65L2.075 13.4q-.275-.3-.425-.662T1.5 12q0-.375.15-.737t.425-.663L4 8.65V6q0-.825.588-1.412T6 4h2.65l1.95-1.925q.3-.275.663-.425T12 1.5q.375 0 .738.15t.662.425L15.35 4H18q.825 0 1.413.588T20 6v2.65l1.925 1.95q.275.3.425.663t.15.737q0 .375-.15.738t-.425.662L20 15.35V18q0 .825-.587 1.413T18 20h-2.65l-1.95 1.925q-.3.275-.662.425T12 22.5q-.375 0-.737-.15t-.663-.425zm.85-2l2.5 2.5l2.5-2.5H18v-3.5l2.5-2.5L18 9.5V6h-3.5L12 3.5L9.5 6H6v3.5L3.5 12L6 14.5V18zm2.5-6"%2F%3E%3C%2Fsvg%3E');
+}
+
+</style>
+<h1 id="pybind11使用指南"><a class="header" href="#pybind11使用指南">pybind11使用指南</a></h1>
+<h2 id="1-基础用法"><a class="header" href="#1-基础用法">1. 基础用法</a></h2>
+<h3 id="11-安装与编译"><a class="header" href="#11-安装与编译">1.1 安装与编译</a></h3>
+<p>在安装python3-dev和下载了pybind11源码的前提下，可以直接include pybind11头文件目录和python3头文件目录即可。cmake示例如下：</p>
+<pre><code class="language-cmake">set(PYTHON_TARGET_VER 3.6)
+find_package(PythonInterp ${PYTHON_TARGET_VER} EXACT)
+find_package(PythonLibs ${PYTHON_TARGET_VER} EXACT REQUIRED)
+
+include_directories(pybind11_include_path)
+include_directories(${PYTHON_INCLUDE_DIRS})
+</code></pre>
+<h3 id="12-绑定函数"><a class="header" href="#12-绑定函数">1.2 绑定函数</a></h3>
+<pre><code class="language-c++">#include &lt;pybind11/pybind11.h&gt;
+
+int add(int i, int j) {
+    return i + j;
+}
+
+PYBIND11_MODULE(example, m) {
+    m.doc() = "pybind11 example plugin"; // optional module docstring
+    m.def("add", &amp;add, "A function which adds two numbers");
+}
+</code></pre>
+<p>宏<code>PYBIND11_MODULE</code>会创建模块初始化函数，它在Python中<code>import</code>模块时被调用。其参数分别是模块名，类型为<code>py::module_</code>的变量（m），是创建绑定的主要接口。<code>module_::def()</code>方法，可以生成函数的绑定。</p>
+<h4 id="121-关键字参数"><a class="header" href="#121-关键字参数">1.2.1 关键字参数</a></h4>
+<p>使用<code>py::arg</code>可以指定函数的参数名，Python侧调用函数时可以使用关键字参数，以增加代码的可读性。</p>
+<pre><code class="language-c++">m.def("add", &amp;add, "A function which adds two numbers",
+      py::arg("i"), py::arg("j"));
+</code></pre>
+<p>更简洁的写法：</p>
+<pre><code class="language-c++">// regular notation
+m.def("add1", &amp;add, py::arg("i"), py::arg("j"));
+// shorthand
+using namespace pybind11::literals;
+m.def("add2", &amp;add, "i"_a, "j"_a);
+</code></pre>
+<p>Python使用示例：</p>
+<pre><code class="language-python">import example
+example.add(i=1, j=2)  #3L
+</code></pre>
+<h4 id="122-参数默认值"><a class="header" href="#122-参数默认值">1.2.2 参数默认值</a></h4>
+<p>pybind11不能自动地提取默认参数，因为它不属于函数类型信息的一部分。我们需要借助<code>arg</code>在绑定时指定参数默认值：</p>
+<pre><code class="language-c++">m.def("add", &amp;add, "A function which adds two numbers",
+      py::arg("i") = 1, py::arg("j") = 2);
+</code></pre>
+<p>更简短的声明方式：</p>
+<pre><code class="language-c++">// regular notation
+m.def("add1", &amp;add, py::arg("i") = 1, py::arg("j") = 2);
+// shorthand
+m.def("add2", &amp;add, "i"_a=1, "j"_a=2);
+</code></pre>
+<h4 id="123-重载函数"><a class="header" href="#123-重载函数">1.2.3 重载函数</a></h4>
+<p>重载方法即拥有相同的函数名，但入参不一样的函数。</p>
+<p>在绑定重载函数时，我们需要增加函数签名相关的信息以消除歧义。绑定多个函数到同一个Python名称，将会自动创建函数重载链。Python将会依次匹配，找到最合适的重载函数。</p>
+<pre><code class="language-c++">m.def("add", static_cast&lt;int(*)(int, int)&gt;(&amp;add), "A function which adds two int numbers");
+m.def("add", static_cast&lt;double(*)(double, double)&gt;(&amp;add), "A function which adds two double numbers");
+</code></pre>
+<p>如果你的编译器支持C++14，也可以使用下面的语法来转换重载函数：</p>
+<pre><code class="language-c++">m.def("add", py::overload_cast&lt;int, int&gt;(&amp;add), "A function which adds two int numbers");
+m.def("add", py::overload_cast&lt;double, double&gt;(&amp;add), "A function which adds two double numbers");
+</code></pre>
+<p>这里，<code>py::overload_cast</code>仅需指定函数类型，不用给出返回值类型，以避免原语法带来的不必要的干扰(<code>void (Pet::*)</code>)。如果是基于const的重载，需要使用<code>py::const</code>标识。</p>
+<h3 id="13-导出变量"><a class="header" href="#13-导出变量">1.3 导出变量</a></h3>
+<p>我们可以使用<code>attr</code>函数来注册需要导出到Python模块中的C++变量。内建类型和常规对象会在指定attriutes时自动转换，也可以使用<code>py::cast</code>来显式转换。</p>
+<pre><code class="language-c++">PYBIND11_MODULE(example, m) {
+    m.attr("the_answer") = 42;
+    py::object world = py::cast("World");
+    m.attr("what") = world;
+}
+``
+
+Python中使用如下：
+​```pyhton
+&gt;&gt;&gt; import example
+&gt;&gt;&gt; example.the_answer
+42
+&gt;&gt;&gt; example.what
+'World'
+</code></pre>
+<h3 id="14-绑定类或结构体"><a class="header" href="#14-绑定类或结构体">1.4 绑定类或结构体</a></h3>
+<p>现在我们来绑定一个C++自定义数据结构<code>Pet</code>。定义如下：</p>
+<pre><code class="language-c++">struct Pet {
+    Pet(const std::string &amp;name) : name(name) { }
+    void setName(const std::string &amp;name_) { name = name_; }
+    const std::string &amp;getName() const { return name; }
+
+    std::string name;
+};
+</code></pre>
+<p>绑定代码如下所示：</p>
+<pre><code class="language-c++">#include &lt;pybind11/pybind11.h&gt;
+namespace py = pybind11;
+
+PYBIND11_MODULE(example, m) {
+    py::class_&lt;Pet&gt;(m, "Pet")
+        .def(py::init&lt;const std::string &amp;&gt;())
+        .def("setName", &amp;Pet::setName)
+        .def("getName", &amp;Pet::getName)
+        .def("__repr__",
+            [](const Pet &amp;a) {
+                return "&lt;example.Pet named '" + a.name + "'&gt;";
+            });
+}
+</code></pre>
+<p><code>class_</code>会创建C++ class或 struct的绑定。<code>init()</code>方法用于创建绑定类的构造函数，它使用类构造函数的参数类型作为模板参数，并包装相应的构造函数。</p>
+<p>使用<code>print(p)</code>打印对象信息时，默认会得到一些没用的信息。我们可以绑定一个工具函数到<code>__repr__</code>方法，来返回可读性好的摘要信息。在不改变Pet类的基础上，使用一个匿名函数来完成这个功能是一个不错的选择。</p>
+<p>Python使用示例如下；</p>
+<pre><code class="language-python">&gt;&gt;&gt; import example
+&gt;&gt;&gt; p = example.Pet("Molly")
+&gt;&gt;&gt; print(p)
+&lt;example.Pet named 'Molly'&gt;
+&gt;&gt;&gt; p.getName()
+u'Molly'
+&gt;&gt;&gt; p.setName("Charly")
+&gt;&gt;&gt; p.getName()
+u'Charly'
+</code></pre>
+<p>静态成员函数需要使用<code>class_::def_static</code>来绑定。</p>
+<h4 id="141-成员函数"><a class="header" href="#141-成员函数">1.4.1 成员函数</a></h4>
+<p>使用<code>class_::def_readwrite</code>方法可以导出公有成员变量，使用<code>class_::def_readonly</code>方法则可以导出只读成员。</p>
+<pre><code class="language-c++">py::class_&lt;Pet&gt;(m, "Pet")
+    .def(py::init&lt;const std::string &amp;&gt;())
+    .def_readwrite("name", &amp;Pet::name)
+    // ... remainder ...
+</code></pre>
+<p>Python中使用示例如下：</p>
+<pre><code class="language-python">&gt;&gt;&gt; p = example.Pet("Molly")
+&gt;&gt;&gt; p.name
+u'Molly'
+&gt;&gt;&gt; p.name = "Charly"
+&gt;&gt;&gt; p.name
+u'Charly'
+</code></pre>
+<p>假设<code>Pet::name</code>是一个私有成员变量，向外提供setter和getters方法。</p>
+<pre><code class="language-c++">class Pet {
+public:
+    Pet(const std::string &amp;name) : name(name) { }
+    void setName(const std::string &amp;name_) { name = name_; }
+    const std::string &amp;getName() const { return name; }
+private:
+    std::string name;
+};
+</code></pre>
+<p>可以使用<code>class_::def_property()</code>(只读成员使用<code>class_::def_property_readonly()</code>)来定义并私有成员，并生成相应的setter和geter方法：</p>
+<pre><code class="language-c++">py::class_&lt;Pet&gt;(m, "Pet")
+    .def(py::init&lt;const std::string &amp;&gt;())
+    .def_property("name", &amp;Pet::getName, &amp;Pet::setName)
+    // ... remainder ...
+</code></pre>
+<p>只写属性通过将read函数定义为nullptr来实现。</p>
+<p>相似的方法<code>class_::def_readwrite_static()</code>, <code>class_::def_readonly_static()</code> <code>class_::def_property_static()</code>, <code>class_::def_property_readonly_static()</code>用于绑定静态变量和属性。</p>
+<h4 id="142-动态属性"><a class="header" href="#142-动态属性">1.4.2 动态属性</a></h4>
+<p>原生的Pyhton类可以动态地获取新属性：</p>
+<pre><code class="language-python">&gt;&gt;&gt; class Pet:
+...    name = "Molly"
+...
+&gt;&gt;&gt; p = Pet()
+&gt;&gt;&gt; p.name = "Charly"  # overwrite existing
+&gt;&gt;&gt; p.age = 2  # dynamically add a new attribute
+</code></pre>
+<p>默认情况下，从C++导出的类不支持动态属性，其可写属性必须是通过<code>class_::def_readwrite</code>或<code>class_::def_property</code>定义的。试图设置其他属性将产生错误：</p>
+<pre><code class="language-python">&gt;&gt;&gt; p = example.Pet()
+&gt;&gt;&gt; p.name = "Charly"  # OK, attribute defined in C++
+&gt;&gt;&gt; p.age = 2  # fail
+AttributeError: 'Pet' object has no attribute 'age'
+</code></pre>
+<p>要让C++类也支持动态属性，我们需要在<code>py::class_</code>的构造函数添加<code>py::dynamic_attr</code>标识：</p>
+<pre><code class="language-c++">py::class_&lt;Pet&gt;(m, "Pet", py::dynamic_attr())
+    .def(py::init&lt;&gt;())
+    .def_readwrite("name", &amp;Pet::name);
+</code></pre>
+<p>这样，之前报错的代码就能够正常运行了。</p>
+<pre><code class="language-python">&gt;&gt;&gt; p = example.Pet()
+&gt;&gt;&gt; p.name = "Charly"  # OK, overwrite value in C++
+&gt;&gt;&gt; p.age = 2  # OK, dynamically add a new attribute
+&gt;&gt;&gt; p.__dict__  # just like a native Python class
+{'age': 2}
+</code></pre>
+<p>需要提醒一下，支持动态属性会带来小小的运行时开销。不仅仅因为增加了额外的<code>__dict__</code>属性，还因为处理循环引用时需要花费更多的垃圾收集跟踪花销。但是不必担心这个问题，因为原生Python类也有同样的开销。默认情况下，pybind11导出的类比原生Python类效率更高，使能动态属性也只是让它们处于同等水平而已。</p>
+<h4 id="143-重载方法"><a class="header" href="#143-重载方法">1.4.3 重载方法</a></h4>
+<p>重载类的方法同上一节的普通函数重载，这里举个实例仅供参考：</p>
+<pre><code class="language-c++">struct Pet {
+    Pet(const std::string &amp;name, int age) : name(name), age(age) { }
+
+    void set(int age_) { age = age_; }
+    void set(const std::string &amp;name_) { name = name_; }
+
+    std::string name;
+    int age;
+};
+
+// method 1
+py::class_&lt;Pet&gt;(m, "Pet")
+   .def(py::init&lt;const std::string &amp;, int&gt;())
+   .def("set", static_cast&lt;void (Pet::*)(int)&gt;(&amp;Pet::set), "Set the pet's age")
+   .def("set", static_cast&lt;void (Pet::*)(const std::string &amp;)&gt;(&amp;Pet::set), "Set the pet's name");
+
+// method 2
+py::class_&lt;Pet&gt;(m, "Pet")
+    .def("set", py::overload_cast&lt;int&gt;(&amp;Pet::set), "Set the pet's age")
+    .def("set", py::overload_cast&lt;const std::string &amp;&gt;(&amp;Pet::set), "Set the pet's name");
+</code></pre>
+<h3 id="15-绑定枚举类型"><a class="header" href="#15-绑定枚举类型">1.5 绑定枚举类型</a></h3>
+<p>对于C风格的枚举类型，绑定示例如下：</p>
+<pre><code class="language-c++">enum Flags {
+    Read = 4,
+    Write = 2,
+    Execute = 1
+};
+
+py::enum_&lt;Flags&gt;(m, "Flags", py::arithmetic())
+    .value("Read", Flags::Read)
+    .value("Write", Flags::Write)
+    .value("Execute", Flags::Execute)
+    .export_values();
+</code></pre>
+<p><code>enum_::export_values()</code>用来导出枚举项到父作用域，C++11的强枚举类型需要跳过这点。</p>
+<p>枚举类型的枚举项会被导出到类<code>__members__</code>属性中，<code>name</code>属性可以返回枚举值的名称的unicode字符串，<code>str(enum)</code>也可以做到，但两者的实现目标不同。</p>
+<h3 id="16-接收args和kwargs参数"><a class="header" href="#16-接收args和kwargs参数">1.6 接收<code>*args</code>和<code>**kwargs</code>参数</a></h3>
+<p>Python的函数可以接收任意数量的参数和关键字参数：</p>
+<pre><code class="language-python">def generic(*args, **kwargs):
+    ...  # do something with args and kwargs
+</code></pre>
+<p>我们也可以通过pybind11来创建这样的函数：</p>
+<pre><code class="language-c++">void generic(py::args args, const py::kwargs&amp; kwargs) {
+    /// .. do something with args
+    if (kwargs)
+        /// .. do something with kwargs
+}
+
+/// Binding code
+m.def("generic", &amp;generic);
+</code></pre>
+<p><code>py::args</code>继承自<code>py::tuple</code>，<code>py::kwargs</code>继承自<code>py::dict</code>。</p>
+<h2 id="2-函数绑定进阶"><a class="header" href="#2-函数绑定进阶">2. 函数绑定进阶</a></h2>
+<h3 id="21-返回值策略"><a class="header" href="#21-返回值策略">2.1 返回值策略</a></h3>
+<p>Python和C++在管理内存和对象生命周期管理上存在本质的区别。这导致我们在创建返回no-trivial类型的函数绑定时会出问题。仅通过类型信息，我们无法明确是Python侧需要接管返回值并负责释放资源，还是应该由C++侧来处理。因此，pybind11提供了一些返回值策略来确定由哪方管理资源。这些策略通过<code>model::def()</code>和<code>class_def()</code>来指定，默认策略为<code>return_value_policy::automatic</code>。</p>
+<p>返回值策略难以捉摸，正确地选择它们则显得尤为重要。下面我们通过一个简单的例子来阐释选择错误的情形：</p>
+<pre><code class="language-c++">/* Function declaration */
+Data *get_data() { return _data; /* (pointer to a static data structure) */ }
+...
+
+/* Binding code */
+m.def("get_data", &amp;get_data); // &lt;-- KABOOM, will cause crash when called from Python
+</code></pre>
+<p>当Python侧调用<code>get_data()</code>方法时，返回值（原生C++类型）必须被转换为合适的Python类型。在这个例子中，默认的返回值策略（<code>return_value_policy::automatic</code>）使得pybind11获取到了静态变量<code>_data</code>的所有权。</p>
+<p>当Python垃圾收集器最终删除<code>_data</code>的Python封装时，pybind11将尝试删除C++实例（通过operator delete()）。这时，这个程序将以某种隐蔽的错误并涉及静默数据破坏的方式崩溃。</p>
+<p>对于上面的例子，我们应该指定返回值策略为<code>return_value_policy::reference</code>，这样全局变量的实例仅仅被引用，而不涉及到所有权的转移：</p>
+<pre><code class="language-c++">m.def("get_data", &amp;get_data, py::return_value_policy::reference);
+</code></pre>
+<p>另一方面，引用策略在多数其他场合并不是正确的策略，忽略所有权的归属可能导致资源泄漏。作为一个使用pybind11的开发者，熟悉不同的返回值策略及其适用场合尤为重要。下面的表格将提供所有策略的概览：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>返回值策略</th><th>描述</th></tr>
+</thead>
+<tbody>
+<tr><td><code>return_value_policy::take_ownership</code></td><td>引用现有对象（不创建一个新对象），并获取所有权。在引用计数为0时，Pyhton将调用析构函数和delete操作销毁对象。</td></tr>
+<tr><td><code>return_value_policy::copy</code></td><td>拷贝返回值，这样Python将拥有拷贝的对象。该策略相对来说比较安全，因为两个实例的生命周期是分离的。</td></tr>
+<tr><td><code>return_value_policy::move</code></td><td>使用<code>std::move</code>来移动返回值的内容到新实例，新实例的所有权在Python。该策略相对来说比较安全，因为两个实例的生命周期是分离的。</td></tr>
+<tr><td><code>return_value_policy::reference</code></td><td>引用现有对象，但不拥有所有权。C++侧负责该对象的生命周期管理，并在对象不再被使用时负责析构它。注意：当Python侧还在使用引用的对象时，C++侧删除对象将导致未定义行为。</td></tr>
+<tr><td><code>return_value_policy::reference_internal</code></td><td>返回值的生命周期与父对象的生命周期相绑定，即被调用函数或属性的<code>this</code>或<code>self</code>对象。这种策略与reference策略类似，但附加了<code>keep_alive&lt;0, 1&gt;</code>调用策略保证返回值还被Python引用时，其父对象就不会被垃圾回收掉。这是由<code>def_property</code>、<code>def_readwrite</code>创建的属性getter方法的默认返回值策略。</td></tr>
+<tr><td><code>return_value_policy::automatic</code></td><td>当返回值是指针时，该策略使用<code>return_value_policy::take_ownership</code>。反之对左值和右值引用使用<code>return_value_policy::copy</code>。请参阅上面的描述，了解所有这些不同的策略的作用。这是<code>py::class_</code>封装类型的默认策略。</td></tr>
+<tr><td><code>return_value_policy::automatic_reference</code></td><td>和上面一样，但是当返回值是指针时，使用<code>return_value_policy::reference</code>策略。这是在C++代码手动调用Python函数和使用<code>pybind11/stl.h</code>中的casters时的默认转换策略。你可能不需要显式地使用该策略。</td></tr>
+</tbody>
+</table>
+</div>
+<p>返回值策略也可以应用于属性：</p>
+<pre><code class="language-c++">class_&lt;MyClass&gt;(m, "MyClass")
+    .def_property("data", &amp;MyClass::getData, &amp;MyClass::setData,
+                  py::return_value_policy::copy);
+</code></pre>
+<p>在技术层面，上述代码会将策略同时应用于getter和setter函数，但是setter函数并不关心返回值策略，这样做仅仅出于语法简洁的考虑。或者，你可以通过<code>cpp_function</code>构造函数来传递目标参数：</p>
+<pre><code class="language-c++">class_&lt;MyClass&gt;(m, "MyClass")
+    .def_property("data"
+        py::cpp_function(&amp;MyClass::getData, py::return_value_policy::copy),
+        py::cpp_function(&amp;MyClass::setData)
+    );
+</code></pre>
+<p><strong>注意</strong>：代码使用无效的返回值策略将导致未初始化内存或多次free数据结构，这将导致难以调试的、不确定的问题和段错误。因此，花点时间来理解上面表格的各个选项是值得的。</p>
+<p><strong>提示</strong>：</p>
+<ol>
+<li>上述策略的另一个重点是，他们仅可以应用于pybind11还不知晓的实例，这时策略将澄清返回值的生命周期和所有权问题。当pybind11已经知晓参数（通过其在内存中的类型和地址来识别），它将返回已存在的Python对象封装，而不是创建一份拷贝。</li>
+<li>下一节将讨论上面表格之外的调用策略，他涉及到返回值和函数参数的引用关系。</li>
+<li>可以考虑使用智能指针来代替复杂的调用策略和生命周期管理逻辑。智能指针会告诉你一个对象是否仍被C++或Python引用，这样就可以消除各种可能引发crash或未定义行为的矛盾。对于返回智能指针的函数，没必要指定返回值策略。</li>
+</ol>
+<h3 id="22-附加的调用策略"><a class="header" href="#22-附加的调用策略">2.2 附加的调用策略</a></h3>
+<p>除了以上的返回值策略外，进一步指定调用策略可以表明参数间的依赖关系，确保函数调用的稳定性。</p>
+<h4 id="保活keep-alive"><a class="header" href="#保活keep-alive">保活（keep alive）</a></h4>
+<p>当一个C++容器对象包含另一个C++对象时，我们需要使用该策略。<code>keep_alive&lt;Nurse, Patient&gt;</code>表明至少在索引Nurse被回收前，索引Patient应该被保活。0表示返回值，1及以上表示参数索引。1表示隐含的参数this指针，而常规参数索引从2开始。当Nurse的值在运行前被检测到为None时，调用策略将什么都不做。</p>
+<p>当nurse不是一个pybind11注册类型时，实现依赖于创建对nurse对象弱引用的能力。如果nurse对象不是pybind11注册类型，也不支持弱引用，程序将会抛出异常。</p>
+<p>如果你使用一个错误的参数索引，程序将会抛出“Could not cativate keep_alive!“警告的运行时异常。这时，你应该review你代码中使用的索引。</p>
+<p>参见下面的例子：一个list append操作，将新添加元素的生命周期绑定到添加的容器对象上：</p>
+<pre><code class="language-c++">py::class_&lt;List&gt;(m, "List").def("append", &amp;List::append, py::keep_alive&lt;1, 2&gt;());
+</code></pre>
+<p>为了一致性，构造函数的实参索引也是相同的。索引1仍表示this指针，索引0表示返回值（构造函数的返回值被认为是void）。下面的示例将构造函数入参的生命周期绑定到被构造对象上。</p>
+<pre><code class="language-c++">py::class_&lt;Nurse&gt;(m, "Nurse").def(py::init&lt;Patient &amp;&gt;(), py::keep_alive&lt;1, 2&gt;());
+</code></pre>
+<blockquote>
+<p>Note: <code>keep_alive</code>与Boost.Python中的<code>with_custodian_and_ward</code>和<code>with_custodian_and_ward_postcall</code>相似。</p>
+</blockquote>
+<h4 id="call-guard"><a class="header" href="#call-guard">Call guard</a></h4>
+<p><code>call_guard&lt;T&gt;</code>策略允许任意T类型的scope guard应用于整个函数调用。示例如下：</p>
+<pre><code class="language-c++">m.def("foo", foo, py::call_guard&lt;T&gt;());
+</code></pre>
+<p>上面的代码等价于：</p>
+<pre><code class="language-c++">m.def("foo", [](args...) {
+    T scope_guard;
+    return foo(args...); // forwarded arguments
+});
+</code></pre>
+<p>仅要求模板参数T是可构造的，如<code>gil_scoped_release</code>就是一个非常有用的类型。</p>
+<p><code>call_guard</code>支持同时制定多个模板参数，<code>call_guard&lt;T1, T2, T3 ...&gt;</code>。构造顺序是从左至右，析构顺序则相反。</p>
+<blockquote>
+<p>See also: <code>test/test_call_policies.cpp</code>含有更丰富的示例来展示<code>keep_alive</code>和<code>call_guard</code>的用法。</p>
+</blockquote>
+<h3 id="23-keyword-only参数"><a class="header" href="#23-keyword-only参数">2.3 Keyword-only参数</a></h3>
+<p>Python3提供了keyword-only参数（在函数定义中使用<code>*</code>作为匿名参数）：</p>
+<pre><code class="language-python">def f(a, *, b):  # a can be positional or via keyword; b must be via keyword
+    pass
+
+f(a=1, b=2)  # good
+f(b=2, a=1)  # good
+f(1, b=2)  # good
+f(1, 2)  # TypeError: f() takes 1 positional argument but 2 were given
+</code></pre>
+<p>pybind11提供了<code>py::kw_only</code>对象来实现相同的功能：</p>
+<pre><code class="language-c++">m.def("f", [](int a, int b) { /* ... */ },
+      py::arg("a"), py::kw_only(), py::arg("b"));
+</code></pre>
+<p>注意，该特性不能与<code>py::args</code>一起使用。</p>
+<h3 id="24-positional-only参数"><a class="header" href="#24-positional-only参数">2.4 Positional-only参数</a></h3>
+<p>python3.8引入了Positional-only参数语法，pybind11通过<code>py::pos_only()</code>来提供相同的功能：</p>
+<pre><code class="language-c++">m.def("f", [](int a, int b) { /* ... */ },
+       py::arg("a"), py::pos_only(), py::arg("b"));
+</code></pre>
+<p>现在，你不能通过关键字来给定<code>a</code>参数。该特性可以和keyword-only参数一起使用。</p>
+<h3 id="25-non-converting参数"><a class="header" href="#25-non-converting参数">2.5 Non-converting参数</a></h3>
+<p>有些参数可能支持类型转换，如：</p>
+<ul>
+<li>通过<code>py::implicitly_convertible&lt;A,B&gt;()</code>进行隐式转换</li>
+<li>将整形变量传给入参为浮点类型的函数</li>
+<li>将非复数类型（如float）传给入参为<code>std::complex&lt;float&gt;</code>类型的函数</li>
+<li>Calling a function taking an Eigen matrix reference with a numpy array of the wrong type or of an incompatible data layout.</li>
+</ul>
+<p>有时这种转换并不是我们期望的，我们可能更希望绑定代码抛出错误，而不是转换参数。通过<code>py::arg</code>来调用<code>.noconvert()</code>方法可以实现这个事情。</p>
+<pre><code class="language-c++">m.def("floats_only", [](double f) { return 0.5 * f; }, py::arg("f").noconvert());
+m.def("floats_preferred", [](double f) { return 0.5 * f; }, py::arg("f"));
+</code></pre>
+<p>尝试进行转换时，将抛出<code>TypeError</code>异常：</p>
+<pre><code class="language-python">&gt;&gt;&gt; floats_preferred(4)
+2.0
+&gt;&gt;&gt; floats_only(4)
+Traceback (most recent call last):
+  File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+TypeError: floats_only(): incompatible function arguments. The following argument types are supported:
+    1. (f: float) -&gt; float
+
+Invoked with: 4
+</code></pre>
+<p>该方法可以与缩写符号<code>_a</code>和默认参数配合使用，像这样<code>py::arg().noconvert()</code>。</p>
+<h2 id="3-类绑定进阶"><a class="header" href="#3-类绑定进阶">3. 类绑定进阶</a></h2>
+<h3 id="31-继承与多态"><a class="header" href="#31-继承与多态">3.1 继承与多态</a></h3>
+<p>现在有两个具有继承关系的类：</p>
+<pre><code class="language-c++">struct Pet {
+    Pet(const std::string &amp;name) : name(name) { }
+    std::string name;
+};
+
+struct Dog : Pet {
+    Dog(const std::string &amp;name) : Pet(name) { }
+    std::string bark() const { return "woof!"; }
+};
+</code></pre>
+<p>pybind11提供了两种方法来指明继承关系：1）将C++基类作为派生类<code>class_</code>的模板参数；2）将基类名作为<code>class_</code>的参数绑定到派生类。两种方法是等效的。</p>
+<pre><code class="language-c++">py::class_&lt;Pet&gt;(m, "Pet")
+   .def(py::init&lt;const std::string &amp;&gt;())
+   .def_readwrite("name", &amp;Pet::name);
+
+// Method 1: template parameter:
+py::class_&lt;Dog, Pet /* &lt;- specify C++ parent type */&gt;(m, "Dog")
+    .def(py::init&lt;const std::string &amp;&gt;())
+    .def("bark", &amp;Dog::bark);
+
+// Method 2: pass parent class_ object:
+py::class_&lt;Dog&gt;(m, "Dog", pet /* &lt;- specify Python parent type */)
+    .def(py::init&lt;const std::string &amp;&gt;())
+    .def("bark", &amp;Dog::bark);
+</code></pre>
+<p>指明继承关系后，派生类实例将获得两者的字段和方法：</p>
+<pre><code class="language-python">&gt;&gt;&gt; p = example.Dog("Molly")
+&gt;&gt;&gt; p.name
+u'Molly'
+&gt;&gt;&gt; p.bark()
+u'woof!'
+</code></pre>
+<p>上面的例子是一个常规非多态的继承关系，表现在Python就是：</p>
+<pre><code class="language-c++">// 返回一个指向派生类的基类指针
+m.def("pet_store", []() { return std::unique_ptr&lt;Pet&gt;(new Dog("Molly")); });
+</code></pre>
+<pre><code class="language-python">&gt;&gt;&gt; p = example.pet_store()
+&gt;&gt;&gt; type(p)  # `Dog` instance behind `Pet` pointer
+Pet          # no pointer downcasting for regular non-polymorphic types
+&gt;&gt;&gt; p.bark()
+AttributeError: 'Pet' object has no attribute 'bark'
+</code></pre>
+<p><code>pet_store</code>函数返回了一个Dog实例，但由于基类并非多态类型，Python只识别到了Pet。在C++中，一个类至少有一个虚函数才会被视为多态类型。pybind11会自动识别这种多态机制。</p>
+<pre><code class="language-c++">struct PolymorphicPet {
+    virtual ~PolymorphicPet() = default;
+};
+
+struct PolymorphicDog : PolymorphicPet {
+    std::string bark() const { return "woof!"; }
+};
+
+// Same binding code
+py::class_&lt;PolymorphicPet&gt;(m, "PolymorphicPet");
+py::class_&lt;PolymorphicDog, PolymorphicPet&gt;(m, "PolymorphicDog")
+    .def(py::init&lt;&gt;())
+    .def("bark", &amp;PolymorphicDog::bark);
+
+// Again, return a base pointer to a derived instance
+m.def("pet_store2", []() { return std::unique_ptr&lt;PolymorphicPet&gt;(new PolymorphicDog); });
+</code></pre>
+<pre><code class="language-python">&gt;&gt;&gt; p = example.pet_store2()
+&gt;&gt;&gt; type(p)
+PolymorphicDog  # automatically downcast
+&gt;&gt;&gt; p.bark()
+u'woof!'
+</code></pre>
+<p>pybind11会自动地将一个指向多态基类的指针，向下转型为实际的派生类类型。这和C++常见的情况不同，我们不仅可以访问基类的虚函数，还能获取到通过基类看不到的，具体的派生类的方法和属性。</p>
+<h3 id="32-python继承c类"><a class="header" href="#32-python继承c类">3.2 Python继承C++类</a></h3>
+<p>对于一个拥有纯虚函数的类，使用常规的绑定方法并在Python中直接继承它会报错，因为纯虚基类是不可构造的。</p>
+<pre><code class="language-c++">class Animal {
+public:
+    virtual ~Animal() { }
+    virtual std::string go(int n_times) = 0;
+};
+
+class Dog : public Animal {
+public:
+    std::string go(int n_times) override {
+        std::string result;
+        for (int i=0; i&lt;n_times; ++i)
+            result += "woof! ";
+        return result;
+    }
+};
+
+std::string call_go(Animal *animal) {
+    return animal-&gt;go(3);
+}
+
+PYBIND11_MODULE(example, m) {
+    py::class_&lt;Animal&gt;(m, "Animal")
+        .def("go", &amp;Animal::go);
+
+    py::class_&lt;Dog, Animal&gt;(m, "Dog")
+        .def(py::init&lt;&gt;());
+
+    m.def("call_go", &amp;call_go);
+}
+</code></pre>
+<p>这样绑定之后，用户在Python中继承实现Animal会报错，提示“No constructor defined!“。</p>
+<p>这时，我们需要定义一个新的Animal类作为辅助跳板：</p>
+<pre><code class="language-c++">class PyAnimal : public Animal {
+public:
+    /* Inherit the constructors */
+    using Animal::Animal;
+
+    /* Trampoline (need one for each virtual function) */
+    std::string go(int n_times) override {
+        PYBIND11_OVERRIDE_PURE(
+            std::string, /* Return type */
+            Animal,      /* Parent class */
+            go,          /* Name of function in C++ (must match Python name) */
+            n_times      /* Argument(s) */
+        );
+    }
+};
+</code></pre>
+<p>定义纯虚函数时需要使用<code>PYBIND11_OVERRIDE_PURE</code>宏，而有默认实现的虚函数则使用<code>PYBIND11_OVERRIDE</code>。<code>PYBIND11_OVERRIDE_PURE_NAME</code> 和<code>PYBIND11_OVERRIDE_NAME</code> 宏的功能类似，主要用于C函数名和Python函数名不一致的时候。以<code>__str__</code>为例：</p>
+<pre><code class="language-c++">std::string toString() override {
+  PYBIND11_OVERRIDE_NAME(
+      std::string, // Return type (ret_type)
+      Animal,      // Parent class (cname)
+      "__str__",   // Name of method in Python (name)
+      toString,    // Name of function in C++ (fn)
+  );
+}
+</code></pre>
+<p>Animal类的绑定代码也需要一些微调：</p>
+<pre><code class="language-c++">PYBIND11_MODULE(example, m) {
+    py::class_&lt;Animal, PyAnimal /* &lt;--- trampoline*/&gt;(m, "Animal")
+        .def(py::init&lt;&gt;())
+        .def("go", &amp;Animal::go);
+
+    py::class_&lt;Dog, Animal&gt;(m, "Dog")
+        .def(py::init&lt;&gt;());
+
+    m.def("call_go", &amp;call_go);
+}
+</code></pre>
+<p>pybind11通过向<code>class_</code>指定额外的模板参数PyAnimal，让我们可以在Python中继承Animal类。</p>
+<p>接下来，我们可以像往常一样定义构造函数。绑定时我们需要使用真实类，而不是辅助类。</p>
+<pre><code class="language-c++">py::class_&lt;Animal, PyAnimal /* &lt;--- trampoline*/&gt;(m, "Animal");
+    .def(py::init&lt;&gt;())
+    .def("go", &amp;PyAnimal::go); /* &lt;--- THIS IS WRONG, use &amp;Animal::go */
+</code></pre>
+<p>下面的Python代码展示了我们继承并重载了<code>Animal::go</code>方法，并通过虚函数来调用它：</p>
+<pre><code class="language-python">from example import *
+d = Dog()
+call_go(d)     # u'woof! woof! woof! '
+class Cat(Animal):
+    def go(self, n_times):
+        return "meow! " * n_times
+
+c = Cat()
+call_go(c)   # u'meow! meow! meow! '
+</code></pre>
+<p>如果你在派生的Python类中自定义了一个构造函数，你必须保证显示调用C++构造函数(通过<code>__init__</code>)，不管它是否为默认构造函数。否则，实例属于C++那部分的内存就未初始化，可能导致未定义行为。在pybind11 2.6版本中，这种错误将会抛出<code>TypeError</code>异常。</p>
+<pre><code class="language-python">class Dachshund(Dog):
+    def __init__(self, name):
+        Dog.__init__(self)  # Without this, a TypeError is raised.
+        self.name = name
+
+    def bark(self):
+        return "yap!"
+</code></pre>
+<p>注意必须显式地调用<code>__init__</code>，而不应该使用<code>supper()</code>。在一些简单的线性继承中，<code>supper()</code>或许可以正常工作；一旦你混合Python和C++类使用多重继承，由于Python MRO和C++的机制，一切都将崩溃。</p>
+<h3 id="33-虚函数与继承"><a class="header" href="#33-虚函数与继承">3.3 虚函数与继承</a></h3>
+<p>综合考虑虚函数与继承时，你需要为每个你允许在Python派生类中重载的方法提供重载方式。下面我们扩展Animal和Dog来举例：</p>
+<pre><code class="language-c++">class Animal {
+public:
+    virtual std::string go(int n_times) = 0;
+    virtual std::string name() { return "unknown"; }
+};
+class Dog : public Animal {
+public:
+    std::string go(int n_times) override {
+        std::string result;
+        for (int i=0; i&lt;n_times; ++i)
+            result += bark() + " ";
+        return result;
+    }
+    virtual std::string bark() { return "woof!"; }
+};
+</code></pre>
+<p>上节涉及到的Animal辅助类仍是必须的，为了让Python代码能够继承<code>Dog</code>类，我们也需要为<code>Dog</code>类增加一个跳板类，来实现<code>bark()</code>和继承自Animal的<code>go()</code>、<code>name()</code>等重载方法（即便Dog类并不直接重载name方法）。</p>
+<pre><code class="language-c++">class PyAnimal : public Animal {
+public:
+    using Animal::Animal; // Inherit constructors
+    std::string go(int n_times) override { PYBIND11_OVERRIDE_PURE(std::string, Animal, go, n_times); }
+    std::string name() override { PYBIND11_OVERRIDE(std::string, Animal, name, ); }
+};
+class PyDog : public Dog {
+public:
+    using Dog::Dog; // Inherit constructors
+    std::string go(int n_times) override { PYBIND11_OVERRIDE(std::string, Dog, go, n_times); }
+    std::string name() override { PYBIND11_OVERRIDE(std::string, Dog, name, ); }
+    std::string bark() override { PYBIND11_OVERRIDE(std::string, Dog, bark, ); }
+};
+</code></pre>
+<blockquote>
+<p>注意到<code>name()</code>和<code>bark()</code>尾部的逗号，这用来说明辅助类的函数不带任何参数。当函数至少有一个参数时，应该省略尾部的逗号。</p>
+</blockquote>
+<p>注册一个继承已经在pybind11中注册的带虚函数的类，同样需要为其添加辅助类，即便它没有定义或重载任何虚函数：</p>
+<pre><code class="language-c++">class Husky : public Dog {};
+class PyHusky : public Husky {
+public:
+    using Husky::Husky; // Inherit constructors
+    std::string go(int n_times) override { PYBIND11_OVERRIDE_PURE(std::string, Husky, go, n_times); }
+    std::string name() override { PYBIND11_OVERRIDE(std::string, Husky, name, ); }
+    std::string bark() override { PYBIND11_OVERRIDE(std::string, Husky, bark, ); }
+};
+</code></pre>
+<p>我们可以使用模板辅助类将简化这类重复的绑定工作，这对有多个虚函数的基类尤其有用：</p>
+<pre><code class="language-c++">template &lt;class AnimalBase = Animal&gt; class PyAnimal : public AnimalBase {
+public:
+    using AnimalBase::AnimalBase; // Inherit constructors
+    std::string go(int n_times) override { PYBIND11_OVERRIDE_PURE(std::string, AnimalBase, go, n_times); }
+    std::string name() override { PYBIND11_OVERRIDE(std::string, AnimalBase, name, ); }
+};
+template &lt;class DogBase = Dog&gt; class PyDog : public PyAnimal&lt;DogBase&gt; {
+public:
+    using PyAnimal&lt;DogBase&gt;::PyAnimal; // Inherit constructors
+    // Override PyAnimal's pure virtual go() with a non-pure one:
+    std::string go(int n_times) override { PYBIND11_OVERRIDE(std::string, DogBase, go, n_times); }
+    std::string bark() override { PYBIND11_OVERRIDE(std::string, DogBase, bark, ); }
+};
+</code></pre>
+<p>这样，我们只需要一个辅助方法来定义虚函数和纯虚函数的重载了。只是这样编译器就需要生成许多额外的方法和类。</p>
+<p>下面我们在pybind11中注册这些类：</p>
+<pre><code class="language-c++">py::class_&lt;Animal, PyAnimal&lt;&gt;&gt; animal(m, "Animal");
+py::class_&lt;Dog, Animal, PyDog&lt;&gt;&gt; dog(m, "Dog");
+py::class_&lt;Husky, Dog, PyDog&lt;Husky&gt;&gt; husky(m, "Husky");
+// ... add animal, dog, husky definitions
+</code></pre>
+<p>注意，Husky不需要一个专门的辅助类，因为它没定义任何新的虚函数和纯虚函数的重载。</p>
+<p>Python中的使用示例：</p>
+<pre><code class="language-python">class ShihTzu(Dog):
+    def bark(self):
+        return "yip!"
+</code></pre>
+<h3 id="34-非公有析构函数"><a class="header" href="#34-非公有析构函数">3.4 非公有析构函数</a></h3>
+<p>如果一个类拥有私有或保护的析构函数（例如单例类），通过pybind11绑定类时编译器将会报错。本质的问题是<code>std::unique_ptr</code>智能指针负责管理实例的生命周期需要引用析构函数，即便没有资源需要回收。Pybind11提供了辅助类<code>py::nodelete</code>来禁止对析构函数的调用。这种情况下，C++侧负责析构对象避免内存泄漏就十分重要。</p>
+<pre><code class="language-c++">/* ... definition ... */
+
+class MyClass {
+private:
+    ~MyClass() { }
+};
+
+/* ... binding code ... */
+
+py::class_&lt;MyClass, std::unique_ptr&lt;MyClass, py::nodelete&gt;&gt;(m, "MyClass")
+    .def(py::init&lt;&gt;())
+</code></pre>
+<h3 id="35-隐式转换"><a class="header" href="#35-隐式转换">3.5 隐式转换</a></h3>
+<p>假设项目中有A和B两个类型，A可以直接转换为B。</p>
+<pre><code class="language-c++">py::class_&lt;A&gt;(m, "A")
+    /// ... members ...
+
+py::class_&lt;B&gt;(m, "B")
+    .def(py::init&lt;A&gt;())
+    /// ... members ...
+
+m.def("func",
+    [](const B &amp;) { /* .... */ }
+);
+</code></pre>
+<p>如果想func函数传入A类型的参数a，Pyhton侧需要这样写<code>func(B(a))</code>，而C++则可以直接使用<code>func(a)</code>，自动将A类型转换为B类型。</p>
+<p>这种情形下（B有一个接受A类型参数的构造函数），我们可以使用如下声明来让Python侧也支持类似的隐式转换：</p>
+<pre><code class="language-c++">py::implicitly_convertible&lt;A, B&gt;();
+</code></pre>
+<h3 id="36-重载操作符"><a class="header" href="#36-重载操作符">3.6 重载操作符</a></h3>
+<p>假设有这样一个类<code>Vector2</code>，它通过重载操作符实现了向量加法和标量乘法。</p>
+<pre><code class="language-c++">class Vector2 {
+public:
+    Vector2(float x, float y) : x(x), y(y) { }
+
+    Vector2 operator+(const Vector2 &amp;v) const { return Vector2(x + v.x, y + v.y); }
+    Vector2 operator*(float value) const { return Vector2(x * value, y * value); }
+    Vector2&amp; operator+=(const Vector2 &amp;v) { x += v.x; y += v.y; return *this; }
+    Vector2&amp; operator*=(float v) { x *= v; y *= v; return *this; }
+
+    friend Vector2 operator*(float f, const Vector2 &amp;v) {
+        return Vector2(f * v.x, f * v.y);
+    }
+
+    std::string toString() const {
+        return "[" + std::to_string(x) + ", " + std::to_string(y) + "]";
+    }
+private:
+    float x, y;
+};
+</code></pre>
+<p>操作符绑定代码如下：</p>
+<pre><code class="language-python">#include &lt;pybind11/operators.h&gt;
+
+PYBIND11_MODULE(example, m) {
+    py::class_&lt;Vector2&gt;(m, "Vector2")
+        .def(py::init&lt;float, float&gt;())
+        .def(py::self + py::self)
+        .def(py::self += py::self)
+        .def(py::self *= float())
+        .def(float() * py::self)
+        .def(py::self * float())
+        .def(-py::self)
+        .def("__repr__", &amp;Vector2::toString);
+}
+</code></pre>
+<p><code>.def(py::self * float())</code>是如下代码的简短标记：</p>
+<pre><code class="language-c++">.def("__mul__", [](const Vector2 &amp;a, float b) {
+    return a * b;
+}, py::is_operator())
+</code></pre>
+<h3 id="37-深拷贝支持"><a class="header" href="#37-深拷贝支持">3.7 深拷贝支持</a></h3>
+<p>Python通常在赋值中使用引用。有时需要一个真正的拷贝，以防止修改所有的拷贝实例。<code>copy</code>模块提供了这样的拷贝能力。</p>
+<p>在Python3中，带pickle支持的类自带深拷贝能力。但是，自定义<code>__copy__</code>和<code>__deepcopy__</code>方法能够提高拷贝的性能。在Python2.7中，由于pybind11只支持cPickle，要想实现深拷贝，自定义这两个方法必须实现。</p>
+<p>对于一些简单的类，可以使用拷贝构造函数来实现深拷贝。如下所示：</p>
+<pre><code class="language-c++">py::class_&lt;Copyable&gt;(m, "Copyable")
+    .def("__copy__",  [](const Copyable &amp;self) {
+        return Copyable(self);
+    })
+    .def("__deepcopy__", [](const Copyable &amp;self, py::dict) {
+        return Copyable(self);
+    }, "memo"_a);
+</code></pre>
+<blockquote>
+<p>Note: 本例中不会复制动态属性。</p>
+</blockquote>
+<h3 id="38-多重继承"><a class="header" href="#38-多重继承">3.8 多重继承</a></h3>
+<p>pybind11支持绑定多重继承的类，只需在将所有基类作为<code>class_</code>的模板参数即可：</p>
+<pre><code class="language-c++">py::class_&lt;MyType, BaseType1, BaseType2, BaseType3&gt;(m, "MyType")
+   ...
+</code></pre>
+<p>基类间的顺序任意，甚至可以穿插使用别名或者holder类型，pybind11能够自动识别它们。唯一的要求就是第一个模板参数必须是类型本身。</p>
+<p>允许Python中定义的类继承多个C++类，也允许混合继承C++类和Python类。</p>
+<p>有一个关于该特性实现的警告：当仅指定一个基类，实际上有多个基类时，pybind11会认为它并没有使用多重继承，这将导致未定义行为。对于这个问题，我们可以在类构造函数中添加<code>multiple_inheritance</code>的标识。</p>
+<pre><code class="language-c++">py::class_&lt;MyType, BaseType2&gt;(m, "MyType", py::multiple_inheritance());
+</code></pre>
+<p>当模板参数列出了多个基类时，无需使用该标识。</p>
+<h3 id="39-绑定protected成员函数"><a class="header" href="#39-绑定protected成员函数">3.9 绑定protected成员函数</a></h3>
+<p>通常不可能向Python公开protected 成员函数：</p>
+<pre><code class="language-c++">class A {
+protected:
+    int foo() const { return 42; }
+};
+
+py::class_&lt;A&gt;(m, "A")
+    .def("foo", &amp;A::foo); // error: 'foo' is a protected member of 'A'
+</code></pre>
+<p>因为非公有成员函数意味着外部不可调用。但我们还是希望在Python派生类中使用protected 函数。我们可以通过下面的方式来实现：</p>
+<pre><code class="language-c++">class A {
+protected:
+    int foo() const { return 42; }
+};
+
+class Publicist : public A { // helper type for exposing protected functions
+public:
+    using A::foo; // inherited with different access modifier
+};
+
+py::class_&lt;A&gt;(m, "A") // bind the primary class
+    .def("foo", &amp;Publicist::foo); // expose protected methods via the publicist
+</code></pre>
+<p>因为 <code>&amp;Publicist::foo</code> 和<code>&amp;A::foo</code> 准确地说是同一个函数（相同的签名和地址），仅仅是获取方式不同。 <code>Publicist</code> 的唯一意图，就是将函数的作用域变为<code>public</code>。</p>
+<p>如果是希望公开在Python侧重载的 <code>protected</code>虚函数，可以将publicist pattern与之前提到的trampoline相结合：</p>
+<pre><code class="language-c++">class A {
+public:
+    virtual ~A() = default;
+
+protected:
+    virtual int foo() const { return 42; }
+};
+
+class Trampoline : public A {
+public:
+    int foo() const override { PYBIND11_OVERRIDE(int, A, foo, ); }
+};
+
+class Publicist : public A {
+public:
+    using A::foo;
+};
+
+py::class_&lt;A, Trampoline&gt;(m, "A") // &lt;-- `Trampoline` here
+    .def("foo", &amp;Publicist::foo); // &lt;-- `Publicist` here, not `Trampoline`!
+</code></pre>
+<h3 id="310-绑定final类"><a class="header" href="#310-绑定final类">3.10 绑定final类</a></h3>
+<p>在C++11中，我们可以使用<code>findal</code>关键字来确保一个类不被继承。<code>py::is_final</code>属性则可以用来确保一个类在Python中不被继承。底层的C++类型不需要定义为final。</p>
+<pre><code class="language-c++">class IsFinal final {};
+
+py::class_&lt;IsFinal&gt;(m, "IsFinal", py::is_final());
+</code></pre>
+<p>在Python中试图继承这个类，将导致错误：</p>
+<pre><code class="language-python">class PyFinalChild(IsFinal):
+    pass
+
+TypeError: type 'IsFinal' is not an acceptable base type
+</code></pre>
+<h2 id="4-异常处理"><a class="header" href="#4-异常处理">4. 异常处理</a></h2>
+<h3 id="41-c内置异常到python异常的转换"><a class="header" href="#41-c内置异常到python异常的转换">4.1 C++内置异常到Python异常的转换</a></h3>
+<p>当Python通过pybind11调用C++代码时，pybind11将捕获C++异常，并将其翻译为对应的Python异常后抛出。这样Python代码就能够处理它们。</p>
+<p>pybind11定义了<code>std::exception</code>及其标准子类，和一些特殊异常到Python异常的翻译。由于它们不是真正的Python异常，所以不能使用Python C API来检查。相反，它们是纯C++异常，当它们到达异常处理器时，pybind11将其翻译为对应的Python异常。</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Exception thrown by C++</th><th>Translated to Python exception type</th></tr>
+</thead>
+<tbody>
+<tr><td><code>std::exception</code></td><td><code>RuntimeError</code></td></tr>
+<tr><td><code>std::bad_alloc</code></td><td><code>MemoryError</code></td></tr>
+<tr><td><code>std::domain_error</code></td><td><code>ValueError</code></td></tr>
+<tr><td><code>std::invalid_argument</code></td><td><code>ValueError</code></td></tr>
+<tr><td><code>std::length_error</code></td><td><code>ValueError</code></td></tr>
+<tr><td><code>std::out_of_range</code></td><td><code>IndexError</code></td></tr>
+<tr><td><code>std::range_error</code></td><td><code>ValueError</code></td></tr>
+<tr><td><code>std::overflow_error</code></td><td><code>OverflowError</code></td></tr>
+<tr><td><code>pybind11::stop_iteration</code></td><td><code>StopIteration</code> (used to implement custom iterators)</td></tr>
+<tr><td><code>pybind11::index_error</code></td><td><code>IndexError</code> (used to indicate out of bounds access in <code>__getitem__</code>, <code>__setitem__</code>, etc.)</td></tr>
+<tr><td><code>pybind11::key_error</code></td><td><code>KeyError</code> (used to indicate out of bounds access in <code>__getitem__</code>, <code>__setitem__</code> in dict-like objects, etc.)</td></tr>
+<tr><td><code>pybind11::value_error</code></td><td><code>ValueError</code> (used to indicate wrong value passed in <code>container.remove(...)</code>)</td></tr>
+<tr><td><code>pybind11::type_error</code></td><td><code>TypeError</code></td></tr>
+<tr><td><code>pybind11::buffer_error</code></td><td><code>BufferError</code></td></tr>
+<tr><td><code>pybind11::import_error</code></td><td><code>ImportError</code></td></tr>
+<tr><td><code>pybind11::attribute_error</code></td><td><code>AttributeError</code></td></tr>
+<tr><td>Any other exception</td><td><code>RuntimeError</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>异常翻译不是双向的。即上述异常不会捕获源自Python的异常。Python的异常，需要捕获<code>pybind11::error_already_set</code>。</p>
+<p>这里有个特殊的异常，当入参不能转化为Python对象时，<code>handle::call()</code>将抛出<code>cast_error</code>异常。</p>
+<h3 id="42-注册定制异常翻译"><a class="header" href="#42-注册定制异常翻译">4.2 注册定制异常翻译</a></h3>
+<p>如果上述默认异常转换策略不够用，pybind11也提供了注册自定义异常翻译的支持。类似于pybind11 class，异常翻译也可以定义在模块内或global。要注册一个使用C++异常的<code>what()</code>方法将C++到Python的异常转换，可以使用下面的方法：</p>
+<pre><code class="language-c++">py::register_exception&lt;CppExp&gt;(module, "PyExp");
+</code></pre>
+<p>这个调用在指定模块创建了一个名称为PyExp的Python异常，并自动将CppExp相关的异常转换为PyExp异常。</p>
+<p>相似的函数可以注册模块内的异常翻译：</p>
+<pre><code class="language-c++">py::register_local_exception&lt;CppExp&gt;(module, "PyExp");
+</code></pre>
+<p>方法的第三个参数handle可以指定异常的基类：</p>
+<pre><code class="language-c++">py::register_exception&lt;CppExp&gt;(module, "PyExp", PyExc_RuntimeError);
+py::register_local_exception&lt;CppExp&gt;(module, "PyExp", PyExc_RuntimeError);
+</code></pre>
+<p>这样，PyExp异常可以捕获PyExp和RuntimeError。</p>
+<p>Python内置的异常类型可以参考Python文档<a href="https://docs.python.org/3/c-api/exceptions.html#standard-exceptions">Standard Exceptions</a>，默认的基类为<code>PyExc_Exception</code>。</p>
+<p><code>py::register_exception_translator(translator)</code> 和<code>py::register_local_exception_translator(translator)</code> 提供了更高级的异常翻译功能，它可以注册任意的异常类型。函数接受一个无状态的回调函数<code>void(std::exception_ptr)</code>。</p>
+<h3 id="93-在c中处理python异常"><a class="header" href="#93-在c中处理python异常">9.3 在C++中处理Python异常</a></h3>
+<p>当C++调用Python函数时（回调函数或者操作Python对象），若Python有异常抛出，pybind11会将Python异常转化为<code>pybind11::error_already_set</code>类型的异常，它包含了一个C++字符串描述和实际的Python异常。<code>error_already_set</code>用于将Python异常传回Python（或者在C++侧处理）。</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Exception raised in Python</th><th>Thrown as C++ exception type</th></tr>
+</thead>
+<tbody>
+<tr><td>Any Python <code>Exception</code></td><td><code>pybind11::error_already_set</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>举个例子：</p>
+<pre><code class="language-c++">try {
+    // open("missing.txt", "r")
+    auto file = py::module_::import("io").attr("open")("missing.txt", "r");
+    auto text = file.attr("read")();
+    file.attr("close")();
+} catch (py::error_already_set &amp;e) {
+    if (e.matches(PyExc_FileNotFoundError)) {
+        py::print("missing.txt not found");
+    } else if (e.matches(PyExc_PermissionError)) {
+        py::print("missing.txt found but not accessible");
+    } else {
+        throw;
+    }
+}
+</code></pre>
+<p>该方法并不适用与C++到Python的翻译，Python侧抛出的异常总是被翻译为<code>error_already_set</code>.</p>
+<pre><code class="language-c++">try {
+    py::eval("raise ValueError('The Ring')");
+} catch (py::value_error &amp;boromir) {
+    // Boromir never gets the ring
+    assert(false);
+} catch (py::error_already_set &amp;frodo) {
+    // Frodo gets the ring
+    py::print("I will take the ring");
+}
+
+try {
+    // py::value_error is a request for pybind11 to raise a Python exception
+    throw py::value_error("The ball");
+} catch (py::error_already_set &amp;cat) {
+    // cat won't catch the ball since
+    // py::value_error is not a Python exception
+    assert(false);
+} catch (py::value_error &amp;dog) {
+    // dog will catch the ball
+    py::print("Run Spot run");
+    throw;  // Throw it again (pybind11 will raise ValueError)
+}
+</code></pre>
+<h3 id="94-处理python-c-api的错误"><a class="header" href="#94-处理python-c-api的错误">9.4 处理Python C API的错误</a></h3>
+<p>尽可能地使用pybind11 wrappers代替直接调用Python C API。如果确实需要直接使用Python C API，除了需要手动管理引用计数外，还必须遵守pybind11的错误处理协议。</p>
+<p>在调用Python C API后，如果Python返回错误，需要调用<code>throw py::error_already_set();</code>语句，让pybind11来处理异常并传递给Python解释器。这包括对错误设置函数的调用，如<code>PyErr_SetString</code>。</p>
+<pre><code class="language-c++">PyErr_SetString(PyExc_TypeError, "C API type error demo");
+throw py::error_already_set();
+
+// But it would be easier to simply...
+throw py::type_error("pybind11 wrapper type error");
+</code></pre>
+<p>也可以调用<code>PyErr_Clear</code>来忽略错误。</p>
+<p>任何Python错误必须被抛出或清除，否则Python/pybind11将处于无效的状态。</p>
+<h3 id="95-处理unraiseable异常"><a class="header" href="#95-处理unraiseable异常">9.5 处理unraiseable异常</a></h3>
+<p>如果Python调用的C++析构函数或任何标记为<code>noexcept(true)</code>的函数抛出了异常，该异常不会传播出去。如果它们在调用图中抛出或捕捉不到任何异常，c++运行时将调用std::terminate()立即终止程序。在C++析构函数中调用Python尤其需要注意异常的捕获，必须捕获所有<code>error_already_set</code>类型的异常，并使用<code>error_already_set::discard_as_unraisable()</code>来抛弃Python异常。</p>
+<p>类似的，在类<code>__del__</code>方法引发的Python异常也不会传播，但被Python作为unraisable错误记录下来。在Python 3.8+中，将触发system hook，并记录auditing event日志。</p>
+<p>任何noexcept函数应该使用try-catch代码块来捕获<code>error_already_set</code>（或其他可能出现的异常）。pybind11包装的Python异常并非真正的Python异常，它是pybind11捕获并转化的C++异常。noexcept函数不能传播这些异常。我们可以将它们转换为Python异常，然后丢弃<code>discard_as_unraisable</code>，如下所示。</p>
+<pre><code class="language-c++">void nonthrowing_func() noexcept(true) {
+    try {
+        // ...
+    } catch (py::error_already_set &amp;eas) {
+        // Discard the Python error using Python APIs, using the C++ magic
+        // variable __func__. Python already knows the type and value and of the
+        // exception object.
+        eas.discard_as_unraisable(__func__);
+    } catch (const std::exception &amp;e) {
+        // Log and discard C++ exceptions.
+        third_party::log(e);
+    }
+}
+</code></pre>
+<h2 id="5-类型转换"><a class="header" href="#5-类型转换">5. 类型转换</a></h2>
+<h2 id="6-python-c接口"><a class="header" href="#6-python-c接口">6. python C++接口</a></h2>
+<h2 id="7-杂项"><a class="header" href="#7-杂项">7. 杂项</a></h2>
+<h3 id="71-关于便利宏的说明"><a class="header" href="#71-关于便利宏的说明">7.1 关于便利宏的说明</a></h3>
+<p>pybind11提供了一些便利宏如<code>PYBIND11_DECLARE_HOLDER_TYPE()</code>和<code>PYBIND11_OVERRIDE_*</code>。由于这些宏只是在预处理中计算(预处理程序没有类型的概念)，它们会被模板参数中的逗号搞混。如：</p>
+<pre><code class="language-c++">PYBIND11_OVERRIDE(MyReturnType&lt;T1, T2&gt;, Class&lt;T3, T4&gt;, func)
+</code></pre>
+<p>预处理器会将其解释为5个参数（逗号分隔），而不是3个。有两种方法可以处理这个问题：使用类型别名，或者使用<code>PYBIND11_TYPE</code>包裹类型。</p>
+<pre><code class="language-c++">// Version 1: using a type alias
+using ReturnType = MyReturnType&lt;T1, T2&gt;;
+using ClassType = Class&lt;T3, T4&gt;;
+PYBIND11_OVERRIDE(ReturnType, ClassType, func);
+
+// Version 2: using the PYBIND11_TYPE macro:
+PYBIND11_OVERRIDE(PYBIND11_TYPE(MyReturnType&lt;T1, T2&gt;),
+                  PYBIND11_TYPE(Class&lt;T3, T4&gt;), func)
+</code></pre>
+<p><code>PYBIND11_MAKE_OPAQUE</code>宏不需要上述解决方案。</p>
+<h3 id="72-全局解释器锁gil"><a class="header" href="#72-全局解释器锁gil">7.2 全局解释器锁（GIL）</a></h3>
+<p>在Python中调用C++函数时，默认会持有GIL。<code>gil_scoped_release</code>和<code>gil_scoped_acquire</code>可以方便地在函数体中释放和获取GIL。这样长时间运行的C++代码可以通过Python线程实现并行化。示例如下：</p>
+<pre><code class="language-c++">class PyAnimal : public Animal {
+public:
+    /* Inherit the constructors */
+    using Animal::Animal;
+
+    /* Trampoline (need one for each virtual function) */
+    std::string go(int n_times) {
+        /* Acquire GIL before calling Python code */
+        py::gil_scoped_acquire acquire;
+
+        PYBIND11_OVERRIDE_PURE(
+            std::string, /* Return type */
+            Animal,      /* Parent class */
+            go,          /* Name of function */
+            n_times      /* Argument(s) */
+        );
+    }
+};
+
+PYBIND11_MODULE(example, m) {
+    py::class_&lt;Animal, PyAnimal&gt; animal(m, "Animal");
+    animal
+        .def(py::init&lt;&gt;())
+        .def("go", &amp;Animal::go);
+
+    py::class_&lt;Dog&gt;(m, "Dog", animal)
+        .def(py::init&lt;&gt;());
+
+    m.def("call_go", [](Animal *animal) -&gt; std::string {
+        /* Release GIL before calling into (potentially long-running) C++ code */
+        py::gil_scoped_release release;
+        return call_go(animal);
+    });
+}
+</code></pre>
+<p>我们可以使用<code>call_guard</code>策略来简化<code>call_go</code>的封装：</p>
+<pre><code class="language-c++">m.def("call_go", &amp;call_go, py::call_guard&lt;py::gil_scoped_release&gt;());
+</code></pre>
+<script>
+let miv_isDragging = false;
+let miv_startX, miv_startY, miv_translateX = 0, miv_translateY = 0, miv_scale = 1;
+let miv_lastTouchDistance = 0;
+let miv_modalImg;
+let miv_doubleTapTimer = null;
+let miv_lastTap = 0;    
+function createModal() {
+    if (!document.getElementById('miv_imageModal')) {
+        const modal = document.createElement('div');
+        modal.id = 'miv_imageModal';
+        modal.className = 'miv_modal';
+        modal.innerHTML = `
+            <span class="miv_close" onclick="miv_closeModal()">&times;</span>
+            <div class="miv_modal-content">
+                <img id="miv_modalImage">
+                <div id="miv_modalSvg" style="display:none;"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+}    
+function miv_preventDragStart(e) { e.preventDefault(); }
+function miv_bindModalEvents() {
+    if (!miv_modalImg) return;
+    miv_modalImg.addEventListener('mousedown', miv_startDrag);
+    document.addEventListener('mousemove', miv_drag);
+    document.addEventListener('mouseup', miv_endDrag);
+    miv_modalImg.addEventListener('dragstart', miv_preventDragStart);
+    miv_modalImg.addEventListener('touchstart', miv_startTouch);
+    miv_modalImg.addEventListener('touchmove', miv_moveTouch);
+    miv_modalImg.addEventListener('touchend', miv_endTouch);
+    const modalContent = document.querySelector('.miv_modal-content');
+    if (modalContent) modalContent.addEventListener('wheel', miv_zoom);
+    miv_modalImg.addEventListener('dblclick', miv_resetZoom);
+}
+function miv_unbindModalEvents() {
+    if (!miv_modalImg) return;
+    miv_modalImg.removeEventListener('mousedown', miv_startDrag);
+    miv_modalImg.removeEventListener('touchstart', miv_startTouch);
+    miv_modalImg.removeEventListener('touchmove', miv_moveTouch);
+    miv_modalImg.removeEventListener('touchend', miv_endTouch);
+    miv_modalImg.removeEventListener('dragstart', miv_preventDragStart);
+    miv_modalImg.removeEventListener('dblclick', miv_resetZoom);
+    const modalContent = document.querySelector('.miv_modal-content');
+    if (modalContent) modalContent.removeEventListener('wheel', miv_zoom);
+    miv_modalImg = null;
+}
+function miv_startDrag(e) {
+    miv_isDragging = true;
+    miv_startX = e.type.includes('mouse') ? e.clientX - miv_translateX : e.touches[0].clientX - miv_translateX;
+    miv_startY = e.type.includes('mouse') ? e.clientY - miv_translateY : e.touches[0].clientY - miv_translateY;
+    if (miv_modalImg) miv_modalImg.style.cursor = 'grabbing';
+}    
+function miv_drag(e) {
+    if (!miv_isDragging) return;
+    e.preventDefault();
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    miv_translateX = clientX - miv_startX;
+    miv_translateY = clientY - miv_startY;
+    miv_updateImageTransform();
+}    
+function miv_endDrag() {
+    miv_isDragging = false;
+    if (miv_modalImg) miv_modalImg.style.cursor = 'move';
+}    
+function miv_startTouch(e) {
+    if (e.touches.length === 2) {
+        miv_lastTouchDistance = miv_getTouchDistance(e.touches);
+    } else if (e.touches.length === 1) {
+        miv_startDrag(e);
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - miv_lastTap;
+        clearTimeout(miv_doubleTapTimer);
+        if (tapLength < 300 && tapLength > 0) {
+            e.preventDefault();
+            miv_resetZoom();
+        } else {
+            miv_doubleTapTimer = setTimeout(() => {
+                clearTimeout(miv_doubleTapTimer);
+            }, 300);
+        }
+        miv_lastTap = currentTime;
+    }
+}    
+function miv_moveTouch(e) {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+        const touchDistance = miv_getTouchDistance(e.touches);
+        const scaleDiff = touchDistance / miv_lastTouchDistance;
+        miv_scale *= scaleDiff;
+        miv_scale = Math.min(Math.max(miv_scale, 0.1), 10);
+        miv_lastTouchDistance = touchDistance;        
+        const touchCenter = miv_getTouchCenter(e.touches);
+        miv_translateX += touchCenter.x - (miv_translateX + touchCenter.x) * scaleDiff;
+        miv_translateY += touchCenter.y - (miv_translateY + touchCenter.y) * scaleDiff;        
+        miv_updateImageTransform();
+    } else if (e.touches.length === 1) {
+        miv_drag(e);
+    }
+}
+function miv_endTouch(e) {
+    if (e.touches.length === 0) {
+        miv_endDrag();
+    } else if (e.touches.length === 1) {
+        miv_startDrag(e);
+    }
+}
+function miv_getTouchDistance(touches) {
+    return Math.hypot(
+        touches[0].pageX - touches[1].pageX,
+        touches[0].pageY - touches[1].pageY
+    );
+}
+function miv_getTouchCenter(touches) {
+    return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2
+    };
+}
+function miv_zoom(e) {
+    e.preventDefault();
+    if (!miv_modalImg) return;
+    const rect = miv_modalImg.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const zoomIntensity = 0.1;
+    const wheel = e.deltaY < 0 ? 1 : -1;
+    const zoom = Math.exp(wheel * zoomIntensity);
+    const newScale = miv_scale * zoom;
+    if (newScale > 0.1 && newScale < 10) {
+        const scaleChange = newScale - miv_scale;
+        miv_translateX -= (mouseX - rect.width / 2) * scaleChange;
+        miv_translateY -= (mouseY - rect.height / 2) * scaleChange;
+        miv_scale = newScale;
+        miv_updateImageTransform();
+    }
+}
+function miv_resetZoom() {
+    miv_scale = 1;
+    miv_translateX = 0;
+    miv_translateY = 0;
+    miv_updateImageTransform();
+}
+function miv_updateImageTransform() {
+    if (miv_modalImg) {
+        miv_modalImg.style.transform = `translate(${miv_translateX}px, ${miv_translateY}px) scale(${miv_scale})`;
+    }
+}
+function miv_openModal(imageSrc) {
+    createModal();
+    const modal = document.getElementById('miv_imageModal');
+    miv_modalImg = document.getElementById('miv_modalImage');
+    const modalContent = modal.querySelector('.miv_modal-content');    
+    if (!modal || !miv_modalImg || !modalContent) {
+        console.error('Modal elements not found');
+        return;
+    }    
+    // 关闭 SVG 视图，显示图片视图
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (svgWrap) { svgWrap.style.display = 'none'; svgWrap.innerHTML = ''; }
+    miv_modalImg.style.display = '';
+    modal.style.display = 'block';
+    miv_modalImg.src = imageSrc;    
+    miv_resetZoom();        
+    miv_bindModalEvents();
+}
+function miv_openSvgModal(svgEl) {
+    createModal();
+    const modal = document.getElementById('miv_imageModal');
+    const imgEl = document.getElementById('miv_modalImage');
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (!modal || !svgWrap || !svgEl) {
+        console.error('Modal elements not found');
+        return;
+    }
+    // 在 modal 中克隆内联 SVG（不引用任何文件）
+    svgWrap.innerHTML = '';
+    svgWrap.appendChild(svgEl.cloneNode(true));
+    miv_modalImg = svgWrap.querySelector('svg');
+    if (!miv_modalImg) {
+        svgWrap.style.display = 'none';
+        return;
+    }
+    if (imgEl) imgEl.style.display = 'none';
+    svgWrap.style.display = 'flex';
+    modal.style.display = 'block';
+    miv_resetZoom();
+    miv_bindModalEvents();
+}
+function miv_closeModal() {
+    const modal = document.getElementById('miv_imageModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    if (miv_modalImg) {
+        miv_modalImg.style.transform = 'translate(0, 0) scale(1)';        
+        miv_unbindModalEvents();
+    }
+    document.removeEventListener('mousemove', miv_drag);
+    document.removeEventListener('mouseup', miv_endDrag);
+    // 清理 SVG 视图并恢复图片视图
+    const svgWrap = document.getElementById('miv_modalSvg');
+    if (svgWrap) { svgWrap.style.display = 'none'; svgWrap.innerHTML = ''; }
+    const imgEl = document.getElementById('miv_modalImage');
+    if (imgEl) imgEl.style.display = '';
+}
+function handleGlobalClick(event) {
+    const modal = document.getElementById('miv_imageModal');
+    if (modal && event.target == modal) {
+        miv_closeModal();
+    }
+}
+function initializeImageViewers() {
+    const images = document.querySelectorAll('.miv_mdbook-image-viewer');
+    images.forEach(img => {
+        img.addEventListener('click', () => miv_openModal(img.src));
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    createModal();
+    initializeImageViewers();
+    document.addEventListener('click', handleGlobalClick);
+});
+// Re-initialize image viewers when the page content changes (for mdBook)
+if (window.MutationObserver) {
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                initializeImageViewers();
+            }
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+</script>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../3rd/pybind11/03.安装说明.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../../basic/markdown.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../3rd/pybind11/03.安装说明.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../../basic/markdown.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+        <script src="../../ace.js"></script>
+        <script src="../../mode-rust.js"></script>
+        <script src="../../editor.js"></script>
+        <script src="../../theme-dawn.js"></script>
+        <script src="../../theme-tomorrow_night.js"></script>
+
+        
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <script src="https://cdn.staticfile.net/translate.js/3.18.66/translate.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../.././assets/help/support.js"></script>
+        <script src="../.././assets/mermaid/mermaid.min.js"></script>
+        <script src="../.././assets/mermaid/mermaid-init.js"></script>
+        <script src="../.././assets/whichlang/whichlang.js"></script>
+        <script src="../.././assets/translate/translate_button.js"></script>
+        <script src="../.././assets/echarts/echarts.min.js"></script>
+        <script src="../.././assets/bytefield/bytefield-svg.js"></script>
+        <script src="../.././assets/wavedrom/wavedrom.min.js"></script>
+        <script src="../.././assets/wavedrom/wavedrom.css.js"></script>
+        <script src="../.././assets/pdfviewer/pdf-preview.js"></script>
+
+        <!-- Bytefield 渲染 -->
+        <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.querySelectorAll('code.language-bytefield').forEach(n => {
+                n.outerHTML = bytefield.generate(n.innerText, { 'embedded': true });
+            });
+        });
+        </script>
+
+
+
+    </div>
+    </body>
+</html>
