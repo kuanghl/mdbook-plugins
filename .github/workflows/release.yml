@@ -21,15 +21,28 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            wrapper: sccache
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            # 不设 wrapper：Windows 禁用 sccache（原因见下方 job env 注释），
+            # ${{ matrix.wrapper }} 未定义时渲染为空，cargo 直接调用 rustc
           - os: macos-latest
             target: aarch64-apple-darwin
+            wrapper: sccache
     runs-on: ${{ matrix.os }}
     env:
       # sccache 官方推荐用法：SCCACHE_GHA_ENABLED=true 时 sccache 直连 GitHub Actions
       # cache 服务（sccache-action 已导出所需 token），无需手写 actions/cache step
-      RUSTC_WRAPPER: sccache
+      #
+      # Windows 下 RUSTC_WRAPPER 为空（禁用 sccache）：web-sys 0.3.103 的 build.rs
+      # 会输出包含数千个 feature 名的 --check-cfg 参数，整条 rustc 命令行超过
+      # Windows 32767 字符上限。cargo 直接调用 rustc 时，参数超长会自动改用响应
+      # 文件（@file，rustc 支持）；但经 RUSTC_WRAPPER=sccache 时参数被原样展开传递，
+      # sccache 内部再 spawn rustc 时整条命令行超过 CreateProcess 限制，报
+      # "The filename or extension is too long (os error 206)"。
+      # 注意：不要改用 `runner.os == 'Windows' && '' || 'sccache'`——空串是 falsy，
+      # `'' || 'sccache'` 仍会返回 'sccache'，禁用不生效（之前 b1d3f42 踩过此坑）。
+      RUSTC_WRAPPER: ${{ matrix.wrapper }}
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - uses: actions/checkout@v7
@@ -78,8 +91,11 @@ jobs:
           doNotUpdateVcpkg: true
 
       # sccache：通过 SCCACHE_GHA_ENABLED 直连 GHA cache 服务，跨 tag 复用编译产物
-      # （编译产物按内容 hash 判重，依赖不变时命中）
+      # （编译产物按内容 hash 判重，依赖不变时命中）。
+      # Windows 不用 sccache（RUSTC_WRAPPER 为空），跳过安装省下载时间，
+      # 缓存由上方 Swatinem/rust-cache 兜底。
       - name: Setup sccache
+        if: runner.os != 'Windows'
         uses: mozilla-actions/sccache-action@v0.0.11
 
       # ── 系统库依赖（tectonic → pre-tikz 需要 pkg-config/vcpkg 找到 C 库）──
