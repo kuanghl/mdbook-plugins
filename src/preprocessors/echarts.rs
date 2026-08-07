@@ -286,12 +286,8 @@ fn svgbob_gen_html(mat_str: &str, cache_dir: &Path) -> String {
     let uuid = Uuid::new_v4().to_string().replace('-', "");
     let svg = source.replace("svgbob", &format!("svgbob_{}", uuid));
 
-    format!(
-        r#"<pre class="diagram-svgbob" style="text-align: center;">
-{}
-</pre>"#,
-        svg
-    )
+    let render = format!(r#"<div class="diagram-svgbob">{}</div>"#, svg);
+    crate::utils::diagram_toggle_html(&render, &content)
 }
 
 /// ===== bytefield =====
@@ -341,13 +337,14 @@ fn latex_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir:
         &chapter_path.to_string_lossy(), "LaTeX document") {
         Ok(img_tag) => {
             // 与 TikZ 一致：<img> 引用 svg 文件 + data-pdf-hash 容器
-            return format!(
+            let diagram = format!(
                 r#"<div data-pdf-hash="{}" align="center" class="diagram-inline">
 <style>.diagram-inline img{{width:100%;height:auto;max-width:100%}}@media print{{.diagram-inline img{{width:auto;max-width:100%}}}}</style>
 {}
 </div>"#,
                 content_hash, img_tag
             );
+            return crate::utils::diagram_toggle_html(&diagram, &content);
         }
         Err(e) => {
             log::warn!("LaTeX tex 渲染失败，回退到 latex-js 方式: {}", e);
@@ -406,13 +403,14 @@ fn tikz_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir: 
             // TikZ 用 <img> 引用 svg 文件：svg 作为独立文档加载，样式天然私有
             // （不受 mdbook 主题 CSS 影响），且避免内联 SVG 的字体/样式泄漏问题。
             // 屏幕放大到容器宽、打印保持原始尺寸防溢出。
-            return format!(
+            let diagram = format!(
                 r#"<div data-pdf-hash="{}" align="center" class="diagram-inline">
 <style>.diagram-inline img{{width:100%;height:auto;max-width:100%}}@media print{{.diagram-inline img{{width:auto;max-width:100%}}}}</style>
 {}
 </div>"#,
                 content_hash, img_tag
             );
+            return crate::utils::diagram_toggle_html(&diagram, &content);
         }
         Err(e) => {
             log::warn!("TikZ 渲染失败: {}", e);
@@ -468,13 +466,14 @@ fn typst_gen_file(mat_str: &str, svg_dir: &Path, chapter_path: &Path, cache_dir:
         &chapter_path.to_string_lossy()) {
         Ok(svg) => {
             // 内联 SVG + data-pdf-hash 容器；点击放大在 modal 中克隆 SVG
-            return format!(
+            let diagram = format!(
                 r#"<div data-pdf-hash="{}" align="center" class="diagram-inline"
 style="cursor:zoom-in;" onclick="if(window.miv_openSvgModal){{var s=this.querySelector('svg');if(s)miv_openSvgModal(s);}}">
 {}
 </div>"#,
                 content_hash, svg
             );
+            return crate::utils::diagram_toggle_html(&diagram, &content);
         }
         Err(e) => {
             log::warn!("Typst 渲染失败: {}", e);

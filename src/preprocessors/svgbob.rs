@@ -62,7 +62,8 @@ fn process_chapter(content: &str) -> Result<String, Error> {
                     // 使用 svgbob crate 渲染 SVG
                     match render_svg(&bob_lines) {
                         Ok(svg) => {
-                            output.push_str(&svg);
+                            let wrapped = crate::utils::diagram_toggle_html(&svg, &bob_lines);
+                            output.push_str(&wrapped);
                             output.push('\n');
                         }
                         Err(e) => {

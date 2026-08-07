@@ -107,6 +107,93 @@ const DIAGRAM_SVG_CSS: &str = "<style>.diagram-inline-svg{max-width:100%;height:
 pub(crate) const SVG_TEXT_LAYER_STYLE: &str =
     "style=\"fill:transparent!important;font-family:serif!important\"";
 
+/// 图表容器「源码 ↔ 图片」切换按钮的样式（随容器内联注入，不依赖主题全局 CSS）。
+///
+/// - 容器 `position:relative` + `text-align:center`：**居中**渲染的图（内联 SVG /
+///   `<img>`）——解决内联 SVG 左对齐不居中的问题；
+/// - 按钮定位**左上角**，**平时隐藏**（`opacity:0;visibility:hidden`，不占交互），
+///   鼠标**悬停到图片/容器**时才显现（仿 mdbook 代码复制按钮：平时隐藏、悬停代码
+///   块显示图标）；用 `:focus-visible` 而非 `:focus`，避免点击后焦点残留导致一直显示；
+/// - 悬停到按钮上会**悬浮出文字提示气泡**（`::after content:attr(data-tooltip)`，
+///   仿 mdbook 复制按钮的 "Copy to clipboard" 提示）；
+/// - 按钮放左上角，与 mdbook 右上角的代码复制按钮不重叠；
+/// - 源码区用 `hidden` 属性控制显隐（不写死 `display`，避免覆盖 `hidden`）。
+const DIAGRAM_TOGGLE_CSS: &str = "\
+.diagram-box{position:relative;text-align:center;margin:0.6em auto;}\
+.diagram-box .diagram-toggle-btn{position:absolute;top:8px;left:8px;z-index:6;\
+opacity:0;visibility:hidden;transform:translateY(-3px);\
+transition:opacity .15s ease,visibility .15s ease,transform .15s ease;\
+padding:0;line-height:0;cursor:pointer;font-family:inherit;\
+border:1px solid rgba(127,127,127,.4);border-radius:4px;\
+width:26px;height:26px;display:flex;align-items:center;justify-content:center;\
+background:rgba(255,255,255,.9);color:#444;box-shadow:0 1px 2px rgba(0,0,0,.08);}\
+.diagram-box .diagram-toggle-btn svg{display:block;width:16px;height:16px;}\
+.diagram-box:hover .diagram-toggle-btn,.diagram-box .diagram-toggle-btn:focus-visible{\
+opacity:1;visibility:visible;transform:translateY(0);}\
+.diagram-box .diagram-toggle-btn::after{content:attr(data-tooltip);\
+position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);\
+white-space:nowrap;background:#333;color:#fff;padding:3px 8px;border-radius:4px;\
+font-size:12px;line-height:1.4;opacity:0;visibility:hidden;\
+transition:opacity .15s ease,visibility .15s ease;pointer-events:none;}\
+.diagram-box .diagram-toggle-btn:hover::after,.diagram-box .diagram-toggle-btn:focus-visible::after{\
+opacity:1;visibility:visible;}\
+.diagram-box .diagram-toggle-source{text-align:left;max-height:420px;overflow:auto;\
+margin:0;background:#fff;border:1px solid rgba(127,127,127,.12);border-radius:6px;\
+padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);box-sizing:border-box;}\
+.diagram-box .diagram-toggle-source code{white-space:pre-wrap;font-size:13px;}\
+";
+
+/// 「眼睛」图标（Feather icon, MIT）：查看源码用，无文字。
+const DIAGRAM_TOGGLE_EYE_SVG: &str = "<svg viewBox=\"0 0 24 24\" fill=\"none\" \
+stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" \
+stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M1 12s4-8 11-8 11 8 11 \
+8-4 8-11 8-11-8-11-8z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>";
+
+/// 把渲染好的图表（`image_html`）包装成带「源码 ↔ 图片」切换按钮的居中容器。
+///
+/// - 默认展示渲染后的图片（`image_html`）；
+/// - **左上角**有一个眼睛图标，**平时隐藏**，鼠标悬停到图片时才显现；
+///   悬停到图标会悬浮出「View source / Show image」气泡提示（仿 mdbook 复制按钮）；
+///   点击在「图片」与「源码」（`source`，已 HTML 转义）之间切换，再点回到图片；
+///   图标放左上角，与 mdbook 右上角的代码复制按钮不重叠；
+/// - 样式与 onclick 全部内联，生成后不依赖主题即可工作；`hidden` 属性由浏览器
+///   原生支持，无需额外全局 JS。
+///
+/// 生成的 HTML 不含空行，pulldown-cmark 不会在中间截断该 HTML 块。
+///
+/// 内嵌内容（源码与 SVG）会先**去掉空行**：`<div>` 是 type-6 HTML 块，遇到空行即
+/// 结束。若源码/SVG 里含空行（如 svgbob 的 `<style>` 多行 CSS 之间常有空行），
+/// pulldown-cmark 会在该处提前截断容器，把 `</code></pre></div>` 误当成普通
+/// Markdown 解析而报 “unexpected/unclosed HTML tag” 警告（与 echarts.rs 内嵌
+/// TikZ/Typst 前先 `filter(!trim().is_empty())` 的约定一致）。
+pub fn diagram_toggle_html(image_html: &str, source: &str) -> String {
+    let normalized = source
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let escaped = escape_xml(&normalized);
+    let raw = format!(
+        "<div class=\"diagram-box\">\
+<style>{css}</style>\
+<button type=\"button\" class=\"diagram-toggle-btn\" data-tooltip=\"View source\" title=\"View source\" aria-label=\"View source\" \
+onclick=\"var p=this.parentNode,q=p.querySelector('.diagram-toggle-source'),i=p.querySelector('.diagram-toggle-image');var s=q.hidden;i.hidden=s;q.hidden=!s;var t=s?'Show image':'View source';this.title=t;this.setAttribute('aria-label',t);this.setAttribute('data-tooltip',t)\">{eye}</button>\
+<div class=\"diagram-toggle-image\">{image}</div>\
+<pre class=\"diagram-toggle-source\" hidden><code>{source}</code></pre>\
+</div>",
+        css = DIAGRAM_TOGGLE_CSS,
+        eye = DIAGRAM_TOGGLE_EYE_SVG,
+        image = image_html,
+        source = escaped
+    );
+    // 压缩整体输出中的全部空行：svgbob 等 SVG 的 `<style>` 内多行 CSS 之间的
+    // 空行也在其中——保证整个容器是单条无空行的 type-6 块，pulldown-cmark 不会截断。
+    raw.lines()
+        .filter(|l| !l.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// 剥离开头的 XML 注释（`<!-- ... -->`），返回第一个真实元素。
 fn strip_xml_comment_header(svg: &str) -> &str {
     let s = svg.trim_start();
@@ -460,6 +547,92 @@ mod tests {
         let out = svg_to_inline(svg);
         assert!(out.contains(r#"<svg viewBox="0 0 1 1" style="height:auto;font-family:serif;" class="diagram-inline-svg""#), "根标签注入失败: {}", out);
         assert!(out.contains("AAA>BBB"), "data URI 内容被破坏: {}", out);
+    }
+
+    #[test]
+    fn test_diagram_toggle_html_structure() {
+        let out = super::diagram_toggle_html("<img src=\"x.svg\" alt=\"tikz\">", "\\begin{tikzpicture}\\end{tikzpicture}");
+        // 默认显示图片、隐藏源码
+        assert!(out.contains("<div class=\"diagram-box\">"), "缺少外层容器: {}", out);
+        assert!(out.contains("diagram-toggle-btn"), "缺少切换按钮: {}", out);
+        assert!(out.contains("<div class=\"diagram-toggle-image\"><img src=\"x.svg\" alt=\"tikz\"></div>"), "图片视图缺省可见: {}", out);
+        assert!(out.contains("<pre class=\"diagram-toggle-source\" hidden><code>"), "源码默认 hidden: {}", out);
+        // 源码视图边框更柔和（更浅边框色 + 圆角增大 + 轻阴影），不再是粗重 rgba(...,.25)
+        assert!(out.contains("border:1px solid rgba(127,127,127,.12)"), "源码框边框应柔和: {}", out);
+        assert!(out.contains("border-radius:6px"), "源码框应圆角增大: {}", out);
+        assert!(out.contains("box-shadow:0 1px 3px"), "源码框应加轻阴影: {}", out);
+        // 源码必须被 HTML 转义，不能破坏外层结构
+        assert!(out.contains("\\begin{tikzpicture}\\end{tikzpicture}"), "源码应保留: {}", out);
+        assert!(out.ends_with("</div>"), "容器必须闭合: {}", out);
+        // 内联样式含居中规则
+        assert!(out.contains(".diagram-box{position:relative;text-align:center"), "缺少居中样式: {}", out);
+        // 按钮在左上角（与 mdbook 右上角复制按钮错开）、无文字、只显示眼睛图标
+        let btn_css = out[out.find("diagram-toggle-btn{").unwrap()..out.find(".diagram-toggle-btn svg").unwrap()].to_string();
+        assert!(btn_css.contains("left:8px"), "按钮应在左上角: {}", btn_css);
+        assert!(!btn_css.contains("right:8px"), "按钮不应在右上角（避免与复制按钮重叠）: {}", btn_css);
+        // 平时隐藏（opacity/visibility 双隐藏），悬停容器才显现（仿 mdbook 复制按钮）
+        assert!(btn_css.contains("opacity:0") && btn_css.contains("visibility:hidden"), "按钮应默认隐藏: {}", btn_css);
+        assert!(out.contains(".diagram-box:hover .diagram-toggle-btn"), "缺少悬停显示规则: {}", out);
+        // 用 :focus-visible 而非 :focus，避免点击后焦点残留一直显示
+        assert!(out.contains(":focus-visible"), "缺少 focus-visible: {}", out);
+        assert!(!out.contains("diagram-toggle-btn:focus{"), "不应用 :focus: {}", out);
+        // 悬停按钮时悬浮文字气泡（仿 mdbook Copy to clipboard，文字为英文）
+        assert!(out.contains("diagram-toggle-btn::after") && out.contains("attr(data-tooltip)"), "缺少悬浮提示气泡: {}", out);
+        assert!(out.contains("data-tooltip=\"View source\""), "缺少 data-tooltip: {}", out);
+        assert!(out.contains("title=\"View source\""), "按钮缺少 title: {}", out);
+        assert!(!out.contains(">源码<") && !out.contains(">图片<"), "按钮不应有可见文字: {}", out);
+        // 气泡位于按钮正上方（而非右侧）
+        let after_css = out[out.find(".diagram-toggle-btn::after").unwrap()..].to_string();
+        let a_end = after_css.find("}").unwrap();
+        assert!(after_css[..a_end].contains("bottom:calc(100% + 8px)"), "气泡应在按钮正上方: {}", &after_css[..a_end]);
+        // 按钮内含一个眼睛 <svg>
+        let btn = &out[out.find("<button").unwrap()..];
+        let btn_end = btn.find("</button>").unwrap();
+        let btn_html = &btn[..btn_end];
+        assert!(btn_html.contains("<svg"), "按钮缺少眼睛图标: {}", btn_html);
+    }
+
+    #[test]
+    fn test_diagram_toggle_html_escapes_source() {
+        let out = super::diagram_toggle_html("<img>", "a < b & c > d \"q\" 's'");
+        assert!(out.contains("a &lt; b &amp; c &gt; d &quot;q&quot; &apos;s&apos;"), "源码未转义: {}", out);
+    }
+
+    #[test]
+    fn test_diagram_toggle_html_strips_source_blank_lines() {
+        // 源码含空行时，容器内不能出现空行（空行会让 pulldown-cmark 截断 HTML 块）
+        let src = "\\begin{tikzpicture}\n\n\n\\draw (0,0) -- (1,1);\n\n\\end{tikzpicture}";
+        let out = super::diagram_toggle_html("<svg/>", src);
+        assert_ne!(out.contains("\n\n"), true, "容器内不应出现空行: {:?}", out);
+        // 且源码内容仍完整保留（空行被移除）
+        assert!(out.contains("\\begin{tikzpicture}"), "缺失首行: {}", out);
+        assert!(out.contains("\\draw (0,0) -- (1,1);"), "缺失中间行: {}", out);
+        assert!(out.contains("\\end{tikzpicture}"), "缺失末行: {}", out);
+        assert!(out.ends_with("</div>"), "容器必须完整闭合: {}", out);
+    }
+
+    #[test]
+    fn test_diagram_toggle_html_roundtrip_pulldown_cmark() {
+        // 回归测试：切换容器经 pulldown-cmark 二次解析后，源码必须原样保留，
+        // 不能被空行/行首特殊字符（如 svgbob SVG <style> 内多行 CSS 之间的空行、
+        // pikchr 源码的 # 注释行）提前结束 type-6 HTML 块而打散成段/标题。
+        use pulldown_cmark::{html, Options, Parser};
+        // 模拟 svgbob 的 SVG：<style> 里 CSS 规则之间带空行，且含 <text>
+        let image = "<div class=\"diagram-svgbob\"><svg><style>.x {\ncolor: red;\n}\n\n.x2 {\ncolor: blue;\n}</style><text>hi</text></svg></div>";
+        let src = "box \"a\"\n# First row of objects\nbox \"b\"\n- item\n> quote";
+        let out = super::diagram_toggle_html(image, src);
+        // 输出必须无空行（type-6 块不被截断）
+        assert!(!out.contains("\n\n"), "容器内含空行会被 pulldown-cmark 截断: {:?}", out);
+        let mut buf = String::new();
+        let parser = Parser::new_ext(&out, Options::all());
+        html::push_html(&mut buf, parser);
+        // 源码 + SVG <style> 内容原样保留
+        assert!(buf.contains("# First row of objects"), "源码被打散: {}", buf);
+        assert!(buf.contains("color: red;"), "SVG <style> 被打散: {}", buf);
+        assert!(buf.contains("color: blue;"), "SVG <style> 被打散: {}", buf);
+        // 不得被当成标题/段落
+        assert!(!buf.contains("First row of objects</h1>"), "源码被解析成标题: {}", buf);
+        assert!(!buf.contains("<p>color: red"), "SVG <style> 被解析成段落: {}", buf);
     }
 
     #[test]

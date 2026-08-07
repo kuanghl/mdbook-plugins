@@ -224,11 +224,9 @@ pub fn render_pikchr(script: &str, _align: &str) -> Result<String, Box<dyn std::
         return Err("pikchr 语法错误".into());
     }
 
-    // 包裹 SVG
-    Ok(format!(
-        r#"<div class="pikchr-wrapper">{}</div>"#,
-        svg_output
-    ))
+    // 包裹 SVG（居中 + 源码/图片切换按钮）
+    let render = format!(r#"<div class="pikchr-wrapper">{}</div>"#, svg_output);
+    Ok(crate::utils::diagram_toggle_html(&render, script))
 }
 
 /// 统一的处理入口：供 UnifiedPreprocessor 调用
