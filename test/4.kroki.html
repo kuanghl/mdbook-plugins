@@ -516,6 +516,8 @@ A is 1
 endmodule
 </code></pre>
 <h2 id="pikchr-demo1"><a class="header" href="#pikchr-demo1">pikchr-demo1</a></h2>
+<div class="diagram-box"><style>.diagram-box{position:relative;text-align:center;margin:0.6em auto;}.diagram-box .diagram-toggle-btn{position:absolute;top:8px;left:8px;z-index:6;opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s ease,visibility .15s ease,transform .15s ease;padding:0;line-height:0;cursor:pointer;font-family:inherit;border:1px solid rgba(127,127,127,.4);border-radius:4px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.9);color:#444;box-shadow:0 1px 2px rgba(0,0,0,.08);}.diagram-box .diagram-toggle-btn svg{display:block;width:16px;height:16px;}.diagram-box:hover .diagram-toggle-btn,.diagram-box .diagram-toggle-btn:focus-visible{opacity:1;visibility:visible;transform:translateY(0);}.diagram-box .diagram-toggle-btn::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);white-space:nowrap;background:#333;color:#fff;padding:3px 8px;border-radius:4px;font-size:12px;line-height:1.4;opacity:0;visibility:hidden;transition:opacity .15s ease,visibility .15s ease;pointer-events:none;}.diagram-box .diagram-toggle-btn:hover::after,.diagram-box .diagram-toggle-btn:focus-visible::after{opacity:1;visibility:visible;}.diagram-box .diagram-toggle-source{text-align:left;max-height:420px;overflow:auto;margin:0;background:#fff;border:1px solid rgba(127,127,127,.12);border-radius:6px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);box-sizing:border-box;}.diagram-box .diagram-toggle-source code{white-space:pre-wrap;font-size:13px;}</style><button type="button" class="diagram-toggle-btn" data-tooltip="View source" title="View source" aria-label="View source" onclick="var p=this.parentNode,q=p.querySelector(&#39;.diagram-toggle-source&#39;),i=p.querySelector(&#39;.diagram-toggle-image&#39;);var s=q.hidden;i.hidden=s;q.hidden=!s;var t=s?&#39;Show image&#39;:&#39;View source&#39;;this.title=t;this.setAttribute(&#39;aria-label&#39;,t);this.setAttribute(&#39;data-tooltip&#39;,t)"><svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></button>
+<div class="diagram-toggle-image">
 <div class="pikchr-wrapper"><svg xmlns="http://www.w3.org/2000/svg" style="font-size:initial;" class="pikchr" viewbox="0 0 567.908 489.591">
 <path d="M20.16,137.154L128.16,137.154L128.16,65.1543L20.16,65.1543Z" style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
 <text x="74.16" y="101.154" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">box</text>
@@ -566,8 +568,50 @@ endmodule
 <text x="281.794" y="19.8" text-anchor="middle" font-weight="bold" fill="rgb(0,0,0)" font-size="125%" dominant-baseline="central">Examples Of Pikchr Objects</text>
 </svg>
 </div>
+</div>
+<pre class="diagram-toggle-source" hidden=""><code>AllObjects: [
+# First row of objects
+box "box"
+box rad 10px "box (with" "rounded" "corners)" at 1in right of previous
+circle "circle" at 1in right of previous
+ellipse "ellipse" at 1in right of previous
+# second row of objects
+OVAL1: oval "oval" at 1in below first box
+oval "(tall &amp;" "thin)" "oval" width OVAL1.height height OVAL1.width at 1in right of previous
+cylinder "cylinder" at 1in right of previous
+file "file" at 1in right of previous
+# third row shows line-type objects
+dot "dot" above at 1in below first oval
+line right from 1.8cm right of previous "lines" above
+arrow right from 1.8cm right of previous "arrows" above
+spline from 1.8cm right of previous go right .15 then .3 heading 30 then .5 heading 160 then .4 heading 20 then right .15
+"splines" at 3rd vertex of previous
+# The third vertex of the spline is not actually on the drawn
+# curve.  The third vertex is a control point.  To see its actual
+# position, uncomment the following line:
+#dot color red at 3rd vertex of previous spline
+# Draw various lines below the first line
+line dashed right from 0.3cm below start of previous line
+line dotted right from 0.3cm below start of previous
+line thin   right from 0.3cm below start of previous
+line thick  right from 0.3cm below start of previous
+# Draw arrows with different arrowhead configurations below
+# the first arrow
+arrow &lt;-  right from 0.4cm below start of previous arrow
+arrow &lt;-&gt; right from 0.4cm below start of previous
+# Draw splines with different arrowhead configurations below
+# the first spline
+spline same from .4cm below start of first spline -&gt;
+spline same from .4cm below start of previous &lt;-
+spline same from .4cm below start of previous &lt;-&gt;
+] # end of AllObjects
+# Label the whole diagram
+text "Examples Of Pikchr Objects" big bold  at .8cm above north of AllObjects</code></pre>
+</div>
 
 <h2 id="pikchr-demo2"><a class="header" href="#pikchr-demo2">pikchr-demo2</a></h2>
+<div class="diagram-box"><style>.diagram-box{position:relative;text-align:center;margin:0.6em auto;}.diagram-box .diagram-toggle-btn{position:absolute;top:8px;left:8px;z-index:6;opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s ease,visibility .15s ease,transform .15s ease;padding:0;line-height:0;cursor:pointer;font-family:inherit;border:1px solid rgba(127,127,127,.4);border-radius:4px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.9);color:#444;box-shadow:0 1px 2px rgba(0,0,0,.08);}.diagram-box .diagram-toggle-btn svg{display:block;width:16px;height:16px;}.diagram-box:hover .diagram-toggle-btn,.diagram-box .diagram-toggle-btn:focus-visible{opacity:1;visibility:visible;transform:translateY(0);}.diagram-box .diagram-toggle-btn::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);white-space:nowrap;background:#333;color:#fff;padding:3px 8px;border-radius:4px;font-size:12px;line-height:1.4;opacity:0;visibility:hidden;transition:opacity .15s ease,visibility .15s ease;pointer-events:none;}.diagram-box .diagram-toggle-btn:hover::after,.diagram-box .diagram-toggle-btn:focus-visible::after{opacity:1;visibility:visible;}.diagram-box .diagram-toggle-source{text-align:left;max-height:420px;overflow:auto;margin:0;background:#fff;border:1px solid rgba(127,127,127,.12);border-radius:6px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);box-sizing:border-box;}.diagram-box .diagram-toggle-source code{white-space:pre-wrap;font-size:13px;}</style><button type="button" class="diagram-toggle-btn" data-tooltip="View source" title="View source" aria-label="View source" onclick="var p=this.parentNode,q=p.querySelector(&#39;.diagram-toggle-source&#39;),i=p.querySelector(&#39;.diagram-toggle-image&#39;);var s=q.hidden;i.hidden=s;q.hidden=!s;var t=s?&#39;Show image&#39;:&#39;View source&#39;;this.title=t;this.setAttribute(&#39;aria-label&#39;,t);this.setAttribute(&#39;data-tooltip&#39;,t)"><svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></button>
+<div class="diagram-toggle-image">
 <div class="pikchr-wrapper"><svg xmlns="http://www.w3.org/2000/svg" style="font-size:initial;" class="pikchr" viewbox="0 0 397.901 195.84">
 <polygon points="146.16,37.44 134.64,41.76 134.64,33.12" style="fill:rgb(0,0,0)" />
 <path d="M2.16,37.44L140.4,37.44" style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
@@ -590,11 +634,19 @@ endmodule
 <text x="196.79" y="178.56" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">(mdbook-pikchr)</text>
 </svg>
 </div>
+</div>
+<pre class="diagram-toggle-source" hidden=""><code>arrow right 200% "Markdown" "Source"
+box rad 10px "Markdown" "Formatter" "(mdbook)" fit
+arrow right 200% "HTML+SVG" "Output"
+arrow &lt;-&gt; down 70% from last box.s
+box same "Pikchr" "Preprocessor" "(mdbook-pikchr)" fit</code></pre>
+</div>
 
 <h2 id="svgbob-demo"><a class="header" href="#svgbob-demo">svgbob-demo</a></h2>
-<pre class="diagram-svgbob" style="text-align: center;">
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="7520" class="svgbob_eb11f674aa6b4aeebcfe2730384bda61">
-  <style>.svgbob_eb11f674aa6b4aeebcfe2730384bda61 line, .svgbob_eb11f674aa6b4aeebcfe2730384bda61 path, .svgbob_eb11f674aa6b4aeebcfe2730384bda61 circle, .svgbob_eb11f674aa6b4aeebcfe2730384bda61 rect, .svgbob_eb11f674aa6b4aeebcfe2730384bda61 polygon {
+<div class="diagram-box"><style>.diagram-box{position:relative;text-align:center;margin:0.6em auto;}.diagram-box .diagram-toggle-btn{position:absolute;top:8px;left:8px;z-index:6;opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s ease,visibility .15s ease,transform .15s ease;padding:0;line-height:0;cursor:pointer;font-family:inherit;border:1px solid rgba(127,127,127,.4);border-radius:4px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.9);color:#444;box-shadow:0 1px 2px rgba(0,0,0,.08);}.diagram-box .diagram-toggle-btn svg{display:block;width:16px;height:16px;}.diagram-box:hover .diagram-toggle-btn,.diagram-box .diagram-toggle-btn:focus-visible{opacity:1;visibility:visible;transform:translateY(0);}.diagram-box .diagram-toggle-btn::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);white-space:nowrap;background:#333;color:#fff;padding:3px 8px;border-radius:4px;font-size:12px;line-height:1.4;opacity:0;visibility:hidden;transition:opacity .15s ease,visibility .15s ease;pointer-events:none;}.diagram-box .diagram-toggle-btn:hover::after,.diagram-box .diagram-toggle-btn:focus-visible::after{opacity:1;visibility:visible;}.diagram-box .diagram-toggle-source{text-align:left;max-height:420px;overflow:auto;margin:0;background:#fff;border:1px solid rgba(127,127,127,.12);border-radius:6px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);box-sizing:border-box;}.diagram-box .diagram-toggle-source code{white-space:pre-wrap;font-size:13px;}</style><button type="button" class="diagram-toggle-btn" data-tooltip="View source" title="View source" aria-label="View source" onclick="var p=this.parentNode,q=p.querySelector(&#39;.diagram-toggle-source&#39;),i=p.querySelector(&#39;.diagram-toggle-image&#39;);var s=q.hidden;i.hidden=s;q.hidden=!s;var t=s?&#39;Show image&#39;:&#39;View source&#39;;this.title=t;this.setAttribute(&#39;aria-label&#39;,t);this.setAttribute(&#39;data-tooltip&#39;,t)"><svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></button>
+<div class="diagram-toggle-image">
+<div class="diagram-svgbob"><svg xmlns="http://www.w3.org/2000/svg" width="760" height="7520" class="svgbob_eda377189cd942558eabdede99833fcf">
+  <style>.svgbob_eda377189cd942558eabdede99833fcf line, .svgbob_eda377189cd942558eabdede99833fcf path, .svgbob_eda377189cd942558eabdede99833fcf circle, .svgbob_eda377189cd942558eabdede99833fcf rect, .svgbob_eda377189cd942558eabdede99833fcf polygon {
   stroke: black;
   stroke-width: 2;
   stroke-opacity: 1;
@@ -602,94 +654,77 @@ endmodule
   stroke-linecap: round;
   stroke-linejoin: miter;
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 text {
+.svgbob_eda377189cd942558eabdede99833fcf text {
   white-space: pre;
   fill: black;
   font-family: Iosevka Fixed, monospace;
   font-size: 14px;
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 rect.backdrop {
+.svgbob_eda377189cd942558eabdede99833fcf rect.backdrop {
   stroke: none;
   fill: white;
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .broken {
+.svgbob_eda377189cd942558eabdede99833fcf .broken {
   stroke-dasharray: 8;
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .filled {
+.svgbob_eda377189cd942558eabdede99833fcf .filled {
   fill: black;
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .bg_filled {
+.svgbob_eda377189cd942558eabdede99833fcf .bg_filled {
   fill: white;
   stroke-width: 1;
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .nofill {
+.svgbob_eda377189cd942558eabdede99833fcf .nofill {
   fill: white;
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .end_marked_arrow {
+.svgbob_eda377189cd942558eabdede99833fcf .end_marked_arrow {
   marker-end: url(#arrow);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .start_marked_arrow {
+.svgbob_eda377189cd942558eabdede99833fcf .start_marked_arrow {
   marker-start: url(#arrow);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .end_marked_diamond {
+.svgbob_eda377189cd942558eabdede99833fcf .end_marked_diamond {
   marker-end: url(#diamond);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .start_marked_diamond {
+.svgbob_eda377189cd942558eabdede99833fcf .start_marked_diamond {
   marker-start: url(#diamond);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .end_marked_circle {
+.svgbob_eda377189cd942558eabdede99833fcf .end_marked_circle {
   marker-end: url(#circle);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .start_marked_circle {
+.svgbob_eda377189cd942558eabdede99833fcf .start_marked_circle {
   marker-start: url(#circle);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .end_marked_open_circle {
+.svgbob_eda377189cd942558eabdede99833fcf .end_marked_open_circle {
   marker-end: url(#open_circle);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .start_marked_open_circle {
+.svgbob_eda377189cd942558eabdede99833fcf .start_marked_open_circle {
   marker-start: url(#open_circle);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .end_marked_big_open_circle {
+.svgbob_eda377189cd942558eabdede99833fcf .end_marked_big_open_circle {
   marker-end: url(#big_open_circle);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .start_marked_big_open_circle {
+.svgbob_eda377189cd942558eabdede99833fcf .start_marked_big_open_circle {
   marker-start: url(#big_open_circle);
 }
-
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .r1{ 
+.svgbob_eda377189cd942558eabdede99833fcf .r1{ 
     fill: papayawhip;
  }
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .r2{ 
+.svgbob_eda377189cd942558eabdede99833fcf .r2{ 
     fill: crimson;
  }
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .a{ 
+.svgbob_eda377189cd942558eabdede99833fcf .a{ 
     stroke-dasharray: 8;
     fill: lightblue;
  }
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .b{ 
+.svgbob_eda377189cd942558eabdede99833fcf .b{ 
     stroke: blue;
  }
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .bigrect{ 
+.svgbob_eda377189cd942558eabdede99833fcf .bigrect{ 
     fill: yellow;
     stroke: red;
  }
-.svgbob_eb11f674aa6b4aeebcfe2730384bda61 .red{ 
+.svgbob_eda377189cd942558eabdede99833fcf .red{ 
     fill:red;
     stroke:blue;
  }</style>
@@ -3478,13 +3513,431 @@ endmodule
     <line x1="8" y1="7400" x2="112" y2="7400" class="solid"></line>
     <path d="M 118,7396 A 8,8 0,0,1 112,7400" class="nofill"></path>
   </g>
-</svg>
-</pre>
+</svg></div>
+</div>
+<pre class="diagram-toggle-source" hidden=""><code>Svgbob is a diagramming model
+which uses a set of typing characters
+to approximate the intended shape.
+       .---.
+      /-o-/--
+   .-/ / /-&gt;
+  ( *  \/
+   '-.  \
+      \ /
+       '
+It uses a combination of characters
+which are readily available on your keyboards.
+What can it do?
+ o-&gt;  Basic shapes
+    .- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -.
+    !                                                    .            :
+    !   +------+   .------.    .------.      /\        .' `.          :
+    !   |      |   |      |   (        )    /  \     .'     `.   ^    :
+    !   +------+   '------'    '------'    '----'     `.   .'   /   # :
+    !     _______            ________               #   `.'    / ^ /  :
+    !    /       \      /\   \       \     o----&gt;   | ^       # / /   :
+    !   /         \    /  \   )       )    &lt;----#   | |  ^ :   / v    :
+    !   \         /    \  /  /_______/              v |  ! :          :
+    !    \_______/      \/                            o  ! V          :
+    !                                                                 :
+    !                                                      O          :
+    !    .-----------.       .   &lt;.      .&gt;  .           ^  \         :
+    !   (             )     (      )    (     )           \  \        :
+    !    `-----+ ,---'       `&gt;   '      `  &lt;'             \  v       :
+    !          |/                                           *         :
+    !   ()     '                                       _        __    :
+    !        __   ,-.   .--.   .--.--.     .--.      .' '.    ,'  '.  :
+    !   (_) (__) (   ) (    ) (  ( )  )   (    )    (     )  (      ) :
+    !             `-'   `--'   `--'--'     `--'      `._.'    `.__.'  :
+    !                                                                 !
+    !      ___        ____         ____           _____               !
+    !    ,'   `.    ,'    `.     .'    `.       ,'     `.             !
+    !   /       \  /        \   /        \     /         \            !
+    !   \       /  \        /  (          )   (           )           !
+    !    `.___.'    `.____.'    \        /     \         /            !
+    !                            `.____.'       `._____.'             !
+    !        ______                                                   !
+    !      ,'      `.                                                 !
+    !     /          \    .-----. .----.     ".--------------."       !
+    !    |            |    \   /   \    \    "| Don't draw me|"       !
+    !    |            |     \ /     \    \   "|              |"       !
+    !     \          /       '       '----'  "'--------------'"       !
+    !      `.______.'                                                 !
+    !                                                                 !
+    `~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+ o-&gt;  Quick logo scribbles
+        .---.                      _
+       /-o-/--       .--.         |-|               .--.
+    .-/ / /-&gt;       /--. \     .--)-|    .--.-.    //.-.\
+   ( *  \/         / O  )|     |  |-|    |-&gt;| |   (+(-*-))
+    '-.  \        /\ |-//      .  * |    '--'-'    \\'-'/
+       \ /        \ '+'/        \__/                '--'
+        '          '--'
+                                           _____
+       .----.               _             /   __)\
+       |    |           ,--(_)            |  /  \ \
+     __|____|__       _/ .-. \         ___|  |__/ /
+    |  ______--|     (_)(   ) )       / (_    _)_/
+    `-/.::::.\-'       \ `-'_/       / /  |  |
+     '--------'         `--(_)       \ \__/  |
+                                      \(_____/
+ o-&gt;  Even unicode box drawing characters are supported
+            ┌─┬┐  ╔═╦╗  ╓─╥╖  ╒═╤╕
+            ├─┼┤  ╠═╬╣  ╟─╫╢  ╞═╪╡
+            └─┴┘  ╚═╩╝  ╙─╨╜  ╘═╧╛
+            ╭─┬╮
+            ├─┼┤
+            ╰─┴╯
+ o-&gt; Circle, quarter arcs, half circles, 3/4 quarter arcs
+       ____            __  __             ____
+     ,'    `.        ,'      `.         ,'    `.          __   __
+    /        \      /          \       /        \       ,'       `.
+    \        /                                         /           \
+     `.____.'       \          /       \        /      \           /
+                     `.__  __.'         `.____.'        `.__   __.'
+       ____             __                  __              ____
+     ,'    `.         ,'                      `.          ,'    `.
+    /        \       /                          \        /        \
+    \                \        /        \        /                 /
+     `.__             `.____.'          `.____.'              __.'
+ o-&gt; Grids
+    .----.        .----.
+   /      \      /      \            .-----+-----+-----.
+  +        +----+        +----.      |     |     |     |          .-----+-----+-----+-----+
+   \      /      \      /      \     |     |     |     |         /     /     /     /     /
+    +----+        +----+        +    +-----+-----+-----+        +-----+-----+-----+-----+
+   /      \      /      \      /     |     |     |     |       /     /     /     /     /
+  +        +----+        +----+      |     |     |     |      +-----+-----+-----+-----+
+   \      /      \      /      \     +-----+-----+-----+     /     /     /     /     /
+    '----+        +----+        +    |     |     |     |    +-----+-----+-----+-----+
+          \      /      \      /     |     |     |     |   /     /     /     /     /
+           '----'        '----'      '-----+-----+-----'  '-----+-----+-----+-----+
+       ___     ___      .---+---+---+---+---.     .---+---+---+---.  .---.   .---.
+   ___/   \___/   \     |   |   |   |   |   |    / \ / \ / \ / \ /   |   +---+   |
+  /   \___/   \___/     +---+---+---+---+---+   +---+---+---+---+    +---+   +---+
+  \___/   \___/   \     |   |   |   |   |   |    \ / \ / \ / \ / \   |   +---+   |
+  /   \___/   \___/     +---+---+---+---+---+     +---+---+---+---+  +---+   +---+
+  \___/   \___/   \     |   |   |   |   |   |    / \ / \ / \ / \ /   |   +---+   |
+      \___/   \___/     '---+---+---+---+---'   '---+---+---+---'    '---'   '---'
+ o-&gt; Graphics Diagram
+                                                                             *
+    0       3                          P *              Eye /         ^     /
+     *-------*      +y                    \                +)          \   /  Reflection
+  1 /|    2 /|       ^                     \                \           \ v
+   *-+-----* |       |                v0    \       v3           --------*--------
+   | |4    | |7      | ◄╮               *----\-----*
+   | *-----|-*     ⤹ +-----&gt; +x        /      v X   \          ,-.&lt;--------        o
+   |/      |/       / ⤴               /        o     \        ( / ) Refraction    / \
+   *-------*       v                 /                \        `-'               /   \
+  5       6      +z              v1 *------------------* v2    |                o-----o
+                                                               v
+ o-&gt; CJK characters
+           .------------. | .-----------. |  .-----.
+           |  文件系统  | | |   调度器  | |  | MMU |
+           '------------' | '-----------' |  '-----'
+ o-&gt;  Sequence Diagrams
+                                   .---&gt;  F
+          A       B      C  D     /
+          *-------*-----*---*----*-----&gt;  E
+                   \            ^ \
+                    v          /   '---&gt;  G
+                     B --&gt; C -'
+                          ,-.
+                          `-'
+                          /|\
+         ,---.             |
+         |Bob|            / \
+         `-+-'           Alice
+           |    hello      |
+           |--------------&gt;|
+           |               |
+           |  Is it ok?    |
+           |&lt;- - - - - - - |
+         ,-+-.           Alice
+         |Bob|            ,-.
+         `---'            `-'
+                          /|\
+                           |
+                          / \
+              ,─.
+             ( 0 )
+              `-'
+            /     \
+           /       \
+          V         V
+         ,─.         ,─.
+        ( 1 )       ( 4 )
+         `-'         `-' .
+       /   \         |  \ `.
+      /     \        |   \  `.
+     V       V       |    \   `.
+    ,─.      ,─.     V     V    V
+   ( 2 )    ( 3 )    ,─.   ,─.   ,─.
+    `─'      `─'    ( 5 ) ( 6 ) ( 7 )
+                     `─'   `─'   `─'
+ o-&gt; Plot diagrams
+        ▲
+    Uin ┊   .------------------------
+        ┊   |
+        ┊   |
+        *---'┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄▶
+     Udc▲
+"Udc_OK"┊      .---------------------
+        ┊     /  :
+        ┊    /   :
+        *---'┄┄┄┄:┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄▶
+                 :&lt;-----&gt;:
+        ▲          500ms :
+        ┊                :
+Cpu.Qon ┊┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄.-----------
+        ┊                |  Inactive
+        ┊    Active      |
+        *----------------'┄┄┄┄┄┄┄┄┄┄┄▶
+ o-&gt; Railroad diagrams
+               ┌------┐   .-.  ┌---┐
+        o--╮---| elem |--( ; )-| n |--╭--o
+           |   └------┘   `-'  └---┘  |
+           | ╭------&gt;------╮          |
+           | |    ┌---┐    |          |
+           ╰-╯-╭--| x |--╮-╰----------╯
+           |   |  └---┘  |            |
+           |   |   .-.   |            |
+           |   `--( , )--'            ^
+           |       `-'                |
+           |  ╭--------&gt;---------╮    |
+           |  |   ┌---┐   .-.    |    |
+           ╰--╰-╭-| x |--( , )-╮-╯----╯
+                | └---┘   `-'  |
+                `-------&lt;------'
+                                       .------------&gt;---------------.
+           ┌-------------┐  .-.   .-.  |  ┌------┐  .-.   ┌-----┐   |    .-.   ┌------┐
+      O____| struct_name |_( : )_( | )_◞__| name |_( : )__| tpe |___◟___( | )__| body |______O
+        ◝  └-------------┘  `-'   `-'   ◜ └------┘  `-'   └-----┘  ◝     `-'   └------┘  ◜
+        |                               |                    .-.   |                     |
+        |                               `------------&lt;------( , )--'                     |
+        |                                                    `-'                         |
+        `--------------------------------------------------------------------------------'
+ o-&gt; Statistical charts
+    E +-------------------------*--+     E |                         o
+    D |-------------------*--*--|--*     D |                   o  o  |  o
+    C |-------------*--*  |  |  |  |     C |             o  o  |  |  |  |
+    B |-------*--*  |  |  |  |  |  |     B |       o  o  |  |  |  |  |  |
+    A +-*--*--+--+--+--+--+--+--+--+     A +-o--o--|--|--|--|--|--|--|--|
+        5 10 15 20 25 30 35 40 45 50         5 10 15 20 25 30 35 40 45 50
+  85.67 ┤                                       ╭╮
+  78.20 ┤                                       ││                  ╭╮
+  70.73 ┤                                       ││  ╭╮ ╭╮ ╭╮   ╭╮  ╭╯╰─╮
+  63.27 ┤                        ╭╮         ╭─╮ ││ ╭╯╰╮│╰─╯╰╮╭╮│╰──╯   │╭
+  55.80 ┤   ╭╮                 ╭╮││╭╮ ╭╮╭╮  │ ╰─╯╰─╯  ││    ││││       ╰╯
+  48.33 ┤   │╰╮      ╭──╮      │││││╰╮│╰╯│  │         ╰╯    ╰╯╰╯
+  40.87 ┤╭╮ │ ╰╮╭╮  ╭╯  ╰─╮╭╮╭─╯╰╯╰╯ ╰╯  ╰──╯
+  33.40 ┤││ │  ╰╯╰╮╭╯     ││╰╯
+  25.93 ┤││╭╯     ╰╯      ╰╯
+  18.47 ┼╯││
+  11.00 ┤ ╰╯
+        └───────────┴───────────┴───────────┴───────────┴───────────┴────
+      2011        2012        2013        2014        2015        2016
+ o-&gt;  Flow charts
+                      .--.            .---.  .---. .---.  .---.    .---.  .---.
+                      |  |   OS API   '---'  '---' '---'  '---'    '---'  '---'
+                      v  |              |      |     |      |        |      |
+             .-. .-. .-. |              v      v     |      v        |      v
+         .--&gt;'-' '-' '-' |            .------------. | .-----------. |  .-----.
+         |     \  |  /   |            | Filesystem | | | Scheduler | |  | MMU |
+         |      v . v    |            '------------' | '-----------' |  '-----'
+         |_______/ \_____|                   |       |      |        |
+                 \ /                         v       |      |        v
+                  |     ____              .----.     |      |    .---------.
+                  '--&gt; /___/              | IO |&lt;----'      |    | Network |
+                                          '----'            |    '---------'
+                                             |              |         |
+                                             v              v         v
+                                      .---------------------------------------.
+                                      |                  HAL                  |
+                                      '---------------------------------------'
+ o-&gt;  Block diagrams
+      vncviewer         .-,(  ),-.
+       __  _         .-(          )-.           gateway           vncserver
+      [__]|=|  ----&gt;(    internet    )-------&gt; __________ ------&gt; ____   __
+     /⠶⠶ /|_|        '-(          ).-'        [_...__...°]       |    | |==|
+                         '-.( ).-'                               |____| |  |
+                                                                 /⠶⠶⠶ / |__|
+                              Valveless --------.
+                            Pulsejet engine    /
+                                              V
+                               _________.------------------+
+                    .---------'                           /  --------&gt;
+                   /  .-------._________                  \   thrust--&gt;
+                  (  (      _________   `-----------o------+  --------&gt;
+                   \  `----'         '----'         |
+                    `------._  __^___.----.         |
+                             ||  |                  |
+                   fuel  __^ ||  | ^__spark         |GND
+                  intake     ||  |    plug          |
+                             ||  |                  |
+                             ||  |                  |
+                         ____||  `------------.     |
+                        / .---'               |     |
+                        | |                   |     |              +-+-+-+-+-+
+                    .---| |---.   __          |     |              |-+-+-+-+-|
+                 ___|  +-+-+--|--o  `---------*-----|--------------O-+-+-+-+-|
+       .-------&gt; ___  ||||||| |  power        |     *--------------O-+-+-+-+-|
+        \           | ||||||| |  switch       |     |              |-+-+-+-+-|
+          Water     `-+-+-+-+-'            +--o-----o--+           +-+-+-+-+-+
+          intake       HHO                 |           |
+                      Generator            |  +     -  |            Solar panel
+                                           +-----------+
+                                              Battery
+               =======
+                =====  symbolic antenna
+                 ===
+                  =
+                  |
+                  |          micro henry
+                  |          coil w/tuning lug
+                  |    .----.
+                  |   (.-') |
+                  |   (.-') |
+                  |   (.-') |      pico farad cap
+                  |   (.-'  |    ___  (trimmable)
+                  |   |     |   |___|
+        PC   -&gt;  .----'-----'---'---'
+        Board    `-------------------
+                 ground plane (foil)
+ o-&gt; Mindmaps
+                                            .--&gt;  Alpha
+                                           /
+                                          .----&gt;  Initial Release
+          Planning *-------.             /         \
+                            \           /           '---&gt; Patch 1
+      Initial research       \         /             \
+                *             \       /               '--&gt;  Patch 2
+                 \             \     /---------&gt; Beta
+                  \             \   /
+                   \             o o                      _______
+                    \          .---. *--.___             /       \
+                     '------&gt; (     )       '------O-&gt;  . Release .
+                               `---' o                   \_______/
+                               o  o o \
+                              /    \ \ \
+                          .--'      \ \ \
+                         /           \ \ '----+-&gt;  Push backs
+                        /             \ \      \
+                       /|              \ \      '----&gt; Setbacks
+                      / |               \ \
+                     V /|                \ '-----&gt; Reception
+                Team  / |                 \
+                     v /|                  \
+             Worklaod / .                   '--&gt;&gt; Career change
+                     V /
+                 PTO  /
+                     V
+                 Bug
+ o-&gt;  It can do complex stuff such as circuit diagrams
+       +10-15V           ___0,047R
+      *---------o-----o-|___|-o--o---------o----o-------.
+    + |         |     |       |  |         |    |       |
+    -===-      _|_    |       | .+.        |    |       |
+    -===-      .-.    |       | | | 2k2    |    |       |
+    -===-    470| +   |       | | |        |    |      _|_
+    - |       uF|     '--.    | '+'       .+.   |      \ / LED
+      +---------o        |6   |7 |8    1k | |   |      -+-
+             ___|___   .-+----+--+--.     | |   |       |
+              -═══-    |            |     '+'   |       |
+                -      |            |1     |  |/  BC    |
+               GND     |            +------o--+   547   |
+                       |            |      |  |`&gt;       |
+                       |            |     ,+.   |       |
+               .-------+            | 220R| |   o----||-+  IRF9Z34
+               |       |            |     | |   |    |+-&gt;
+               |       |  MC34063   |     `+'   |    ||-+
+               |       |            |      |    |       |  BYV29     -12V6
+               |       |            |      '----'       o--|&lt;-o----o--X OUT
+ 6000 micro  - | +     |            |2                  |     |    |
+ Farad, 40V ___|_____  |            |--o                C|    |    |
+ Capacitor  ~ ~ ~ ~ ~  |            | GND         30uH  C|    |   --- 470
+               |       |            |3      1nF         C|    |   ###  uF
+               |       |            |-------||--.       |     |    | +
+               |       '-----+----+-'           |      GND    |   GND
+               |            5|   4|             |             |
+               |             |    '-------------o-------------o
+               |             |                           ___  |
+               `-------------*------/\/\/------------o--|___|-'
+                                     2k              |       1k0
+                                                    .+.
+                                                    | | 5k6 + 3k3
+                                                    | | in Serie
+                                                    '+'
+                                                     |
+                                                    GND
+o-&gt; Latest addition: Styling of tagged shapes
+    .~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
+    !                                                                     :
+    !   +------+   .------.    .------.   .--------------------------.    :
+    !   | {r1} |   | {r2} |   (        )  |                          |    :
+    !   +------+   '------'    '------'   |                          |    :
+    !     _______            ________     |                          |    :
+    !    /       \      /\   \       \    |                          |    :
+    !   /         \    /  \   )       )   |                          |    :
+    !   \         /    \  /  /_______/    |                          |    :
+    !    \_______/      \/                |                          |    :
+    !                                     |     {bigrect}            |    :
+    !                                     |                          |    :
+    !                                     `--------------------------'    :
+    !                                                                     :
+    !      ___        ____         ____           ____                    !
+    !    ,'   `.    ,'    `.     .'    `.       .'    `.                  !
+    !   /   8   \  /   9    \   /        \     /        \                 !
+    !   \  {a}  /  \   {b}  /  (    10    )   (    11    )                !
+    !    `.___.'    `.____.'    \  {red} /     \  {a,b} /                 !
+    !                            `.____.'       `.____.'                  !
+    !        ______                                                       !
+    !      ,'      `.                                                     !
+    !     /          \    .-----. .----.                                  !
+    !    |     12     |    \   /   \    \           {container}           !
+    !    |    {c}     |     \ /     \    \                                !
+    !     \          /       '       '----'                               !
+    !      `.______.'                                                     !
+    !                                                                     !
+    `~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+  .-------------.
+ / Advantages: /
+'-------------'
+ -* Plain text format
+    Ultimately portable, backward compatible and future proof.
+ -* Degrades gracefully
+    Even when not using a graphical renderer, it would still looks good
+    as text based diagrams. Paste the text in your source code.
+ -* Easiest to use. Anyone knows how to edit text.
+# Legend:
+r1 = {
+    fill: papayawhip;
+}
+r2 = {
+    fill: crimson;
+}
+a = {
+    stroke-dasharray: 8;
+    fill: lightblue;
+}
+b = {
+    stroke: blue;
+}
+bigrect = {
+    fill: yellow;
+    stroke: red;
+}
+red = {
+    fill:red;
+    stroke:blue;
+}</code></pre>
+</div>
 
 <h2 id="svgbob-otherdemo"><a class="header" href="#svgbob-otherdemo">svgbob-otherdemo</a></h2>
-<pre class="diagram-svgbob" style="text-align: center;">
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="6320" class="svgbob_84a3158c8faa4f2090fbaffd044ef9d4">
-  <style>.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 line, .svgbob_84a3158c8faa4f2090fbaffd044ef9d4 path, .svgbob_84a3158c8faa4f2090fbaffd044ef9d4 circle, .svgbob_84a3158c8faa4f2090fbaffd044ef9d4 rect, .svgbob_84a3158c8faa4f2090fbaffd044ef9d4 polygon {
+<div class="diagram-box"><style>.diagram-box{position:relative;text-align:center;margin:0.6em auto;}.diagram-box .diagram-toggle-btn{position:absolute;top:8px;left:8px;z-index:6;opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s ease,visibility .15s ease,transform .15s ease;padding:0;line-height:0;cursor:pointer;font-family:inherit;border:1px solid rgba(127,127,127,.4);border-radius:4px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.9);color:#444;box-shadow:0 1px 2px rgba(0,0,0,.08);}.diagram-box .diagram-toggle-btn svg{display:block;width:16px;height:16px;}.diagram-box:hover .diagram-toggle-btn,.diagram-box .diagram-toggle-btn:focus-visible{opacity:1;visibility:visible;transform:translateY(0);}.diagram-box .diagram-toggle-btn::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);white-space:nowrap;background:#333;color:#fff;padding:3px 8px;border-radius:4px;font-size:12px;line-height:1.4;opacity:0;visibility:hidden;transition:opacity .15s ease,visibility .15s ease;pointer-events:none;}.diagram-box .diagram-toggle-btn:hover::after,.diagram-box .diagram-toggle-btn:focus-visible::after{opacity:1;visibility:visible;}.diagram-box .diagram-toggle-source{text-align:left;max-height:420px;overflow:auto;margin:0;background:#fff;border:1px solid rgba(127,127,127,.12);border-radius:6px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);box-sizing:border-box;}.diagram-box .diagram-toggle-source code{white-space:pre-wrap;font-size:13px;}</style><button type="button" class="diagram-toggle-btn" data-tooltip="View source" title="View source" aria-label="View source" onclick="var p=this.parentNode,q=p.querySelector(&#39;.diagram-toggle-source&#39;),i=p.querySelector(&#39;.diagram-toggle-image&#39;);var s=q.hidden;i.hidden=s;q.hidden=!s;var t=s?&#39;Show image&#39;:&#39;View source&#39;;this.title=t;this.setAttribute(&#39;aria-label&#39;,t);this.setAttribute(&#39;data-tooltip&#39;,t)"><svg viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg></button>
+<div class="diagram-toggle-image">
+<div class="diagram-svgbob"><svg xmlns="http://www.w3.org/2000/svg" width="760" height="6320" class="svgbob_924893f8666c425d8909509f4d16dee2">
+  <style>.svgbob_924893f8666c425d8909509f4d16dee2 line, .svgbob_924893f8666c425d8909509f4d16dee2 path, .svgbob_924893f8666c425d8909509f4d16dee2 circle, .svgbob_924893f8666c425d8909509f4d16dee2 rect, .svgbob_924893f8666c425d8909509f4d16dee2 polygon {
   stroke: black;
   stroke-width: 2;
   stroke-opacity: 1;
@@ -3492,76 +3945,59 @@ endmodule
   stroke-linecap: round;
   stroke-linejoin: miter;
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 text {
+.svgbob_924893f8666c425d8909509f4d16dee2 text {
   white-space: pre;
   fill: black;
   font-family: Iosevka Fixed, monospace;
   font-size: 14px;
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 rect.backdrop {
+.svgbob_924893f8666c425d8909509f4d16dee2 rect.backdrop {
   stroke: none;
   fill: white;
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .broken {
+.svgbob_924893f8666c425d8909509f4d16dee2 .broken {
   stroke-dasharray: 8;
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .filled {
+.svgbob_924893f8666c425d8909509f4d16dee2 .filled {
   fill: black;
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .bg_filled {
+.svgbob_924893f8666c425d8909509f4d16dee2 .bg_filled {
   fill: white;
   stroke-width: 1;
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .nofill {
+.svgbob_924893f8666c425d8909509f4d16dee2 .nofill {
   fill: white;
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .end_marked_arrow {
+.svgbob_924893f8666c425d8909509f4d16dee2 .end_marked_arrow {
   marker-end: url(#arrow);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .start_marked_arrow {
+.svgbob_924893f8666c425d8909509f4d16dee2 .start_marked_arrow {
   marker-start: url(#arrow);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .end_marked_diamond {
+.svgbob_924893f8666c425d8909509f4d16dee2 .end_marked_diamond {
   marker-end: url(#diamond);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .start_marked_diamond {
+.svgbob_924893f8666c425d8909509f4d16dee2 .start_marked_diamond {
   marker-start: url(#diamond);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .end_marked_circle {
+.svgbob_924893f8666c425d8909509f4d16dee2 .end_marked_circle {
   marker-end: url(#circle);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .start_marked_circle {
+.svgbob_924893f8666c425d8909509f4d16dee2 .start_marked_circle {
   marker-start: url(#circle);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .end_marked_open_circle {
+.svgbob_924893f8666c425d8909509f4d16dee2 .end_marked_open_circle {
   marker-end: url(#open_circle);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .start_marked_open_circle {
+.svgbob_924893f8666c425d8909509f4d16dee2 .start_marked_open_circle {
   marker-start: url(#open_circle);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .end_marked_big_open_circle {
+.svgbob_924893f8666c425d8909509f4d16dee2 .end_marked_big_open_circle {
   marker-end: url(#big_open_circle);
 }
-
-.svgbob_84a3158c8faa4f2090fbaffd044ef9d4 .start_marked_big_open_circle {
+.svgbob_924893f8666c425d8909509f4d16dee2 .start_marked_big_open_circle {
   marker-start: url(#big_open_circle);
 }
-
 </style>
   <defs>
     <marker id="arrow" viewbox="-2 -2 8 8" refx="4" refy="2" markerwidth="7" markerheight="7" orient="auto-start-reverse">
@@ -5927,8 +6363,335 @@ endmodule
     <line x1="144" y1="6248" x2="136" y2="6252" class="solid"></line>
     <line x1="144" y1="6248" x2="176" y2="6248" class="solid"></line>
   </g>
-</svg>
-</pre>
+</svg></div>
+</div>
+<pre class="diagram-toggle-source" hidden=""><code>A
+       |
+       |
+ &lt;|----+----|&gt;
+       |
+       |
+       _
+       V
+                                      .-.                           .--------.
+                                   .-+   |                         |          |
+                               .--+       '--.                     |'--------'|
+                              |  Server Cloud |&lt;------------------&gt;| Database |
+                               '-------------'                     |          |
+                                   ^      ^                         '--------'
+                    Internet       |      |                              ^
+          .------------------------'      '-------------.                |
+          |                                             |                v
+          v                                             v              .------.       .------.
+     .--------.      WiFi     .--------.  Bluetooth  .-----.          / #  # /|      / #  # /|
+     |        |&lt;-------------&gt;|        |&lt;----------&gt;|       |        +------+/| LAN +------+/|
+     |Windows |               |  OS X  |            |  iOS  |        |      +/|&lt;---&gt;|      +/|
+     +--------+               +--------+            |       |        |Ubuntu+/|     |Ubuntu+/|
+    /// ____ \\\             /// ____ \\\           |   o   |        |      +/      |      +/
+   '------------'           '------------'           '-----'         '------'       '------'
+      Laptop 1                 Laptop 2              Tablet 1         Dedicated Server Rack
+   ^
+   |
+   |
+       ┏━━━━┳━━━━┳   ┳━━━━┓
+       ┃ A₁ ┃ A₂ ┃ ⋯ ┃ Aⱼ ┃ &lt;--- Basis
+       ┡━━━━╇━━━━╇   ╇━━━━┩
+       │ 16 │  4 │ ⋯ │  9 │
+     ⎧ ├────┼────┼   ┼────┤
+     │ │  1 │ -2 │ ⋯ │ 10 │
+  Xᵢ ⎨ ├────┼────┼   ┼────┤
+     │ │  8 │ 52 │ ⋯ │  0 │
+     ⎩ ├────┼────┼   ┼────┤
+       │ 14 │  0 │ ⋯ │ -1 │
+       └────┴────┴   ┴────┘
+  ---|&gt;
+           .-.           .-.           .-.           .-.           .-.           .-.
+          |   |         |   |         |   |         |   |         |   |         |   |
+       .---------.   .--+---+--.   .--+---+--.   .--|   |--.   .--+   +--.   .------|--.
+      |           | |           | |   |   |   | |   |   |   | |           | |   |   |   |
+       '---------'   '--+---+--'   '--+---+--'   '--|   |--'   '--+   +--'   '--|------'
+          |   |         |   |         |   |         |   |         |   |         |   |
+           '-'           '-'           '-'           '-'           '-'           '-'
+                                 ____                      *
+                                |    |_____+---.           |
+                                o     _____|    )----------)-------.
+                               / \   |     +---'           |     __|__
+                              /___\  |                     |     \   /
+                                |    '-------------.       |      \ /
+              A ----------------'                  |       |       o
+                   .-------------------.     o-----)-------'       |
+                   |                   |___+---.   |               |___+---.
+              B ---*---.__+---.         ___|    )--*--.__++---.     ____)   )----- Y
+                        __|    )o---*--'   +---'    ______))   )---'   +---'
+              C -------'  +---'     |              |     ++---'
+                                    |              o
+                                    |             / \
+                                    |            /___\
+                                    |              |
+                                    '--------------'
+          .               .                .               .--- 1          .-- 1     / 1
+         / \              |                |           .---+            .-+         +
+        /   \         .---+---.         .--+--.        |   '--- 2      |   '-- 2   / \ 2
+       +     +        |       |        |       |    ---+            ---+          +
+      / \   / \     .-+-.   .-+-.     .+.     .+.      |   .--- 3      |   .-- 3   \ / 3
+     /   \ /   \    |   |   |   |    |   |   |   |     '---+            '-+         +
+     1   2 3   4    1   2   3   4    1   2   3   4         '--- 4          '-- 4     \ 4
+.-------------------.                           ^                      .---.
+|    A Box          |__.--.__    __.--&gt;         |                      |   |
+|                   |        '--'               v                      |   |
+'-------------------'                                                  |   |
+                       Round                                       *---(-. |
+  .-----------------.  .-------.    .----------.         .-------.     | | |
+ |   Mixed Rounded  | |         |  / Diagonals  \        |   |   |     | | |
+ | &amp; Square Corners |  '--. .--'  /              \       |---+---|     '-)-'       .--------.
+ '--+------------+-'  .--. |     '-------+--------'      |   |   |       |        / Search /
+    |            |   |    | '---.        |               '-------'       |       '-+------'
+    |&lt;----------&gt;|   |    |      |       v                Interior                 |     ^
+    '           &lt;---'      '----'   .-----------.              ---.     .---       v     |
+ .------------------.  Diag line    | .-------. +---.              \   /           .     |
+ |   if (a &gt; b)     +---.      .---&gt;| |       | |    | Curved line  \ /           / \    |
+ |   obj-&gt;fcn()     |    \    /     | '-------' |&lt;--'                +           /   \   |
+ '------------------'     '--'      '--+--------'      .--. .--.     |  .-.     +Done?+-'
+    .---+-----.                        |   ^           |\ | | /|  .--+ |   |     \   /
+    |   |     | Join                   |   | Curved    | \| |/ | |    \    |      \ /
+    |   |     +----&gt;  |                 '-'  Vertical  '--' '--'  '--  '--'        +  .---.
+    '---+-----'       |                                                            |  | 3 |
+                      v                             not:line    'quotes'        .-'   '---'
+                  .---+--------.            /            A || B   *bold*       |        ^
+                 |   Not a dot  |      &lt;---+---&lt;--    A dash--is not a line    v        |
+                  '---------+--'          /           Nor/is this.            ---
+  &lt;|---
+    _|_
+    \ /
+     '
+  +-------+         +-----------+
+  | Base  |         | Interface |
+  +---^---+         +-----^-----+
+     /_\                 /_\     _
+      |                   :     (_) OtherInterface
+      |                   :      |
+      |                   :      |
+ +---------+      +----------------+
+ | Derived |      | Implementation |
+ +---------+      +----------------+
+                         |                        |
+                   _____\|                        |/_____
+                        /|                        |\
+                         |                        |
+    -----------                           __________
+         ^               |           |         ^
+        /|\              |           |        /|\
+         |              \|/         \|/        |
+         |           ----V----   ____V_____    |
+Poor man's rail road
+Style #1
+       ┌------┐   .-.  ┌---┐
+o______| elem |__( ; )_| n |_____o
+   ◝   └------┘   `-'  └---┘  ◜
+   | ╭------&gt;-----╮           |
+   | |    ┌---┐   |           |
+   ◟_◞____| x |___◟___________◞
+   |   ◜  └---┘  ◝            |
+   |   |   .-.   |            |
+   |   `--( , )--'            ^
+   |       `-'                |
+   |   ╭--------&gt;--------╮    |
+   |   |  ┌---┐   .-.    |    |
+   ◟___◞__| x |__( , )___◟____◞
+        | └---┘   `-'  |
+        `-------&lt;------'
+                                   .------------&gt;---------------.
+       ┌-------------┐  .-.   .-.  |  ┌------┐  .-.   ┌-----┐   |    .-.   ┌------┐
+  O____| struct_name |_( : )_( | )_◞__| name |_( : )__| tpe |___◟___( | )__| body |______O
+    ◝  └-------------┘  `-'   `-'   ◜ └------┘  `-'   └-----┘  ◝     `-'   └------┘  ◜
+    |                               |                    .-.   |                     |
+    |                               `------------&lt;------( , )--'                     |
+    |                                                    `-'                         |
+    `--------------------------------------------------------------------------------'
+Style #2
+       ┌------┐   .-.  ┌---┐
+o--╮---| elem |--( ; )-| n |--╭--o
+   |   └------┘   `-'  └---┘  |
+   | ╭------&gt;------╮          |
+   | |    ┌---┐    |          |
+   ╰-╯-╭--| x |--╮-╰----------╯
+   |   |  └---┘  |            |
+   |   |   .-.   |            |
+   |   `--( , )--'            ^
+   |       `-'                |
+   |  ╭--------&gt;---------╮    |
+   |  |   ┌---┐   .-.    |    |
+   ╰--╰-╭-| x |--( , )-╮-╯----╯
+        | └---┘   `-'  |
+        `-------&lt;------'
+                                   .------------&gt;-----------------.
+       ┌-------------┐  .-.   .-.  |   ┌------┐  .-.   ┌-----┐    |    .-.   ┌------┐
+  O-╮--| struct_name |-( : )-( | )-╰-╮-| name |-( : )--| tpe |--╮-╯---( | )--| body |--╭---O
+    |  └-------------┘  `-'   `-'    | └------┘  `-'   └-----┘  |      `-'   └------┘  |
+    |                                |                    .-.   |                      |
+    |                                `------------&lt;------( , )--'                      |
+    |                                                     `-'                          |
+    `----------------------------------------------------------------------------------'
+        120      90      60
+   135    ^     ^     ^     ^ 45
+      ^    \    |    /    .'
+       `.   \   |   /   .'
+         `.  \  |  /  .'
+           `. \ | / .'
+             `.\_/.'
+ 180 &lt;---------(_)-------------&gt; 0
+             .'/|\`.
+           .' / | \ `.
+         .'  /  |  \  `.
+       .'   /   |   \   `.
+      V    /    |    \    `.
+   225    V     V     V     V
+        240    270   300    315
+            120      90      60
+       135   ^      ^     ^     ^ 45
+  150     ^    \    |    /    .'        ◥ 30
+    ◤      `.   \   |   /   .'      ⠠⠐⠈
+     ⠈⠐⠠     `.  \  |  /  .'    ⠠⠐⠈
+         ⠈⠐⠠   `. \ | / .'  ⠠⠐⠈
+             ⠈⠐⠠ `.\_/.'⠠⠐⠈
+180 &lt;--------------(_)------------------&gt; 0
+              ⠠⠐⠈.'/|\`.⠈⠐⠠
+          ⠠⠐⠈  .' / | \ `.  ⠈⠐⠠
+ 210  ⠠⠐⠈    .'  /  |  \  `.    ⠈⠐⠠
+    ◣      .'   /   |   \   `.      ⠈⠐⠠  330
+          V    /    |    \    `.        ◢
+       225    V     V     V     V
+            240    270   300    315
+      ^ ^ ^
+       \|/
+        .
+       /|\
+      v V v
+      ^ ^ ^
+       \|/
+      &lt;-+-&gt;
+       /|\
+      v V v
+       \|/
+       -.-
+       /|\
+        |   \/
+       -+-  /\
+        |
+        |      |    |      |
+        +--  --+    +--  --+   +--  --+
+                    |      |   |      |
+                     |    |  |     |
+             .- -.   .-  -.  '-   -'
+             |   |
+        .-   -.  .-.
+        '-   -'  | |  | |
+                      '-'
+      \      |    /  |
+       .     .   .   .
+       |    /    |    \
+        \    /
+         .  .
+        /    \
+       .    .    .    .
+      /|    |\   |\  /|
+                 | \/ |
+                 | /\ |
+      \|   |/    |/  \|
+       '   '     '    '
+       \
+       /
+       /
+       \
+       /      \
+      .--    --.
+     /          \
+       /   \
+    --.     .--
+     /       \
+                       \         /
+       --.--  --.--   --.--   --.--
+        /        \
+        |   |
+        .   .
+       /|   |\
+        |
+        .
+       / \
+       \|/
+        .
+       /|\
+       \|/
+      --.--
+       /|\
+       \|/
+      --+--
+       /|\
+        |/  \|
+        .    .
+        |    |
+       -.  -.
+       /     \
+        .-  .-
+       /     \
+       /   /     \    \
+      '-  '-------'   -'
+       .-.
+      (   )
+       '-'
+       .------.
+      (        )
+       '------'
+        ________
+       /       /
+      /       /
+     /_______/
+        ________
+        \       \
+         \       \
+          \_______\
+     +---------+
+      \         \
+       +---------+
+         |/     \|
+     ----+       +----
+         |`&gt;   &lt;'|
+           |   |
+         | /   \ |
+   ------&lt;'     `&gt;----
+         |\     /|
+           |   |
+           |   |
+         |.&gt;   &lt;.|
+    -----+       +----
+         |\     /|
+           |   |
+           |   |
+         |/     \|
+   ------&lt;.     .&gt;----
+         | \   / |
+           |   |
+           |   |
+         |/     \|
+     ----+       +----
+         |`&gt;   &lt;'|
+           |   |
+         | +   + |
+   ------&lt;'     `&gt;----
+         |\     /|
+           |   |
+           |   |
+         |.&gt;   &lt;.|
+    -----+       +----
+         |\     /|
+           |   |
+           |   |
+         |/     \|
+   ------&lt;.     .&gt;----
+         | +   + |
+           |   |
+           |   |</code></pre>
+</div>
 
 <script>
 let miv_isDragging = false;
